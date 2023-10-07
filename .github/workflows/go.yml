@@ -26,5 +26,5 @@ jobs:
 
     - name: Test
       env:
-        SUPER_SECRET: ${{ secrets.BOT_TOKEN }}
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
       run: go test -v ./...
