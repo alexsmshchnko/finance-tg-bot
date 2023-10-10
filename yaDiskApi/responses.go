@@ -5,15 +5,20 @@ import (
 	"time"
 )
 
-type SuccessResponse struct {
-	OperationId string `json:"operation_Id"`
-	Href        string `json:"href"`
-	Method      string `json:"method"`
-	Templated   bool   `json:"templated"`
+type Response struct {
+	SuccessResponse
+	ErrorResponse
 }
 
-func (e *SuccessResponse) Info() string {
-	return fmt.Sprintf("OperationId: %s\nHref: %s\nMethod: %s\nTemplated: %s\n", e.OperationId, e.Href, e.Method, e.Templated)
+type SuccessResponse struct {
+	OperationId string `json:"operation_Id"` //Идентификатор операции
+	Href        string `json:"href"`         //URL
+	Method      string `json:"method"`       //HTTP-метод
+	Templated   bool   `json:"templated"`    //Признак шаблонизированного URL
+}
+
+func (e *SuccessResponse) String() string {
+	return fmt.Sprintf("Response: %s %s", e.Method, e.Href)
 }
 
 type ErrorResponse struct {
@@ -22,8 +27,8 @@ type ErrorResponse struct {
 	Error       string `json:"error"`       //Уникальный код ошибки
 }
 
-func (e *ErrorResponse) Info() string {
-	return fmt.Sprintf("message: %s\ndescription: %s\nerror: %s\n", e.Message, e.Description, e.Error)
+func (e *ErrorResponse) String() string {
+	return fmt.Sprintf("Error: %s %s", e.Error, e.Description)
 }
 
 type Disk struct {

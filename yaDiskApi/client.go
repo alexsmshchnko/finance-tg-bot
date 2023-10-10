@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-const baseURL = "https://cloud-api.yandex.net/v1/disk/"
+const (
+	baseURL     = "https://cloud-api.yandex.net/v1/disk/"
+	resourePath = "resources/"
+)
 
 type Client struct {
 	oAuth   string
@@ -34,6 +37,22 @@ func NewClient(oAuth string, timeout time.Duration) (*Client, error) {
 	}, nil
 }
 
+func (c *Client) sendReq(request *http.Request, response *Response) (statusCode int, err error) {
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", "OAuth "+c.oAuth)
+
+	resp, err := c.client.Do(request)
+	if err != nil {
+		return resp.StatusCode, err
+	}
+	defer resp.Body.Close()
+
+	statusCode = resp.StatusCode
+	err = json.NewDecoder(resp.Body).Decode(&response)
+
+	return statusCode, err
+}
+
 func (c *Client) sendRequest(req *http.Request, data interface{}) error {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "OAuth "+c.oAuth)
@@ -44,7 +63,7 @@ func (c *Client) sendRequest(req *http.Request, data interface{}) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
+	if http.StatusOK > resp.StatusCode || resp.StatusCode >= http.StatusBadRequest {
 		errorResponse := ErrorResponse{}
 		if err = json.NewDecoder(resp.Body).Decode(&errorResponse); err == nil {
 			return fmt.Errorf("%sstatus code: %d\n", errorResponse.Info(), resp.StatusCode)
@@ -77,7 +96,7 @@ func (c *Client) GetDiskInfo(ctx context.Context) (*Disk, error) {
 }
 
 func (c *Client) GetFiles(ctx context.Context, limit int) (*ResourceList, error) {
-	req, err := http.NewRequest("GET", c.baseURl+"resources?path=app:/", nil)
+	req, err := http.NewRequest("GET", c.baseURl+resourePath+"?path=app:/", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -95,4 +114,59 @@ func (c *Client) GetFiles(ctx context.Context, limit int) (*ResourceList, error)
 	}
 
 	return &filesResourceList, nil
+}
+
+func (c *Client) MkDir(path string, ctx context.Context) (*SuccessResponse, error) {
+	req, err := http.NewRequest("PUT", c.baseURl+resourePath+"?path="+path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req = req.WithContext(ctx)
+
+	resp := SuccessResponse{}
+
+	if err = c.sendRequest(req, &resp); err != nil {
+		return nil, err
+	}
+
+	return &resp, nil
+}
+
+func (c *Client) Cp(from, path string, ctx context.Context) (statusCode int, err error) {
+	req, err := http.NewRequest("POST", c.baseURl+resourePath+"copy?from="+from+"&path="+path, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	req = req.WithContext(ctx)
+
+	resp := Response{}
+
+	if statusCode, err = c.sendReq(req, &resp); err != nil {
+		return statusCode, err
+	}
+
+	if statusCode != 201 && statusCode != 202 {
+		err = fmt.Errorf(resp.ErrorResponse.String())
+	}
+
+	return statusCode, err
+}
+
+func (c *Client) GetDownloadLink(path string, ctx context.Context) (*SuccessResponse, error) {
+	req, err := http.NewRequest("GET", c.baseURl+resourePath+"download?path="+path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req = req.WithContext(ctx)
+
+	resp := SuccessResponse{}
+
+	if err = c.sendRequest(req, &resp); err != nil {
+		return nil, err
+	}
+
+	return &resp, nil
 }
