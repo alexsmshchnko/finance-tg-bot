@@ -113,6 +113,15 @@ func Test_GetUploadLink_OK(t *testing.T) {
 	assert.NotEmpty(t, link)
 }
 
+func Test_UploadFile_OK(t *testing.T) {
+	client, _ := NewClient(AUTH_TOKEN, CLIENT_TIMEOUT)
+	link, statusCode, err := client.UploadFile("disk:/Приложения/Финансовый бот/receipts.xlsx", true, context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, 200, statusCode)
+	assert.NotEmpty(t, link)
+}
+
 func Test_GetOperation_WrongOperation(t *testing.T) {
 	client, _ := NewClient(AUTH_TOKEN, CLIENT_TIMEOUT)
 	status, statusCode, err := client.GetOperation("someOperation", context.Background())

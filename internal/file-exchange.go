@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func downloadFile(filepath string, url string) (err error) {
+func DownloadFile(filepath string, url string) (err error) {
 
 	// Create the file
 	out, err := os.Create(filepath)
@@ -37,7 +37,25 @@ func downloadFile(filepath string, url string) (err error) {
 	return nil
 }
 
-func uploadFile() (err error) {
+func UploadFile(filepath string, url string) error {
+	data, err := os.Open(filepath)
+	if err != nil {
+		return err
+	}
+	defer data.Close()
+
+	req, err := http.NewRequest("PUT", url, data)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "text/plain")
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
 
 	return nil
 }

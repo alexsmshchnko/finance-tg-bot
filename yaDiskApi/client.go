@@ -213,6 +213,14 @@ func (c *Client) GetUploadLink(path string, overwrite bool, ctx context.Context)
 	return
 }
 
+func (c *Client) UploadFile(path string, overwrite bool, ctx context.Context) (href string, statusCode int, err error) {
+	// req, err := http.NewRequest("POST", c.baseURl+resourePath+"upload?path="+path+"&overwrite="+strconv.FormatBool(overwrite), nil)
+	// if err != nil {
+	// 	return
+	// }
+	return
+}
+
 func (c *Client) GetOperation(operation_id string, ctx context.Context) (status string, statusCode int, err error) {
 	req, err := http.NewRequest("GET", c.baseURl+"operations/"+operation_id, nil)
 	if err != nil {
