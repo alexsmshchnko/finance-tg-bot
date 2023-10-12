@@ -5,40 +5,42 @@ import (
 	"time"
 )
 
-type Response struct {
-	SuccessResponse
-	ErrorResponse
-}
-
-type SuccessResponse struct {
+type Success struct {
 	OperationId string `json:"operation_Id"` //Идентификатор операции
 	Href        string `json:"href"`         //URL
 	Method      string `json:"method"`       //HTTP-метод
 	Templated   bool   `json:"templated"`    //Признак шаблонизированного URL
 }
 
-func (e *SuccessResponse) String() string {
+func (e *Success) String() string {
 	return fmt.Sprintf("Response: %s %s", e.Method, e.Href)
 }
 
-type ErrorResponse struct {
+type Error struct {
 	Message     string `json:"message"`     //Человекочитаемое описание ошибки
 	Description string `json:"description"` //Техническое описание ошибки
 	Error       string `json:"error"`       //Уникальный код ошибки
+	Limit       int    `json:"limit"`       //Значение лимита
+	Reason      string `json:"reason"`      //Причина срабатывания лимита
 }
 
-func (e *ErrorResponse) String() string {
+func (e *Error) String() string {
 	return fmt.Sprintf("Error: %s %s", e.Error, e.Description)
+}
+
+type Response struct {
+	Success
+	Error
 }
 
 type Disk struct {
 	MaxFileSize                int           `json:"max_file_size"`
 	PaidMaxFileSize            int64         `json:"paid_max_file_size"`
-	TotalSpace                 int64         `json:"total_space"`
-	TrashSize                  int           `json:"trash_size"`
+	TotalSpace                 int64         `json:"total_space"` //Общий объем Диска, доступный пользователю, в байтах
+	TrashSize                  int           `json:"trash_size"`  //Объем файлов, находящихся в Корзине, в байтах
 	IsPaid                     bool          `json:"is_paid"`
-	UsedSpace                  int64         `json:"used_space"`
-	SystemFolders              SystemFolders `json:"system_folders"`
+	UsedSpace                  int64         `json:"used_space"`     //Объем файлов, уже хранящихся на Диске, в байтах
+	SystemFolders              SystemFolders `json:"system_folders"` //Абсолютные адреса системных папок Диска
 	User                       User          `json:"user"`
 	UnlimitedAutouploadEnabled bool          `json:"unlimited_autoupload_enabled"`
 	Revision                   int64         `json:"revision"`
@@ -46,6 +48,11 @@ type Disk struct {
 
 func (d *Disk) String() string {
 	return fmt.Sprintf("DISK:\nUser login: %s\nUser UID: %s\nUser country: %s", d.User.Login, d.User.UID, d.User.Country)
+}
+
+type DiskResponse struct {
+	Disk
+	Error
 }
 
 type User struct {
@@ -89,6 +96,11 @@ func (r *ResourceList) String() string {
 	}
 	res += fmt.Sprintf("Items total: %d", r.Embedded.Total)
 	return res
+}
+
+type ResourceResponse struct {
+	ResourceList
+	Error
 }
 
 type TrashResourceList struct {
@@ -151,4 +163,9 @@ type Exif struct {
 type CommentIds struct {
 	PrivateResource string `json:"private_resource"` //Идентификатор комментариев для приватных ресурсов
 	PublicResource  string `json:"public_resource"`  //Идентификатор комментариев для публичных ресурсов
+}
+
+type StatusResponse struct {
+	Status string `json:"status"` //Статус операции
+	Error
 }

@@ -7,5 +7,5 @@ import (
 )
 
 func Test_runClear(t *testing.T) {
-	assert.NoError(t, DiskInfo())
+	assert.NoError(t, run())
 }
