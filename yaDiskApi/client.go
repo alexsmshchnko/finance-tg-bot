@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -57,30 +58,6 @@ func (c *Client) sendReq(request *http.Request, response interface{}) (statusCod
 
 	return statusCode, err
 }
-
-// func (c *Client) sendRequest(req *http.Request, data interface{}) error {
-// 	req.Header.Set("Accept", "application/json")
-// 	req.Header.Set("Authorization", "OAuth "+c.oAuth)
-
-// 	resp, err := c.client.Do(req)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer resp.Body.Close()
-
-// 	if http.StatusOK > resp.StatusCode || resp.StatusCode >= http.StatusBadRequest {
-// 		errorResponse := Error{}
-// 		if err = json.NewDecoder(resp.Body).Decode(&errorResponse); err == nil {
-// 			return fmt.Errorf("%sstatus code: %d\n", errorResponse.String(), resp.StatusCode)
-// 		}
-
-// 		return fmt.Errorf("unknown error, status code: %d\n", resp.StatusCode)
-// 	}
-
-// 	json.NewDecoder(resp.Body).Decode(&data)
-
-// 	return nil
-// }
 
 func (c *Client) GetDiskInfo(ctx context.Context) (disk *Disk, statusCode int, err error) {
 	req, err := http.NewRequest("GET", c.baseURl, nil)
@@ -192,6 +169,29 @@ func (c *Client) Copy(from, path string, ctx context.Context) (statusCode int, e
 
 func (c *Client) GetDownloadLink(path string, ctx context.Context) (href string, statusCode int, err error) {
 	req, err := http.NewRequest("GET", c.baseURl+resourePath+"download?path="+path, nil)
+	if err != nil {
+		return
+	}
+
+	req = req.WithContext(ctx)
+
+	resp := Response{}
+
+	if statusCode, err = c.sendReq(req, &resp); err != nil {
+		return
+	}
+
+	if statusCode != 200 {
+		err = fmt.Errorf(resp.Error.String())
+	}
+
+	href = resp.Success.Href
+
+	return
+}
+
+func (c *Client) GetUploadLink(path string, overwrite bool, ctx context.Context) (href string, statusCode int, err error) {
+	req, err := http.NewRequest("GET", c.baseURl+resourePath+"upload?path="+path+"&overwrite="+strconv.FormatBool(overwrite), nil)
 	if err != nil {
 		return
 	}
