@@ -21,10 +21,7 @@ func init() {
 }
 
 var (
-	AUTH_TOKEN string
-)
-
-const (
+	AUTH_TOKEN     string
 	CLIENT_TIMEOUT = 10 * time.Second
 )
 
@@ -95,6 +92,14 @@ func Test_GetDownloadLink_OK(t *testing.T) {
 	assert.NotEmpty(t, href)
 }
 
+func Test_Download_OK(t *testing.T) {
+	client, _ := NewClient(AUTH_TOKEN, CLIENT_TIMEOUT)
+	statusCode, err := client.DownloadFile("disk:/Приложения/Финансовый бот/receipts.xlsx", "../file.txt", context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, 200, statusCode)
+}
+
 func Test_GetUploadLink_AlreadyExistsErr(t *testing.T) {
 	client, _ := NewClient(AUTH_TOKEN, CLIENT_TIMEOUT)
 	link, statusCode, err := client.GetUploadLink("disk:/Приложения/Финансовый бот/receipts.xlsx", false, context.Background())
@@ -115,11 +120,11 @@ func Test_GetUploadLink_OK(t *testing.T) {
 
 func Test_UploadFile_OK(t *testing.T) {
 	client, _ := NewClient(AUTH_TOKEN, CLIENT_TIMEOUT)
-	link, statusCode, err := client.UploadFile("disk:/Приложения/Финансовый бот/receipts.xlsx", true, context.Background())
+	statusCode, err := client.UploadFile("disk:/Приложения/Финансовый бот/672241_v01_b.jpg", "672241_v01_b.jpg", true, context.Background())
 
 	assert.NoError(t, err)
-	assert.Equal(t, 200, statusCode)
-	assert.NotEmpty(t, link)
+
+	assert.Equal(t, 201, statusCode)
 }
 
 func Test_GetOperation_WrongOperation(t *testing.T) {

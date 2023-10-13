@@ -44,7 +44,7 @@ func NewClient(oAuth string, timeout time.Duration) (client *Client, err error) 
 }
 
 func (c *Client) sendReq(request *http.Request, response interface{}) (statusCode int, err error) {
-	request.Header.Set("Accept", "application/json")
+	//request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", "OAuth "+c.oAuth)
 
 	resp, err := c.client.Do(request)
@@ -190,6 +190,17 @@ func (c *Client) GetDownloadLink(path string, ctx context.Context) (href string,
 	return
 }
 
+func (c *Client) DownloadFile(diskPath, filePath string, ctx context.Context) (statusCode int, err error) {
+	link, _, err := c.GetDownloadLink(diskPath, ctx)
+	if err != nil {
+		return
+	}
+
+	statusCode, err = download(filePath, link)
+
+	return
+}
+
 func (c *Client) GetUploadLink(path string, overwrite bool, ctx context.Context) (href string, statusCode int, err error) {
 	req, err := http.NewRequest("GET", c.baseURl+resourePath+"upload?path="+path+"&overwrite="+strconv.FormatBool(overwrite), nil)
 	if err != nil {
@@ -213,11 +224,14 @@ func (c *Client) GetUploadLink(path string, overwrite bool, ctx context.Context)
 	return
 }
 
-func (c *Client) UploadFile(path string, overwrite bool, ctx context.Context) (href string, statusCode int, err error) {
-	// req, err := http.NewRequest("POST", c.baseURl+resourePath+"upload?path="+path+"&overwrite="+strconv.FormatBool(overwrite), nil)
-	// if err != nil {
-	// 	return
-	// }
+func (c *Client) UploadFile(diskPath, filePath string, overwrite bool, ctx context.Context) (statusCode int, err error) {
+	link, _, err := c.GetUploadLink(diskPath, overwrite, ctx)
+	if err != nil {
+		return
+	}
+
+	statusCode, err = upload(filePath, link)
+
 	return
 }
 
