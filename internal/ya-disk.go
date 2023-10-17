@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv"
 )
 
 var (
@@ -16,13 +16,14 @@ var (
 )
 
 func init() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	// err := godotenv.Load()
+	// if err != nil {
+	// 	log.Fatalf("ya-disk godotenv err: %e", err)
+	// 	//log.Fatal("Error loading .env file")
+	// }
 
 	if oAuth = os.Getenv("YA_DISK_AUTH_TOKEN"); oAuth == "" {
-		panic(fmt.Errorf("failed to load env variable %s", "YA_DISK_AUTH_TOKEN"))
+		log.Fatal(fmt.Errorf("failed to load env variable %s", "YA_DISK_AUTH_TOKEN"))
 	}
 }
 

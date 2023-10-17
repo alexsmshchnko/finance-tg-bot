@@ -1,6 +1,7 @@
 package main
 
 import (
+	"finance-tg-bot/internal"
 	"fmt"
 	"log"
 	"os"
@@ -9,8 +10,9 @@ import (
 )
 
 var (
-	gToken string
-	gBot   *tgbotapi.BotAPI
+	gToken  string
+	gChatID int64
+	gBot    *tgbotapi.BotAPI
 )
 
 func init() {
@@ -25,9 +27,28 @@ func init() {
 	log.Printf("Authorized on account %s", gBot.Self.UserName)
 }
 
+func sendMsg(msg string) error {
+	_, err := gBot.Send(tgbotapi.NewMessage(gChatID, msg))
+	return err
+}
+
 func run() error {
 	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = CONFIG_TIMEOUT
+
+	//str := fmt.Sprint(internal.GetExpenseCategories())
+
+	for update := range gBot.GetUpdatesChan(updateConfig) {
+		if update.Message != nil {
+			gChatID = update.Message.Chat.ID
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
+			msg.ReplyMarkup = getCategoryKeyboard(internal.GetExpenseCategories())
+			gBot.Send(msg)
+
+			//sendMsg(str)
+		}
+	}
 
 	return nil
 }

@@ -29,13 +29,13 @@ func GetExpenseCategories() (slc []string) {
 func init() {
 	f, err := OpenFile(expensesFileName)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("OpenFile err: %e", err)
 	}
 	defer f.Close()
 
 	err = RefreshCategories(f)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("RefreshCategories err: %e", err)
 	}
 
 }
