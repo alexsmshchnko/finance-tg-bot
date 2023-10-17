@@ -53,8 +53,6 @@ func UploadFile(c *yadiskapi.Client, ctx context.Context) (err error) {
 	return
 }
 
-func AddRecord()
-
 func run() error {
 	client, err := yadiskapi.NewClient(oAuth, 10*time.Second)
 
