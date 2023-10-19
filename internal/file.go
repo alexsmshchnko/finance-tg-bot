@@ -3,9 +3,18 @@ package internal
 import (
 	"fmt"
 	"log"
+	"strconv"
+	"time"
 
 	excelize "github.com/xuri/excelize/v2"
 )
+
+type ReceiptRec struct {
+	time        time.Time
+	category    string
+	amount      int
+	description string
+}
 
 const (
 	configPage        = "conf"
@@ -14,17 +23,6 @@ const (
 	expensesFileName = "receipts.xlsx"
 	expensesPage     = "Расходы"
 )
-
-var (
-	expenseCategories []string
-	incomeCategories  []string
-)
-
-func GetExpenseCategories() (slc []string) {
-	slc = expenseCategories
-	fmt.Println(slc)
-	return
-}
 
 func init() {
 	f, err := OpenFile(expensesFileName)
@@ -40,23 +38,61 @@ func init() {
 
 }
 
+var (
+	expenseCategories []string
+	incomeCategories  []string
+)
+
+func GetExpenseCategories() (slc []string) {
+	slc = expenseCategories
+	fmt.Println(slc)
+	return
+}
+
+func NewReceiptRec(time time.Time, category string, amount int, description string) (rec *ReceiptRec) {
+	return &ReceiptRec{
+		time:        time,
+		category:    category,
+		amount:      amount,
+		description: description,
+	}
+}
+
 func OpenFile(fileName string) (file *excelize.File, err error) {
 	file, err = excelize.OpenFile(fileName)
 
 	return
+}
 
-	// last, err := f.GetRows(expensesPage)
-	// fmt.Println(last)
-	// idx := strconv.Itoa(len(last) + 1)
+func getLastIdx(f *excelize.File) (idx string, err error) {
+	last, err := f.GetRows(expensesPage)
+	if err != nil {
+		return
+	}
 
-	// err = f.SetCellValue(expensesPage, "A"+idx, time.Now().Format("01/02/2006"))
-	// err = f.SetCellValue(expensesPage, "B"+idx, "развлечения")
-	// err = f.SetCellValue(expensesPage, "C"+idx, 100+len(last))
-	// //	fmt.Println(f)
+	idx = strconv.Itoa(len(last) + 1)
+	return
+}
 
-	// err = f.Save()
+func AddNewExpense(rec *ReceiptRec) (err error) {
+	f, err := OpenFile(expensesFileName)
+	if err != nil {
+		log.Fatalf("OpenFile err: %e", err)
+	}
+	defer f.Close()
 
-	// return
+	idx, err := getLastIdx(f)
+	if err != nil {
+		return
+	}
+
+	f.SetCellValue(expensesPage, "A"+idx, rec.time)
+	f.SetCellValue(expensesPage, "B"+idx, rec.category)
+	f.SetCellValue(expensesPage, "C"+idx, rec.amount)
+	f.SetCellValue(expensesPage, "D"+idx, rec.description)
+
+	err = f.Save()
+	return
 }
 
 func RefreshCategories(f *excelize.File) (err error) {
@@ -72,9 +108,7 @@ func RefreshCategories(f *excelize.File) (err error) {
 		}
 		for _, colCell := range row {
 			expenseCategories = append(expenseCategories, colCell)
-			//fmt.Print(colCell, "\t")
 		}
-		//fmt.Println()
 	}
 
 	return

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -39,7 +40,8 @@ func processCommand(u *tgbotapi.Update) error {
 		msg.Text = "I understand /sayhi and /status."
 	case "start":
 		msg.Text = "Hi :)"
-	case "status":
+	case "sync":
+
 		msg.Text = "I'm ok."
 	default:
 		msg.Text = "I don't know that command"
@@ -51,7 +53,7 @@ func processCommand(u *tgbotapi.Update) error {
 }
 
 func processNumber(u *tgbotapi.Update) error {
-	msg := tgbotapi.NewMessage(u.Message.Chat.ID, u.Message.Text)
+	msg := tgbotapi.NewMessage(u.Message.Chat.ID, u.Message.Text+"₽")
 	msg.ReplyMarkup = getCategoryKeyboard(internal.GetExpenseCategories())
 	_, err := gBot.Send(msg)
 
@@ -59,11 +61,19 @@ func processNumber(u *tgbotapi.Update) error {
 }
 
 func processCallbackCategory(u *tgbotapi.Update) (err error) {
-	resp := u.CallbackQuery.Message.Text + "₽ на категорию \"" + u.CallbackQuery.Data + "\""
+	cat, _ := strings.CutPrefix(u.CallbackQuery.Data, "CAT:")
+	u.CallbackQuery.Message.Text, _ = strings.CutSuffix(u.CallbackQuery.Message.Text, "₽")
+	amnt, _ := strconv.Atoi(u.CallbackQuery.Message.Text)
 
+	resp := u.CallbackQuery.Message.Text + "₽ на категорию " + cat
 	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, resp)
-
 	_, err = gBot.Send(msg)
+
+	rec := internal.NewReceiptRec(time.Now(), cat, amnt, "")
+	internal.AddNewExpense(rec)
+
+	d := tgbotapi.NewDeleteMessage(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
+	gBot.Send(d)
 
 	return
 }
