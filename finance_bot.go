@@ -6,14 +6,14 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 var (
 	gToken string
-	//gChatID int64
-	gBot *tgbotapi.BotAPI
+	gBot   *tgbotapi.BotAPI
 )
 
 func init() {
@@ -58,6 +58,23 @@ func processNumber(u *tgbotapi.Update) error {
 	return err
 }
 
+func processCallbackCategory(u *tgbotapi.Update) (err error) {
+	resp := u.CallbackQuery.Message.Text + "₽ на категорию \"" + u.CallbackQuery.Data + "\""
+
+	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, resp)
+
+	_, err = gBot.Send(msg)
+
+	return
+}
+
+func processCallback(u *tgbotapi.Update) (err error) {
+	if strings.Contains(u.CallbackQuery.Data, "CAT:") {
+		err = processCallbackCategory(u)
+	}
+	return
+}
+
 func run() error {
 	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = CONFIG_TIMEOUT
@@ -65,6 +82,12 @@ func run() error {
 	updates := gBot.GetUpdatesChan(updateConfig)
 
 	for update := range updates {
+		if update.CallbackQuery != nil {
+			if update.CallbackQuery.Data != "" {
+				processCallback(&update)
+			}
+		}
+
 		if update.Message == nil { // ignore any non-Message updates
 			continue
 		}
