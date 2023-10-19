@@ -85,7 +85,7 @@ type ResourceList struct {
 		Limit  int        `json:"limit"`  //Количество элементов на странице
 		Offset int        `json:"offset"` //Смещение от начала списка
 		Path   string     `json:"path"`   //Путь к ресурсу, для которого построен список
-		Total  int        `json:total`    //Общее количество элементов в списке
+		Total  int        `json:"total"`  //Общее количество элементов в списке
 	} `json:"_embedded"`
 }
 
