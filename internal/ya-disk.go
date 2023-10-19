@@ -42,6 +42,19 @@ func CreateBkp(c *yadiskapi.Client, ctx context.Context) (err error) {
 	return
 }
 
+func SyncDiskFile(username string) (err error) {
+	client, err := yadiskapi.NewClient(oAuth, 10*time.Second)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	err = UploadFile(client, ctx)
+
+	return
+}
+
 func DownloadFile(c *yadiskapi.Client, ctx context.Context) (err error) {
 	_, err = c.DownloadFile(YA_DISK_FILE_PATH, "../"+YA_DISK_FILE_FULL_NAME, ctx)
 
@@ -49,7 +62,8 @@ func DownloadFile(c *yadiskapi.Client, ctx context.Context) (err error) {
 }
 
 func UploadFile(c *yadiskapi.Client, ctx context.Context) (err error) {
-	_, err = c.UploadFile(YA_DISK_FILE_PATH, "../"+YA_DISK_FILE_FULL_NAME, true, ctx)
+	//_, err = c.UploadFile(YA_DISK_FILE_PATH, "../"+YA_DISK_FILE_FULL_NAME, true, ctx)
+	_, err = c.UploadFile(YA_DISK_FILE_PATH, YA_DISK_FILE_FULL_NAME, true, ctx)
 
 	return
 }

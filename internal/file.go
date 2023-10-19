@@ -9,6 +9,26 @@ import (
 	excelize "github.com/xuri/excelize/v2"
 )
 
+type FileConfig struct {
+	fileName string
+
+	expensesPage      string
+	expensesConfPage  string
+	expensesCellStart string
+	expensesCellEnd   string
+
+	incomePage      string
+	incomeConfPage  string
+	incomeCellStart string
+	incomeCellEnd   string
+}
+
+func NewFileConfig(fileName string) *FileConfig {
+	return &FileConfig{
+		fileName: fileName,
+	}
+}
+
 type ReceiptRec struct {
 	time        time.Time
 	category    string
@@ -45,6 +65,12 @@ var (
 
 func GetExpenseCategories() (slc []string) {
 	slc = expenseCategories
+	fmt.Println(slc)
+	return
+}
+
+func GetIncomeCategpries() (slc []string) {
+	slc = incomeCategories
 	fmt.Println(slc)
 	return
 }
@@ -106,9 +132,7 @@ func RefreshCategories(f *excelize.File) (err error) {
 		if err != nil {
 			return err
 		}
-		for _, colCell := range row {
-			expenseCategories = append(expenseCategories, colCell)
-		}
+		expenseCategories = append(expenseCategories, row...)
 	}
 
 	return

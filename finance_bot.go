@@ -31,7 +31,11 @@ func init() {
 	log.Printf("Authorized on account %s", gBot.Self.UserName)
 }
 
-func processCommand(u *tgbotapi.Update) error {
+func deleteMsg(chatID int64, messageID int) {
+	gBot.Send(tgbotapi.NewDeleteMessage(chatID, messageID))
+}
+
+func processCommand(u *tgbotapi.Update) (err error) {
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "")
 
 	// Extract the command from the Message.
@@ -41,15 +45,19 @@ func processCommand(u *tgbotapi.Update) error {
 	case "start":
 		msg.Text = "Hi :)"
 	case "sync":
-
-		msg.Text = "I'm ok."
+		err = internal.SyncDiskFile(u.Message.Chat.UserName)
+		msg.Text = "In progress"
 	default:
 		msg.Text = "I don't know that command"
 	}
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
-	_, err := gBot.Send(msg)
+	_, err = gBot.Send(msg)
 
-	return err
+	return
 }
 
 func processNumber(u *tgbotapi.Update) error {
@@ -68,12 +76,10 @@ func processCallbackCategory(u *tgbotapi.Update) (err error) {
 	resp := u.CallbackQuery.Message.Text + "₽ на категорию " + cat
 	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, resp)
 	_, err = gBot.Send(msg)
+	deleteMsg(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
 
 	rec := internal.NewReceiptRec(time.Now(), cat, amnt, "")
 	internal.AddNewExpense(rec)
-
-	d := tgbotapi.NewDeleteMessage(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
-	gBot.Send(d)
 
 	return
 }
@@ -98,15 +104,11 @@ func run() error {
 			}
 		}
 
-		if update.Message == nil { // ignore any non-Message updates
-			continue
-		}
-
-		if update.Message.IsCommand() {
-			processCommand(&update)
-		}
-
 		if update.Message != nil {
+			if update.Message.IsCommand() {
+				processCommand(&update)
+			}
+
 			if len(update.Message.Text) > 0 {
 				if _, err := strconv.Atoi(update.Message.Text); err == nil {
 					processNumber(&update)
