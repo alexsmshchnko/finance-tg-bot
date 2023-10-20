@@ -22,7 +22,17 @@ var menuKeyboard = tgbotapi.NewReplyKeyboard(
 	),
 )
 
-func getCategoryKeyboard(slc []string) *tgbotapi.InlineKeyboardMarkup {
+var msgOptionsInlineKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("Изменить "+EMOJI_CHANGE, "OPT:changeRecord"),
+		tgbotapi.NewInlineKeyboardButtonData("Описание "+EMOJI_COMMENT, "OPT:addDescription"),
+	),
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("Сохранить "+EMOJI_SAVE, "OPT:saveRecord"),
+	),
+)
+
+func getCatInlineKeyboard(slc []string) *tgbotapi.InlineKeyboardMarkup {
 	var rows [][]tgbotapi.InlineKeyboardButton
 
 	for i := range slc {
@@ -32,6 +42,10 @@ func getCategoryKeyboard(slc []string) *tgbotapi.InlineKeyboardMarkup {
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
 
 	return &keyboard
+}
+
+func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
+	return &msgOptionsInlineKeyboard
 }
 
 func getMenuKeyboard() *tgbotapi.ReplyKeyboardMarkup {

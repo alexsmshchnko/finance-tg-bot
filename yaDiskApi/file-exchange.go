@@ -50,6 +50,7 @@ func upload(filepath string, url string) (statusCode int, err error) {
 	if err != nil {
 		return
 	}
+	//TODO add header with file size like in example
 	//req.Header.Set("Content-Type", "text/plain")
 
 	client := &http.Client{}

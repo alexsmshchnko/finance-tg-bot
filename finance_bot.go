@@ -35,35 +35,24 @@ func deleteMsg(chatID int64, messageID int) {
 	gBot.Send(tgbotapi.NewDeleteMessage(chatID, messageID))
 }
 
-func processCommand(u *tgbotapi.Update) (err error) {
-	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "")
-
-	// Extract the command from the Message.
-	switch u.Message.Command() {
-	case "help":
-		msg.Text = "I understand /sayhi and /status."
-	case "start":
-		msg.Text = "Hi :)"
-	case "sync":
-		err = internal.SyncDiskFile(u.Message.Chat.UserName)
-		msg.Text = "In progress"
-	default:
-		msg.Text = "I don't know that command"
-	}
-	if err != nil {
-		log.Println(err)
-		return
+func clearMsgReplyMarkup(chatID int64, messageID int) {
+	mrkp := tgbotapi.InlineKeyboardMarkup{
+		InlineKeyboard: make([][]tgbotapi.InlineKeyboardButton, 0),
 	}
 
-	_, err = gBot.Send(msg)
+	msg := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, mrkp)
+	gBot.Send(msg)
+}
 
-	return
+func updateMsgText(chatID int64, messageID int, text string) {
+	gBot.Send(tgbotapi.NewEditMessageText(chatID, messageID, text))
 }
 
 func processNumber(u *tgbotapi.Update) error {
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, u.Message.Text+"₽")
-	msg.ReplyMarkup = getCategoryKeyboard(internal.GetExpenseCategories())
+	msg.ReplyMarkup = getCatInlineKeyboard(internal.GetExpenseCategories())
 	_, err := gBot.Send(msg)
+	deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 
 	return err
 }
@@ -73,8 +62,9 @@ func processCallbackCategory(u *tgbotapi.Update) (err error) {
 	u.CallbackQuery.Message.Text, _ = strings.CutSuffix(u.CallbackQuery.Message.Text, "₽")
 	amnt, _ := strconv.Atoi(u.CallbackQuery.Message.Text)
 
-	resp := u.CallbackQuery.Message.Text + "₽ на категорию " + cat
+	resp := u.CallbackQuery.Message.Text + "₽ на " + cat
 	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, resp)
+	msg.ReplyMarkup = getMsgOptionsKeyboard()
 	_, err = gBot.Send(msg)
 	deleteMsg(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
 
@@ -84,9 +74,63 @@ func processCallbackCategory(u *tgbotapi.Update) (err error) {
 	return
 }
 
+func confirmRecord(u *tgbotapi.Update) {
+	clearMsgReplyMarkup(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
+}
+
+func addDescription(u *tgbotapi.Update) (err error) {
+	rec := internal.ReceiptRec{Description: u.Message.Text}
+	err = internal.AddLastExpenseDescription(&rec)
+	if err != nil {
+		return
+	}
+
+	updateMsgText(u.Message.Chat.ID, u.Message.ReplyToMessage.MessageID, u.Message.ReplyToMessage.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
+
+	deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
+
+	return
+}
+
+func requestReply(u *tgbotapi.Update) {
+	msg := tgbotapi.ForceReply{ForceReply: true, InputFieldPlaceholder: "описание"}
+
+	fmt.Println(msg)
+	//gBot.Send(msg)
+}
+
+func processCallbackOption(u *tgbotapi.Update) (err error) {
+	var r string
+
+	switch u.CallbackQuery.Data {
+	case "OPT:saveRecord":
+		confirmRecord(u)
+	case "OPT:addDescription":
+		requestReply(u)
+	case "OPT:changeRecord":
+		r = "CHANGE"
+	}
+
+	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, r)
+	_, err = gBot.Send(msg)
+
+	return
+}
+
 func processCallback(u *tgbotapi.Update) (err error) {
 	if strings.Contains(u.CallbackQuery.Data, "CAT:") {
 		err = processCallbackCategory(u)
+	} else if strings.Contains(u.CallbackQuery.Data, "OPT:") {
+		err = processCallbackOption(u)
+	}
+	return
+}
+
+func processReply(u *tgbotapi.Update) (err error) {
+	if u.Message.ReplyToMessage.ReplyMarkup != nil {
+		addDescription(u)
+		//fmt.Println(u.Message.ReplyToMessage.ReplyMarkup)
+		//if u.Message.ReplyToMessage.ReplyMarkup
 	}
 	return
 }
@@ -94,8 +138,9 @@ func processCallback(u *tgbotapi.Update) (err error) {
 func run() error {
 	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = CONFIG_TIMEOUT
-
 	updates := gBot.GetUpdatesChan(updateConfig)
+
+	gBot.Send(initCommands())
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
@@ -105,6 +150,10 @@ func run() error {
 		}
 
 		if update.Message != nil {
+			if update.Message.ReplyToMessage != nil {
+				processReply(&update)
+			}
+
 			if update.Message.IsCommand() {
 				processCommand(&update)
 			}

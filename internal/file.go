@@ -33,7 +33,7 @@ type ReceiptRec struct {
 	time        time.Time
 	category    string
 	amount      int
-	description string
+	Description string
 }
 
 const (
@@ -80,7 +80,7 @@ func NewReceiptRec(time time.Time, category string, amount int, description stri
 		time:        time,
 		category:    category,
 		amount:      amount,
-		description: description,
+		Description: description,
 	}
 }
 
@@ -90,14 +90,14 @@ func OpenFile(fileName string) (file *excelize.File, err error) {
 	return
 }
 
-func getLastIdx(f *excelize.File) (idx string, err error) {
+func getLastIdx(f *excelize.File) (idx int, err error) {
 	last, err := f.GetRows(expensesPage)
 	if err != nil {
 		return
 	}
 
-	idx = strconv.Itoa(len(last) + 1)
-	return
+	//idx = strconv.Itoa(len(last) + 1)
+	return len(last), err
 }
 
 func AddNewExpense(rec *ReceiptRec) (err error) {
@@ -111,14 +111,56 @@ func AddNewExpense(rec *ReceiptRec) (err error) {
 	if err != nil {
 		return
 	}
+	sIdx := strconv.Itoa(idx + 1)
 
-	f.SetCellValue(expensesPage, "A"+idx, rec.time)
-	f.SetCellValue(expensesPage, "B"+idx, rec.category)
-	f.SetCellValue(expensesPage, "C"+idx, rec.amount)
-	f.SetCellValue(expensesPage, "D"+idx, rec.description)
+	f.SetCellValue(expensesPage, "A"+sIdx, rec.time)
+	f.SetCellValue(expensesPage, "B"+sIdx, rec.category)
+	f.SetCellValue(expensesPage, "C"+sIdx, rec.amount)
+	//f.SetCellValue(expensesPage, "D"+idx, rec.description)
 
 	err = f.Save()
 	return
+}
+
+func EditLastExpense(rec *ReceiptRec) (err error) {
+	f, err := OpenFile(expensesFileName)
+	if err != nil {
+		log.Fatalf("OpenFile err: %e", err)
+	}
+	defer f.Close()
+
+	idx, err := getLastIdx(f)
+	if err != nil {
+		return
+	}
+	sIdx := strconv.Itoa(idx)
+	f.SetCellValue(expensesPage, "A"+sIdx, rec.time)
+	f.SetCellValue(expensesPage, "B"+sIdx, rec.category)
+	f.SetCellValue(expensesPage, "C"+sIdx, rec.amount)
+	f.SetCellValue(expensesPage, "D"+sIdx, rec.Description)
+
+	err = f.Save()
+	return
+
+}
+
+func AddLastExpenseDescription(rec *ReceiptRec) (err error) {
+	f, err := OpenFile(expensesFileName)
+	if err != nil {
+		log.Fatalf("OpenFile err: %e", err)
+	}
+	defer f.Close()
+
+	idx, err := getLastIdx(f)
+	if err != nil {
+		return
+	}
+	sIdx := strconv.Itoa(idx)
+	f.SetCellValue(expensesPage, "D"+sIdx, rec.Description)
+
+	err = f.Save()
+	return
+
 }
 
 func RefreshCategories(f *excelize.File) (err error) {
