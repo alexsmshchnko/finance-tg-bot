@@ -24,7 +24,7 @@ var menuKeyboard = tgbotapi.NewReplyKeyboard(
 
 var msgOptionsInlineKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("Изменить "+EMOJI_CHANGE, "OPT:changeRecord"),
+		tgbotapi.NewInlineKeyboardButtonData("Удалить "+EMOJI_CROSS, "OPT:deleteRecord"),
 		tgbotapi.NewInlineKeyboardButtonData("Описание "+EMOJI_COMMENT, "OPT:addDescription"),
 	),
 	tgbotapi.NewInlineKeyboardRow(
@@ -50,4 +50,11 @@ func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 
 func getMenuKeyboard() *tgbotapi.ReplyKeyboardMarkup {
 	return &menuKeyboard
+}
+
+func getReply() *tgbotapi.ForceReply {
+	return &tgbotapi.ForceReply{
+		ForceReply:            true,
+		InputFieldPlaceholder: "test",
+	}
 }

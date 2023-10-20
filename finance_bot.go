@@ -78,6 +78,11 @@ func confirmRecord(u *tgbotapi.Update) {
 	clearMsgReplyMarkup(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
 }
 
+func deleteRecord(u *tgbotapi.Update) {
+	internal.DeleteLastExpense()
+	deleteMsg(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
+}
+
 func addDescription(u *tgbotapi.Update) (err error) {
 	rec := internal.ReceiptRec{Description: u.Message.Text}
 	err = internal.AddLastExpenseDescription(&rec)
@@ -93,10 +98,10 @@ func addDescription(u *tgbotapi.Update) (err error) {
 }
 
 func requestReply(u *tgbotapi.Update) {
-	msg := tgbotapi.ForceReply{ForceReply: true, InputFieldPlaceholder: "описание"}
+	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, "описание")
+	msg.ReplyMarkup = getReply()
 
-	fmt.Println(msg)
-	//gBot.Send(msg)
+	gBot.Send(msg)
 }
 
 func processCallbackOption(u *tgbotapi.Update) (err error) {
@@ -107,8 +112,8 @@ func processCallbackOption(u *tgbotapi.Update) (err error) {
 		confirmRecord(u)
 	case "OPT:addDescription":
 		requestReply(u)
-	case "OPT:changeRecord":
-		r = "CHANGE"
+	case "OPT:deleteRecord":
+		deleteRecord(u)
 	}
 
 	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, r)
@@ -127,11 +132,11 @@ func processCallback(u *tgbotapi.Update) (err error) {
 }
 
 func processReply(u *tgbotapi.Update) (err error) {
-	if u.Message.ReplyToMessage.ReplyMarkup != nil {
-		addDescription(u)
-		//fmt.Println(u.Message.ReplyToMessage.ReplyMarkup)
-		//if u.Message.ReplyToMessage.ReplyMarkup
-	}
+	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "")
+	msg.ReplyMarkup = getReply()
+
+	gBot.Send(msg)
+
 	return
 }
 

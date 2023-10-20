@@ -122,6 +122,26 @@ func AddNewExpense(rec *ReceiptRec) (err error) {
 	return
 }
 
+func DeleteLastExpense() (err error) {
+	f, err := OpenFile(expensesFileName)
+	if err != nil {
+		log.Fatalf("OpenFile err: %e", err)
+	}
+	defer f.Close()
+
+	idx, err := getLastIdx(f)
+	if err != nil {
+		return
+	}
+	err = f.RemoveRow(expensesPage, idx)
+	if err != nil {
+		return
+	}
+
+	err = f.Save()
+	return
+}
+
 func EditLastExpense(rec *ReceiptRec) (err error) {
 	f, err := OpenFile(expensesFileName)
 	if err != nil {

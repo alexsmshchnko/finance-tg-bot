@@ -43,17 +43,16 @@ func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 
 	conf = tgbotapi.NewSetMyCommands(commands...)
 
-	// tgCommands := make([]tgbotapi.BotCommand, 0, len(commands))
-	// for _, cmd := range commands {
-	// 	b.commands[cmd.key] = cmd
-	// 	tgCommands = append(tgCommands, tgbotapi.BotCommand{
-	// 		Command:     "/" + string(cmd.key),
-	// 		Description: cmd.desc,
-	// 	})
-	// }
-
-	// conf = tgbotapi.NewSetMyCommands(tgCommands...)
 	return
+}
+
+func syncCmd(u *tgbotapi.Update) {
+	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "\U0001f680")
+	msg.ReplyToMessageID = u.Message.MessageID
+	startMsg, _ := gBot.Send(msg) //start sync
+
+	msg.Text = runSync(u.Message.Chat.UserName)
+	updateMsgText(startMsg.Chat.ID, startMsg.MessageID, runSync(u.Message.Chat.UserName))
 }
 
 func processCommand(u *tgbotapi.Update) (err error) {
@@ -66,9 +65,7 @@ func processCommand(u *tgbotapi.Update) (err error) {
 	case "start":
 		msg.Text = "Hi :)"
 	case "sync":
-		msg.Text = "\U0001f680" //start sync
-		gBot.Send(msg)
-		msg.Text = runSync(u.Message.Chat.UserName)
+		syncCmd(u)
 	default:
 		msg.Text = "I don't know that command"
 	}
@@ -76,7 +73,6 @@ func processCommand(u *tgbotapi.Update) (err error) {
 		log.Println(err)
 		return
 	}
-
 	_, err = gBot.Send(msg)
 
 	return
