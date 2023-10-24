@@ -4,6 +4,14 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+type EditMessageForceReply struct {
+	BaseEdit   tgbotapi.BaseEdit
+	ForceReply tgbotapi.ForceReply
+	// Caption         string
+	// ParseMode       string
+	// CaptionEntities []MessageEntity
+}
+
 var menuKeyboard = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton("1"),

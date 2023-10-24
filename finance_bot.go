@@ -29,6 +29,9 @@ func init() {
 	gBot.Debug = true
 
 	log.Printf("Authorized on account %s", gBot.Self.UserName)
+
+	//bot user
+	NewBotUser(BOT_ADMIN)
 }
 
 func deleteMsg(chatID int64, messageID int) {
@@ -83,25 +86,29 @@ func deleteRecord(u *tgbotapi.Update) {
 	deleteMsg(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
 }
 
-func addDescription(u *tgbotapi.Update) (err error) {
-	rec := internal.ReceiptRec{Description: u.Message.Text}
-	err = internal.AddLastExpenseDescription(&rec)
-	if err != nil {
-		return
-	}
+// func addDescription(u *tgbotapi.Update) (err error) {
+// 	rec := internal.ReceiptRec{Description: u.Message.Text}
+// 	err = internal.AddLastExpenseDescription(&rec)
+// 	if err != nil {
+// 		return
+// 	}
 
-	updateMsgText(u.Message.Chat.ID, u.Message.ReplyToMessage.MessageID, u.Message.ReplyToMessage.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
+// 	updateMsgText(u.Message.Chat.ID, u.Message.ReplyToMessage.MessageID, u.Message.ReplyToMessage.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
 
-	deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
+// 	deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 
-	return
-}
+// 	return
+// }
 
-func requestReply(u *tgbotapi.Update) {
-	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, "описание")
-	msg.ReplyMarkup = getReply()
+func requestDescription(u *tgbotapi.Update) {
+	// msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, "описание")
+	// msg.ReplyMarkup = getReply()
 
+	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, EMOJI_COMMENT+"...")
+
+	//msg.ReplyMarkup = getReply()
 	gBot.Send(msg)
+	WaitUserResponeStart(u.SentFrom().UserName, "REC_DESC", *u.CallbackQuery.Message)
 }
 
 func processCallbackOption(u *tgbotapi.Update) (err error) {
@@ -111,7 +118,7 @@ func processCallbackOption(u *tgbotapi.Update) (err error) {
 	case "OPT:saveRecord":
 		confirmRecord(u)
 	case "OPT:addDescription":
-		requestReply(u)
+		requestDescription(u)
 	case "OPT:deleteRecord":
 		deleteRecord(u)
 	}
@@ -131,13 +138,37 @@ func processCallback(u *tgbotapi.Update) (err error) {
 	return
 }
 
-func processReply(u *tgbotapi.Update) (err error) {
-	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "")
-	msg.ReplyMarkup = getReply()
+// func processReply(u *tgbotapi.Update) (err error) {
+// 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "")
+// 	msg.ReplyMarkup = getReply()
 
-	gBot.Send(msg)
+// 	gBot.Send(msg)
 
-	return
+// 	return
+// }
+
+func processResponse(u *tgbotapi.Update) {
+	//msg := tgbotapi.NewMessage(u.Message.Chat.ID, u.Message.Text+"response processed")
+
+	rec := internal.ReceiptRec{Description: u.Message.Text}
+	err := internal.AddLastExpenseDescription(&rec)
+	if err != nil {
+		return
+	}
+
+	respMsg := BotUsers[u.SentFrom().UserName].ResponseMsg
+	updateMsgText(u.Message.Chat.ID, respMsg.MessageID, respMsg.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
+
+	WaitUserResponseComplete(u.SentFrom().UserName)
+
+	deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
+	deleteMsg(u.Message.Chat.ID, u.Message.MessageID-1)
+	//gBot.Send(msg)
+}
+
+func checkUser(userName string) bool {
+	_, f := BotUsers[userName]
+	return f
 }
 
 func run() error {
@@ -148,6 +179,10 @@ func run() error {
 	gBot.Send(initCommands())
 
 	for update := range updates {
+		if !checkUser(update.SentFrom().UserName) {
+			continue
+		}
+
 		if update.CallbackQuery != nil {
 			if update.CallbackQuery.Data != "" {
 				processCallback(&update)
@@ -155,9 +190,13 @@ func run() error {
 		}
 
 		if update.Message != nil {
-			if update.Message.ReplyToMessage != nil {
-				processReply(&update)
+			if ResponseIsAwaited(update.SentFrom().UserName) {
+				processResponse(&update)
 			}
+
+			// if update.Message.ReplyToMessage != nil {
+			// 	processReply(&update)
+			// }
 
 			if update.Message.IsCommand() {
 				processCommand(&update)
