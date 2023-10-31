@@ -1,10 +1,10 @@
 module finance-tg-bot
 
-go 1.21.1
+go 1.21.3
 
 require (
+	github.com/alexsmshchnko/ya-disk-api-client v0.2.1
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
-	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.8.4
 	github.com/xuri/excelize/v2 v2.8.0
 )

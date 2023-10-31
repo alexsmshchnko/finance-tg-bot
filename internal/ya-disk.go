@@ -2,13 +2,15 @@ package internal
 
 import (
 	"context"
-	yadiskapi "finance-tg-bot/yaDiskApi"
+
+	//yadiskapi "finance-tg-bot/yaDiskApi"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
-	_ "github.com/joho/godotenv"
+	yadiskapi "github.com/alexsmshchnko/ya-disk-api-client"
+	//"github.com/joho/godotenv"
 )
 
 var (

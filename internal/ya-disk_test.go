@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	yadiskapi "finance-tg-bot/yaDiskApi"
+	yadiskapi "github.com/alexsmshchnko/ya-disk-api-client"
 
 	"github.com/stretchr/testify/assert"
 )
