@@ -40,7 +40,7 @@ const (
 	configPage        = "conf"
 	expensesCellStart = "A1"
 
-	expensesFileName = "receipts.xlsx"
+	expensesFileName = "FamilyBudget.xlsx"
 	expensesPage     = "Расходы"
 )
 
@@ -113,7 +113,10 @@ func AddNewExpense(rec *ReceiptRec) (err error) {
 	}
 	sIdx := strconv.Itoa(idx + 1)
 
-	f.SetCellValue(expensesPage, "A"+sIdx, rec.time)
+	dateStr := rec.time.Format("2006-01-02")
+	dateDt, _ := time.Parse("2006-01-02", dateStr)
+
+	f.SetCellValue(expensesPage, "A"+sIdx, dateDt)
 	f.SetCellValue(expensesPage, "B"+sIdx, rec.category)
 	f.SetCellValue(expensesPage, "C"+sIdx, rec.amount)
 	//f.SetCellValue(expensesPage, "D"+idx, rec.description)

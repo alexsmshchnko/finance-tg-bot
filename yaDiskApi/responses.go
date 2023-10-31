@@ -114,16 +114,6 @@ type TrashResourceList struct {
 	} `json:"_embedded"`
 }
 
-// func (t *TrashResourceList) Info() string {
-// 	result := ""
-// 	for _, file := range t.Embedded.Items {
-// 		result += t.Embedded.Path + file.Name + "\n"
-// 	}
-// 	result += fmt.Sprintf("files count: %d", t.Embedded.Total)
-
-// 	return result
-// }
-
 type Resource struct {
 	AntivirusStatus  string     `json:"antivirus_status"`   //Статус проверки антивирусом
 	ResourceID       string     `json:"resource_id"`        //Идентификатор ресурса

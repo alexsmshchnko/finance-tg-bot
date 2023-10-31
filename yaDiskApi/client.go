@@ -44,7 +44,6 @@ func NewClient(oAuth string, timeout time.Duration) (client *Client, err error) 
 }
 
 func (c *Client) sendReq(request *http.Request, response interface{}) (statusCode int, err error) {
-	//request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", "OAuth "+c.oAuth)
 
 	resp, err := c.client.Do(request)
