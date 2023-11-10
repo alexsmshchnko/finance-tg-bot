@@ -106,7 +106,7 @@ func requestDescription(u *tgbotapi.Update) {
 
 	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, EMOJI_COMMENT+"...")
 
-	//msg.ReplyMarkup = getReply()
+	msg.ReplyMarkup = getReply()
 	gBot.Send(msg)
 	WaitUserResponeStart(u.SentFrom().UserName, "REC_DESC", *u.CallbackQuery.Message)
 }
@@ -158,6 +158,12 @@ func processResponse(u *tgbotapi.Update) {
 
 	respMsg := BotUsers[u.SentFrom().UserName].ResponseMsg
 	updateMsgText(u.Message.Chat.ID, respMsg.MessageID, respMsg.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
+
+	amnt, _ := strconv.Atoi(strings.Split(respMsg.Text, "₽")[0])
+	cat := strings.Split(respMsg.Text, " на ")[1]
+
+	expRec := internal.NewFinRec(cat, amnt, u.Message.Text, fmt.Sprintf("%d", respMsg.MessageID))
+	internal.NewUser(u.SentFrom().UserName).NewExpense(expRec)
 
 	WaitUserResponseComplete(u.SentFrom().UserName)
 

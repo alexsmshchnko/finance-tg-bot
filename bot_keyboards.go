@@ -63,6 +63,6 @@ func getMenuKeyboard() *tgbotapi.ReplyKeyboardMarkup {
 func getReply() *tgbotapi.ForceReply {
 	return &tgbotapi.ForceReply{
 		ForceReply:            true,
-		InputFieldPlaceholder: "test",
+		InputFieldPlaceholder: "Описание",
 	}
 }

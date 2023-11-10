@@ -2,14 +2,10 @@ package internal
 
 import (
 	"context"
-
-	//yadiskapi "finance-tg-bot/yaDiskApi"
 	"fmt"
-	"log"
-	"os"
 	"time"
 
-	yadiskapi "github.com/alexsmshchnko/ya-disk-api-client"
+	yaDisk "github.com/alexsmshchnko/ya-disk-api-client"
 	//"github.com/joho/godotenv"
 )
 
@@ -17,19 +13,19 @@ var (
 	oAuth string
 )
 
-func init() {
-	// err := godotenv.Load()
-	// if err != nil {
-	// 	log.Fatalf("ya-disk godotenv err: %e", err)
-	// 	//log.Fatal("Error loading .env file")
-	// }
+// func init() {
+// 	// err := godotenv.Load()
+// 	// if err != nil {
+// 	// 	log.Fatalf("ya-disk godotenv err: %e", err)
+// 	// 	//log.Fatal("Error loading .env file")
+// 	// }
 
-	if oAuth = os.Getenv("YA_DISK_AUTH_TOKEN"); oAuth == "" {
-		log.Fatal(fmt.Errorf("failed to load env variable %s", "YA_DISK_AUTH_TOKEN"))
-	}
-}
+// 	if oAuth = os.Getenv("YA_DISK_AUTH_TOKEN"); oAuth == "" {
+// 		log.Fatal(fmt.Errorf("failed to load env variable %s", "YA_DISK_AUTH_TOKEN"))
+// 	}
+// }
 
-func CreateBkp(c *yadiskapi.Client, ctx context.Context) (err error) {
+func CreateBkp(c *yaDisk.Client, ctx context.Context) (err error) {
 	var sc int
 	sc, err = c.MakeFolder(YA_DISK_BKP_PATH, ctx)
 	if sc == 409 { //OK
@@ -38,40 +34,46 @@ func CreateBkp(c *yadiskapi.Client, ctx context.Context) (err error) {
 		return
 	}
 
-	_, err = c.Copy(YA_DISK_FILE_PATH, YA_DISK_BKP_PATH+YA_DISK_FILE_NAME+time.Now().Format("060102150405")+YA_DISK_FILE_EXT,
-		ctx)
+	_, err = c.Copy(YA_DISK_FILE_PATH, YA_DISK_BKP_PATH+YA_DISK_FILE_NAME+time.Now().Format("060102150405")+YA_DISK_FILE_EXT, ctx)
 
 	return
 }
 
-func SyncDiskFile(username string) (err error) {
-	client, err := yadiskapi.NewClient(oAuth, 10*time.Second)
-	if err != nil {
-		return err
-	}
-
-	ctx := context.Background()
-
-	err = UploadFile(client, ctx)
+func DownloadFile(c *yaDisk.Client, ctx context.Context) (err error) {
+	_, err = c.DownloadFile(YA_DISK_FILE_PATH, YA_DISK_FILE_FULL_NAME, ctx)
 
 	return
 }
 
-func DownloadFile(c *yadiskapi.Client, ctx context.Context) (err error) {
-	_, err = c.DownloadFile(YA_DISK_FILE_PATH, "../"+YA_DISK_FILE_FULL_NAME, ctx)
-
-	return
-}
-
-func UploadFile(c *yadiskapi.Client, ctx context.Context) (err error) {
+func UploadFile(c *yaDisk.Client, ctx context.Context) (err error) {
 	//_, err = c.UploadFile(YA_DISK_FILE_PATH, "../"+YA_DISK_FILE_FULL_NAME, true, ctx)
 	_, err = c.UploadFile(YA_DISK_FILE_PATH, YA_DISK_FILE_FULL_NAME, true, ctx)
 
 	return
 }
 
+func SyncDiskFile(username string) (err error) {
+	token, err := NewUser(username).GetUserToken()
+
+	if err != nil {
+		return err
+	}
+
+	client, err := yaDisk.NewClient(token, 10*time.Second)
+	if err != nil {
+		return err
+	}
+
+	err = DownloadFile(client, context.Background())
+	if err != nil {
+		return err
+	}
+
+	return UploadFile(client, context.Background())
+}
+
 func run() error {
-	client, err := yadiskapi.NewClient(oAuth, 10*time.Second)
+	client, err := yaDisk.NewClient(oAuth, 10*time.Second)
 
 	if err != nil {
 		return err
