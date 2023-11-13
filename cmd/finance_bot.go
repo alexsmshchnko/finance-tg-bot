@@ -22,6 +22,8 @@ func init() {
 		panic(fmt.Errorf("failed to load env variable %s", BOT_TOKEN_NAME))
 	}
 
+	os.Setenv("BOT_ADMIN", BOT_ADMIN)
+
 	var err error
 	if gBot, err = tgbotapi.NewBotAPI(gToken); err != nil {
 		log.Panic(err)

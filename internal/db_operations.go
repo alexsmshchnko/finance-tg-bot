@@ -3,13 +3,15 @@ package internal
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	pgx "github.com/jackc/pgx/v5"
 )
 
 // urlExample := "postgres://username:password@localhost:5432/database_name"
-const DB_URL = "postgres://postgres:postgres@localhost:5433/base"
+
+var DB_URL = os.Getenv("DB_URL")
 
 type user struct {
 	username string

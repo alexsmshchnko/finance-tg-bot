@@ -52,7 +52,7 @@ func UploadFile(c *yaDisk.Client, ctx context.Context) (err error) {
 	return
 }
 
-func SyncDiskFile(username string) (err error) {
+func initCats(username string) (err error) {
 	token, err := NewUser(username).GetUserToken()
 
 	if err != nil {
@@ -68,6 +68,26 @@ func SyncDiskFile(username string) (err error) {
 	if err != nil {
 		return err
 	}
+
+	return
+}
+
+func SyncDiskFile(username string) (err error) {
+	token, err := NewUser(username).GetUserToken()
+
+	if err != nil {
+		return err
+	}
+
+	client, err := yaDisk.NewClient(token, 10*time.Second)
+	if err != nil {
+		return err
+	}
+
+	// err = DownloadFile(client, context.Background())
+	// if err != nil {
+	// 	return err
+	// }
 
 	return UploadFile(client, context.Background())
 }

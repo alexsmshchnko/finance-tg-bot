@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"time"
 
@@ -40,11 +41,13 @@ const (
 	configPage        = "conf"
 	expensesCellStart = "A1"
 
-	expensesFileName = "FamilyBudget.xlsx"
+	expensesFileName = YA_DISK_FILE_NAME + YA_DISK_FILE_EXT
 	expensesPage     = "Расходы"
 )
 
 func init() {
+	initCats(os.Getenv("BOT_ADMIN"))
+
 	f, err := OpenFile(expensesFileName)
 	if err != nil {
 		log.Fatalf("OpenFile err: %e", err)
