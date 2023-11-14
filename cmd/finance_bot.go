@@ -13,28 +13,8 @@ import (
 )
 
 var (
-	gToken string
-	gBot   *tgbotapi.BotAPI
+	gBot *tgbotapi.BotAPI
 )
-
-func init() {
-	if gToken = os.Getenv(BOT_TOKEN_NAME); gToken == "" {
-		panic(fmt.Errorf("failed to load env variable %s", BOT_TOKEN_NAME))
-	}
-
-	os.Setenv("BOT_ADMIN", BOT_ADMIN)
-
-	var err error
-	if gBot, err = tgbotapi.NewBotAPI(gToken); err != nil {
-		log.Panic(err)
-	}
-	gBot.Debug = true
-
-	log.Printf("Authorized on account %s", gBot.Self.UserName)
-
-	//bot user
-	NewBotUser(BOT_ADMIN)
-}
 
 func deleteMsg(chatID int64, messageID int) {
 	gBot.Send(tgbotapi.NewDeleteMessage(chatID, messageID))
@@ -179,7 +159,19 @@ func checkUser(userName string) bool {
 	return f
 }
 
-func run() error {
+func run() (err error) {
+	if gBot, err = tgbotapi.NewBotAPI(os.Getenv(BOT_TOKEN_NAME)); err != nil {
+		log.Println("[ERROR] failed to create botAPI")
+		return
+	}
+	gBot.Debug = true
+
+	log.Printf("Authorized on account %s", gBot.Self.UserName)
+
+	//bot user
+	os.Setenv("BOT_ADMIN", BOT_ADMIN)
+	NewBotUser(BOT_ADMIN)
+	//init done
 	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = CONFIG_TIMEOUT
 	updates := gBot.GetUpdatesChan(updateConfig)
@@ -219,12 +211,11 @@ func run() error {
 
 	}
 
-	return nil
+	return
 }
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatal()
+		log.Fatal(err)
 	}
-
 }
