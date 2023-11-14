@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -41,10 +40,6 @@ func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 			Command:     "/settings",
 			Description: "Настройки",
 		},
-		{
-			Command:     "/shutdown",
-			Description: "Остановить",
-		},
 	}
 
 	conf = tgbotapi.NewSetMyCommands(commands...)
@@ -60,12 +55,12 @@ func syncCmd(u *tgbotapi.Update) {
 	msg.Text = runSync(u.Message.Chat.UserName)
 	updateMsgText(startMsg.Chat.ID, startMsg.MessageID, runSync(u.Message.Chat.UserName))
 
-	go func() {
-		time.Sleep(3 * time.Second)
+	go func(sec time.Duration) {
+		time.Sleep(sec * time.Second)
 
 		deleteMsg(startMsg.Chat.ID, u.Message.MessageID)
 		deleteMsg(startMsg.Chat.ID, startMsg.MessageID)
-	}()
+	}(4)
 }
 
 func processCommand(u *tgbotapi.Update) (err error) {
@@ -79,8 +74,6 @@ func processCommand(u *tgbotapi.Update) (err error) {
 		msg.Text = "Hi :)"
 	case "sync":
 		syncCmd(u)
-	case "shutdown":
-		os.Exit(1)
 	default:
 		msg.Text = "I don't know that command"
 	}

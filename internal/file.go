@@ -41,12 +41,12 @@ const (
 	configPage        = "conf"
 	expensesCellStart = "A1"
 
-	expensesFileName = YA_DISK_FILE_NAME + YA_DISK_FILE_EXT
+	expensesFileName = YA_DISK_FILE_FULL_NAME
 	expensesPage     = "Расходы"
 )
 
 func init() {
-	initCats(os.Getenv("BOT_ADMIN"))
+	initDownload(os.Getenv("BOT_ADMIN"))
 
 	f, err := OpenFile(expensesFileName)
 	if err != nil {

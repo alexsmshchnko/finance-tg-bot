@@ -52,7 +52,7 @@ func UploadFile(c *yaDisk.Client, ctx context.Context) (err error) {
 	return
 }
 
-func initCats(username string) (err error) {
+func initDownload(username string) (err error) {
 	token, err := NewUser(username).GetUserToken()
 
 	if err != nil {

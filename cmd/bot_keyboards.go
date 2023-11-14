@@ -12,23 +12,23 @@ type EditMessageForceReply struct {
 	// CaptionEntities []MessageEntity
 }
 
-var menuKeyboard = tgbotapi.NewReplyKeyboard(
-	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("1"),
-		tgbotapi.NewKeyboardButton("2"),
-		tgbotapi.NewKeyboardButton("3"),
-	),
-	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("4"),
-		tgbotapi.NewKeyboardButton("5"),
-		tgbotapi.NewKeyboardButton("6"),
-	),
-	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("7"),
-		tgbotapi.NewKeyboardButton("8"),
-		tgbotapi.NewKeyboardButton("9"),
-	),
-)
+// var menuKeyboard = tgbotapi.NewReplyKeyboard(
+// 	tgbotapi.NewKeyboardButtonRow(
+// 		tgbotapi.NewKeyboardButton("1"),
+// 		tgbotapi.NewKeyboardButton("2"),
+// 		tgbotapi.NewKeyboardButton("3"),
+// 	),
+// 	tgbotapi.NewKeyboardButtonRow(
+// 		tgbotapi.NewKeyboardButton("4"),
+// 		tgbotapi.NewKeyboardButton("5"),
+// 		tgbotapi.NewKeyboardButton("6"),
+// 	),
+// 	tgbotapi.NewKeyboardButtonRow(
+// 		tgbotapi.NewKeyboardButton("7"),
+// 		tgbotapi.NewKeyboardButton("8"),
+// 		tgbotapi.NewKeyboardButton("9"),
+// 	),
+// )
 
 var msgOptionsInlineKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
@@ -56,9 +56,9 @@ func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	return &msgOptionsInlineKeyboard
 }
 
-func getMenuKeyboard() *tgbotapi.ReplyKeyboardMarkup {
-	return &menuKeyboard
-}
+// func getMenuKeyboard() *tgbotapi.ReplyKeyboardMarkup {
+// 	return &menuKeyboard
+// }
 
 func getReply() *tgbotapi.ForceReply {
 	return &tgbotapi.ForceReply{
