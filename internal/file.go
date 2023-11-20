@@ -3,7 +3,6 @@ package internal
 import (
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"time"
 
@@ -45,21 +44,21 @@ const (
 	expensesPage     = "Расходы"
 )
 
-func init() {
-	initDownload(os.Getenv("BOT_ADMIN"))
+// func init() {
+// 	initDownload(os.Getenv("BOT_ADMIN"))
 
-	f, err := OpenFile(expensesFileName)
-	if err != nil {
-		log.Fatalf("OpenFile err: %e", err)
-	}
-	defer f.Close()
+// 	f, err := OpenFile(expensesFileName)
+// 	if err != nil {
+// 		log.Fatalf("OpenFile err: %e", err)
+// 	}
+// 	defer f.Close()
 
-	err = RefreshCategories(f)
-	if err != nil {
-		log.Fatalf("RefreshCategories err: %e", err)
-	}
+// 	err = RefreshCategories(f)
+// 	if err != nil {
+// 		log.Fatalf("RefreshCategories err: %e", err)
+// 	}
 
-}
+// }
 
 var (
 	expenseCategories []string

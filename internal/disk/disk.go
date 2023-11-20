@@ -8,6 +8,39 @@ import (
 	yaDisk "github.com/alexsmshchnko/ya-disk-api-client"
 )
 
+const (
+	timeOut = 10 * time.Second
+
+	YA_DISK_APP_NAME  = "Финансовый бот"
+	YA_DISK_FILE_NAME = "FamilyBudget"
+	YA_DISK_FILE_EXT  = ".xlsx"
+
+	YA_DISK_FILE_FULL_NAME = YA_DISK_FILE_NAME + YA_DISK_FILE_EXT
+	YA_DISK_BKP_PATH       = "disk:/Приложения/" + YA_DISK_APP_NAME + "/bkp/"
+	YA_DISK_FILE_PATH      = "disk:/Приложения/" + YA_DISK_APP_NAME + "/" + YA_DISK_FILE_FULL_NAME
+)
+
+type Disk struct {
+}
+
+func New() *Disk {
+	return &Disk{}
+}
+
+func (c *Disk) DownloadFile(ctx context.Context, oAuth, filePath string) (err error) {
+	client, _ := yaDisk.NewClient(oAuth, timeOut)
+
+	_, err = client.DownloadFile(YA_DISK_FILE_PATH, YA_DISK_FILE_FULL_NAME, ctx)
+	return err
+}
+
+func (c *Disk) UploadFile(ctx context.Context, oAuth, filePath string) (err error) {
+	client, _ := yaDisk.NewClient(oAuth, timeOut)
+
+	_, err = client.UploadFile(YA_DISK_FILE_PATH, YA_DISK_FILE_FULL_NAME, true, ctx)
+	return err
+}
+
 type CloudDisk struct {
 	client   *yaDisk.Client
 	userName string
@@ -59,18 +92,10 @@ func (c *CloudDisk) DownloadFile(ctx context.Context) (err error) {
 	return err
 }
 
-// func DownloadFile(c *yaDisk.Client, ctx context.Context) (err error) {
-// 	_, err = c.DownloadFile(YA_DISK_FILE_PATH, YA_DISK_FILE_FULL_NAME, ctx)
-
-// 	return
-// }
-
-// func UploadFile(c *yaDisk.Client, ctx context.Context) (err error) {
-// 	//_, err = c.UploadFile(YA_DISK_FILE_PATH, "../"+YA_DISK_FILE_FULL_NAME, true, ctx)
-// 	_, err = c.UploadFile(YA_DISK_FILE_PATH, YA_DISK_FILE_FULL_NAME, true, ctx)
-
-// 	return
-// }
+func (c *CloudDisk) UploadFile(ctx context.Context) (err error) {
+	_, err = c.client.UploadFile(c.filePath, "file-"+c.userName, true, ctx)
+	return err
+}
 
 // func initDownload(username string) (err error) {
 // 	token, err := NewUser(username).GetUserToken()

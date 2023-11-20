@@ -28,3 +28,15 @@ func (s *PGStorage) PostDocument(doc *DBDocument) (err error) {
 
 	return tx.Commit()
 }
+
+func (s *PGStorage) LoadDocs(time time.Time, category string, amount int, description string, client string) (err error) {
+	doc := &DBDocument{
+		Time:        time,
+		Category:    category,
+		Amount:      amount,
+		Description: description,
+		ClientID:    client,
+	}
+
+	return s.PostDocument(doc)
+}
