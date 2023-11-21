@@ -1,19 +1,27 @@
 package main
 
 import (
-	"finance-tg-bot/internal"
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
-	"time"
+
+	"finance-tg-bot/internal/accountant"
+	"finance-tg-bot/internal/disk"
+	"finance-tg-bot/internal/storage"
+	"finance-tg-bot/internal/synchronizer"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 var (
-	gBot *tgbotapi.BotAPI
+	gBot  *tgbotapi.BotAPI
+	db    *storage.PGStorage
+	cloud *disk.Disk
+	acnt  *accountant.Accountant
+	sync  *synchronizer.Synchronizer
 )
 
 func deleteMsg(chatID int64, messageID int) {
@@ -35,8 +43,12 @@ func updateMsgText(chatID int64, messageID int, text string) {
 
 func processNumber(u *tgbotapi.Update) error {
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, u.Message.Text+"₽")
-	msg.ReplyMarkup = getCatInlineKeyboard(internal.GetExpenseCategories())
-	_, err := gBot.Send(msg)
+	cats, err := acnt.GetCats(context.Background(), u.Message.Chat.UserName)
+	if err != nil {
+		return err
+	}
+	msg.ReplyMarkup = getCatInlineKeyboard(cats)
+	_, err = gBot.Send(msg)
 	deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 
 	return err
@@ -45,7 +57,7 @@ func processNumber(u *tgbotapi.Update) error {
 func processCallbackCategory(u *tgbotapi.Update) (err error) {
 	cat, _ := strings.CutPrefix(u.CallbackQuery.Data, "CAT:")
 	u.CallbackQuery.Message.Text, _ = strings.CutSuffix(u.CallbackQuery.Message.Text, "₽")
-	amnt, _ := strconv.Atoi(u.CallbackQuery.Message.Text)
+	//amnt, _ := strconv.Atoi(u.CallbackQuery.Message.Text)
 
 	resp := u.CallbackQuery.Message.Text + "₽ на " + cat
 	msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, resp)
@@ -53,8 +65,8 @@ func processCallbackCategory(u *tgbotapi.Update) (err error) {
 	_, err = gBot.Send(msg)
 	deleteMsg(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
 
-	rec := internal.NewReceiptRec(time.Now(), cat, amnt, "")
-	internal.AddNewExpense(rec)
+	// rec := internal.NewReceiptRec(time.Now(), cat, amnt, "")
+	// internal.AddNewExpense(rec)
 
 	return
 }
@@ -64,7 +76,7 @@ func confirmRecord(u *tgbotapi.Update) {
 }
 
 func deleteRecord(u *tgbotapi.Update) {
-	internal.DeleteLastExpense()
+	acnt.DeleteDoc(fmt.Sprint(u.CallbackQuery.Message.MessageID), u.CallbackQuery.From.UserName)
 	deleteMsg(u.CallbackQuery.Message.Chat.ID, u.CallbackQuery.Message.MessageID)
 }
 
@@ -132,11 +144,11 @@ func processCallback(u *tgbotapi.Update) (err error) {
 func processResponse(u *tgbotapi.Update) {
 	//msg := tgbotapi.NewMessage(u.Message.Chat.ID, u.Message.Text+"response processed")
 
-	rec := internal.ReceiptRec{Description: u.Message.Text}
-	err := internal.AddLastExpenseDescription(&rec)
-	if err != nil {
-		return
-	}
+	// rec := internal.ReceiptRec{Description: u.Message.Text}
+	// err := internal.AddLastExpenseDescription(&rec)
+	// if err != nil {
+	// 	return
+	// }
 
 	respMsg := BotUsers[u.SentFrom().UserName].ResponseMsg
 	updateMsgText(u.Message.Chat.ID, respMsg.MessageID, respMsg.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
@@ -144,8 +156,11 @@ func processResponse(u *tgbotapi.Update) {
 	amnt, _ := strconv.Atoi(strings.Split(respMsg.Text, "₽")[0])
 	cat := strings.Split(respMsg.Text, " на ")[1]
 
-	expRec := internal.NewFinRec(cat, amnt, u.Message.Text, fmt.Sprintf("%d", respMsg.MessageID))
-	internal.NewUser(u.SentFrom().UserName).NewExpense(expRec)
+	//	acnt.
+	acnt.PostDoc(cat, amnt, u.Message.Text, fmt.Sprint(respMsg.MessageID), u.SentFrom().UserName)
+
+	// expRec := internal.NewFinRec(cat, amnt, u.Message.Text, fmt.Sprintf("%d", respMsg.MessageID))
+	// internal.NewUser(u.SentFrom().UserName).NewExpense(expRec)
 
 	WaitUserResponseComplete(u.SentFrom().UserName)
 
@@ -167,6 +182,13 @@ func run() (err error) {
 	gBot.Debug = true
 
 	log.Printf("Authorized on account %s", gBot.Self.UserName)
+
+	//VARS
+	db = storage.NewPGStorage(context.Background(), connStr)
+	cloud = disk.New()
+
+	acnt = accountant.NewAccountant(db)
+	sync = synchronizer.New(cloud, db)
 
 	//bot user
 	os.Setenv("BOT_ADMIN", BOT_ADMIN)

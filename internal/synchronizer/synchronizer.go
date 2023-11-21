@@ -23,6 +23,7 @@ type Loader interface {
 
 type DB interface {
 	GetUserToken(username string) (token string, err error)
+	ClearUserHistory(username string) (err error)
 	LoadDocs(time time.Time, category string, amount int, description string, client string) (err error)
 }
 
@@ -47,6 +48,10 @@ func (s *Synchronizer) MigrateFromCloud(ctx context.Context, username string) (e
 	token, err := s.DB.GetUserToken(username)
 	if err != nil {
 		return
+	}
+
+	if err := s.DB.ClearUserHistory(username); err != nil {
+		return err
 	}
 
 	err = s.Loader.DownloadFile(ctx, token, YA_DISK_FILE_PATH)

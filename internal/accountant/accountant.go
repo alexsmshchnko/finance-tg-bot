@@ -1,9 +1,14 @@
 package accountant
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type DocumentStorage interface {
 	GetCategories(username string) ([]string, error)
+	PostDoc(time time.Time, category string, amount int, description string, msg_id string, client string) (err error)
+	DeleteDoc(msg_id string, client string) (err error)
 }
 
 type Accountant struct {
@@ -18,4 +23,12 @@ func NewAccountant(documentStorage DocumentStorage) *Accountant {
 func (a *Accountant) GetCats(ctx context.Context, username string) (cats []string, err error) {
 	cats, err = a.documents.GetCategories(username)
 	return
+}
+
+func (a *Accountant) PostDoc(category string, amount int, description string, msg_id string, client string) (err error) {
+	return a.documents.PostDoc(time.Now(), category, amount, description, msg_id, client)
+}
+
+func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {
+	return a.documents.DeleteDoc(msg_id, client)
 }

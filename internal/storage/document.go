@@ -19,12 +19,41 @@ func (s *PGStorage) GetCategories(username string) (cat []string, err error) {
 	return
 }
 
-func (s *PGStorage) PostDocument(doc *DBDocument) (err error) {
+func (s *PGStorage) postDocument(doc *DBDocument) (err error) {
 	tx := s.db.MustBegin()
 
 	sql := "INSERT INTO public.document (trans_date, trans_cat, trans_amount, comment, tg_msg_id, client_id)" +
 		"VALUES($1, $2, $3, $4, $5, $6);"
 	tx.MustExec(sql, doc.Time, doc.Category, doc.Amount, doc.Description, doc.MsgID, doc.ClientID)
+
+	return tx.Commit()
+}
+
+func (s *PGStorage) PostDoc(time time.Time, category string, amount int, description string, msg_id string, client string) (err error) {
+	doc := &DBDocument{
+		Time:        time,
+		Category:    category,
+		Amount:      amount,
+		Description: description,
+		MsgID:       msg_id,
+		ClientID:    client,
+	}
+
+	return s.postDocument(doc)
+}
+
+func (s *PGStorage) DeleteDoc(msg_id string, client string) (err error) {
+	tx := s.db.MustBegin()
+
+	tx.MustExec("DELETE FROM public.document WHERE tg_msg_id = $1 and client_id = $2;", msg_id, client)
+
+	return tx.Commit()
+}
+
+func (s *PGStorage) ClearUserHistory(username string) (err error) {
+	tx := s.db.MustBegin()
+
+	tx.MustExec("DELETE FROM public.document WHERE client_id = $1;", username)
 
 	return tx.Commit()
 }
@@ -38,5 +67,5 @@ func (s *PGStorage) LoadDocs(time time.Time, category string, amount int, descri
 		ClientID:    client,
 	}
 
-	return s.PostDocument(doc)
+	return s.postDocument(doc)
 }

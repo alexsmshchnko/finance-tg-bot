@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	excelize "github.com/xuri/excelize/v2"
@@ -59,6 +60,7 @@ func GetRowsToSync(fileName string) (rslt []ReceiptRec, err error) {
 
 	rows, err := f.GetRows("Расходы")
 
+	var catR string
 	var amntR int
 	var desrR string
 	var dt time.Time
@@ -67,8 +69,13 @@ func GetRowsToSync(fileName string) (rslt []ReceiptRec, err error) {
 		if i < 16 {
 			continue
 		}
+
+		if len(v) > 1 {
+			catR = v[1]
+		}
+
 		if len(v) > 2 {
-			amntR, _ = strconv.Atoi(v[2])
+			amntR, _ = strconv.Atoi(strings.TrimSpace(v[2]))
 		}
 
 		if len(v) > 3 {
@@ -79,10 +86,11 @@ func GetRowsToSync(fileName string) (rslt []ReceiptRec, err error) {
 
 		row := ReceiptRec{
 			Time:        dt,
-			Category:    v[1],
+			Category:    catR,
 			Amount:      amntR,
 			Description: desrR,
 		}
+
 		rslt = append(rslt, row)
 	}
 
