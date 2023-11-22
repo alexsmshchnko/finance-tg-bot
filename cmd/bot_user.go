@@ -9,22 +9,23 @@ import (
 type BotUser struct {
 	//UserName     string `json:"username,omitempty"`
 	//FirstLogin   time.Time
-	diskToken    string
+	// diskToken    string
 	ResponseWait bool
 	//ResponseMsgID int
-	ResponseMsg  tgbotapi.Message
-	ResponseCode string
+	ResponseMsg   tgbotapi.Message
+	ResponseCode  string
+	FinCategories []string
 }
 
 var BotUsers map[string]BotUser
 
-func (b *BotUser) setUserDiskToken(s string) {
-	b.diskToken = s
-}
+// func (b *BotUser) setUserDiskToken(s string) {
+// 	b.diskToken = s
+// }
 
-func (b *BotUser) getUserDiskToken() string {
-	return b.diskToken
-}
+// func (b *BotUser) getUserDiskToken() string {
+// 	return b.diskToken
+// }
 
 func NewBotUser(userName string) {
 	BotUsers = map[string]BotUser{userName: BotUser{}}

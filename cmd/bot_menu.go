@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -34,7 +33,11 @@ func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 		},
 		{
 			Command:     "/sync",
-			Description: "Синхронизация с диском",
+			Description: "Загрузить историю с облака",
+		},
+		{
+			Command:     "/push",
+			Description: "Экспорт облако",
 		},
 		{
 			Command:     "/settings",
@@ -45,22 +48,6 @@ func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 	conf = tgbotapi.NewSetMyCommands(commands...)
 
 	return
-}
-
-func syncCmd(u *tgbotapi.Update) {
-	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "\U0001f680")
-	msg.ReplyToMessageID = u.Message.MessageID
-	startMsg, _ := gBot.Send(msg) //start sync
-
-	msg.Text = runSync(u.Message.Chat.UserName)
-	updateMsgText(startMsg.Chat.ID, startMsg.MessageID, runSync(u.Message.Chat.UserName))
-
-	go func(sec time.Duration) {
-		time.Sleep(sec * time.Second)
-
-		deleteMsg(startMsg.Chat.ID, u.Message.MessageID)
-		deleteMsg(startMsg.Chat.ID, startMsg.MessageID)
-	}(4)
 }
 
 func processCommand(u *tgbotapi.Update) (err error) {

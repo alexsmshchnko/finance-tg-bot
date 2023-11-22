@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"log"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -40,16 +43,64 @@ var msgOptionsInlineKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	),
 )
 
-func getCatInlineKeyboard(slc []string) *tgbotapi.InlineKeyboardMarkup {
+func getCatPageInlineKeyboard(slc []string, page int) *tgbotapi.InlineKeyboardMarkup {
 	var rows [][]tgbotapi.InlineKeyboardButton
+	maxPageLen := 5
+	pageCnt := len(slc) / maxPageLen
 
-	for i := range slc {
-		rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(slc[i], "CAT:"+slc[i])))
+	log.Println(slc)
+	log.Println(len(slc))
+	log.Println(cap(slc))
+	log.Printf("page: %d\n", page)
+
+	rowsToShow := slc[page*maxPageLen : (page*maxPageLen + maxPageLen)]
+
+	for i := range rowsToShow {
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(rowsToShow[i], "CAT:"+rowsToShow[i])))
 	}
+
+	var buttons []tgbotapi.InlineKeyboardButton
+
+	if page == 0 {
+		buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf("PAGE:next:%d:%d", page, pageCnt)))
+	} else if page == pageCnt-1 {
+		buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(EMOJI_PREV, fmt.Sprintf("PAGE:prev:%d:%d", page, pageCnt)))
+	} else {
+		buttons = append(buttons,
+			tgbotapi.NewInlineKeyboardButtonData(EMOJI_PREV, fmt.Sprintf("PAGE:prev:%d:%d", page, pageCnt)),
+			tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf("PAGE:next:%d:%d", page, pageCnt)),
+		)
+	}
+
+	if len(buttons) > 0 {
+		rows = append(rows, buttons)
+	}
+
+	// if currentPage > 0 {
+	// rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(EMOJI_PREV, fmt.Sprintf("PAGE:prev:%d:%d", currentPage, count)),
+	// 	tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf("PAGE:next:%d:%d", currentPage, count))))
+	// // }
+
+	// if currentPage < maxPages-1 {
+	// rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf("pager:next:%d:%d", currentPage, count))))
+	// }
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
 
 	return &keyboard
+}
+
+func getCatInlineKeyboard(slc []string, page int, pageCnt int) *tgbotapi.InlineKeyboardMarkup {
+	// var rows [][]tgbotapi.InlineKeyboardButton
+
+	// for i := range slc {
+	// 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(slc[i], "CAT:"+slc[i])))
+	// }
+
+	// keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+	// return &keyboard
+	return getCatPageInlineKeyboard(slc, page)
 }
 
 func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
