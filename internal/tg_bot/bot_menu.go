@@ -1,6 +1,7 @@
-package main
+package tg_bot
 
 import (
+	"context"
 	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -35,7 +36,7 @@ func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 	return
 }
 
-func processCommand(u *tgbotapi.Update) (err error) {
+func (b *Bot) processCommand(ctx context.Context, u *tgbotapi.Update) (err error) {
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "")
 
 	switch u.Message.Command() {
@@ -44,7 +45,7 @@ func processCommand(u *tgbotapi.Update) (err error) {
 	case "start":
 		msg.Text = "Hi :)"
 	case "sync":
-		syncCmd(u)
+		b.syncCmd(ctx, u)
 	default:
 		msg.Text = "I don't know that command"
 	}
@@ -52,7 +53,7 @@ func processCommand(u *tgbotapi.Update) (err error) {
 		log.Println(err)
 		return
 	}
-	_, err = gBot.Send(msg)
+	_, err = b.api.Send(msg)
 
 	return
 }

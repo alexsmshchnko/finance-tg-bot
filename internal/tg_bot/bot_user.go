@@ -1,4 +1,4 @@
-package main
+package tg_bot
 
 import (
 	"log"

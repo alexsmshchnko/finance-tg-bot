@@ -1,4 +1,4 @@
-package main
+package tg_bot
 
 import (
 	"fmt"
@@ -28,11 +28,6 @@ func getCatPageInlineKeyboard(slc []string, page int) *tgbotapi.InlineKeyboardMa
 	var rows [][]tgbotapi.InlineKeyboardButton
 	maxPageLen := 5
 	pageCnt := len(slc) / maxPageLen
-
-	// log.Println(slc)
-	// log.Println(len(slc))
-	// log.Println(cap(slc))
-	// log.Printf("page: %d\n", page)
 
 	rowsToShow := slc[page*maxPageLen : (page*maxPageLen + maxPageLen)]
 
