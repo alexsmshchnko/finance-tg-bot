@@ -19,41 +19,24 @@ import (
 )
 
 func run() (err error) {
-	var (
-		gBot  *tgbotapi.BotAPI
-		db    *storage.PGStorage
-		cloud *disk.Disk
-		acnt  *accountant.Accountant
-		sync  *synchronizer.Synchronizer
-		bot   *tg_bot.Bot
-
-		// log    *slog.Logger
-		ctx    context.Context
-		cancel context.CancelFunc
-	)
-
-	if gBot, err = tgbotapi.NewBotAPI(config.Get().TelegramBotToken); err != nil {
+	gBot, err := tgbotapi.NewBotAPI(config.Get().TelegramBotToken)
+	if err != nil {
 		log.Println("[ERROR] failed to create botAPI")
 		return
 	}
+	log.Printf("Authorized on account %s", gBot.Self.UserName)
 	gBot.Debug = true
 
-	log.Printf("Authorized on account %s", gBot.Self.UserName)
-
-	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	db = storage.NewPGStorage(ctx, config.Get().DatabaseDSN)
-	cloud = disk.New()
+	db := storage.NewPGStorage(ctx, config.Get().DatabaseDSN)
+	cloud := disk.New()
+	acnt := accountant.NewAccountant(db)
+	sync := synchronizer.New(cloud, db)
+	bot := tg_bot.New(gBot, acnt, sync)
 
-	acnt = accountant.NewAccountant(db)
-	sync = synchronizer.New(cloud, db)
-
-	bot = tg_bot.New(gBot, acnt, sync)
-
-	err = bot.Run(ctx)
-
-	return
+	return bot.Run(ctx)
 }
 
 func main() {
