@@ -6,21 +6,6 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-// type (
-// 	commandEntity struct {
-// 		key    string
-// 		desc   string
-// 		action func(upd tgbotapi.Update)
-// 	}
-// )
-
-// const (
-// 	StartCmdKey    = "start"
-// 	HelpCmdKey     = "help"
-// 	SyncCmdKey     = "sync"
-// 	SettingsCmdKey = "settings"
-// )
-
 func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 	commands := []tgbotapi.BotCommand{
 		{
@@ -37,7 +22,7 @@ func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 		},
 		{
 			Command:     "/push",
-			Description: "Экспорт облако",
+			Description: "Экспорт в облако",
 		},
 		{
 			Command:     "/settings",
@@ -53,7 +38,6 @@ func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 func processCommand(u *tgbotapi.Update) (err error) {
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "")
 
-	// Extract the command from the Message.
 	switch u.Message.Command() {
 	case "help":
 		msg.Text = "I understand /sayhi and /status."

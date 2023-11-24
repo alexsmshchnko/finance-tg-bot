@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"time"
 
@@ -10,7 +9,7 @@ import (
 
 func runSync(userName string) (msg string) {
 	msg = "\U0001f44d"
-	err := sync.MigrateFromCloud(context.Background(), userName)
+	err := sync.MigrateFromCloud(ctx, userName)
 	if err != nil {
 		log.Println(err)
 		msg = "\U0001f44e"

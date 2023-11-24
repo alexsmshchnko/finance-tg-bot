@@ -43,3 +43,11 @@ func (s *PGStorage) GetUserToken(username string) (token string, err error) {
 
 	return
 }
+
+func (s *PGStorage) GetUserStatus(username string) (status bool, err error) {
+	client, err := s.getUserInfo(username)
+
+	status = client.IsActive
+
+	return
+}

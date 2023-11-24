@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -14,24 +13,6 @@ type EditMessageForceReply struct {
 	// ParseMode       string
 	// CaptionEntities []MessageEntity
 }
-
-// var menuKeyboard = tgbotapi.NewReplyKeyboard(
-// 	tgbotapi.NewKeyboardButtonRow(
-// 		tgbotapi.NewKeyboardButton("1"),
-// 		tgbotapi.NewKeyboardButton("2"),
-// 		tgbotapi.NewKeyboardButton("3"),
-// 	),
-// 	tgbotapi.NewKeyboardButtonRow(
-// 		tgbotapi.NewKeyboardButton("4"),
-// 		tgbotapi.NewKeyboardButton("5"),
-// 		tgbotapi.NewKeyboardButton("6"),
-// 	),
-// 	tgbotapi.NewKeyboardButtonRow(
-// 		tgbotapi.NewKeyboardButton("7"),
-// 		tgbotapi.NewKeyboardButton("8"),
-// 		tgbotapi.NewKeyboardButton("9"),
-// 	),
-// )
 
 var msgOptionsInlineKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
@@ -48,10 +29,10 @@ func getCatPageInlineKeyboard(slc []string, page int) *tgbotapi.InlineKeyboardMa
 	maxPageLen := 5
 	pageCnt := len(slc) / maxPageLen
 
-	log.Println(slc)
-	log.Println(len(slc))
-	log.Println(cap(slc))
-	log.Printf("page: %d\n", page)
+	// log.Println(slc)
+	// log.Println(len(slc))
+	// log.Println(cap(slc))
+	// log.Printf("page: %d\n", page)
 
 	rowsToShow := slc[page*maxPageLen : (page*maxPageLen + maxPageLen)]
 
@@ -76,31 +57,9 @@ func getCatPageInlineKeyboard(slc []string, page int) *tgbotapi.InlineKeyboardMa
 		rows = append(rows, buttons)
 	}
 
-	// if currentPage > 0 {
-	// rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(EMOJI_PREV, fmt.Sprintf("PAGE:prev:%d:%d", currentPage, count)),
-	// 	tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf("PAGE:next:%d:%d", currentPage, count))))
-	// // }
-
-	// if currentPage < maxPages-1 {
-	// rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf("pager:next:%d:%d", currentPage, count))))
-	// }
-
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
 
 	return &keyboard
-}
-
-func getCatInlineKeyboard(slc []string, page int, pageCnt int) *tgbotapi.InlineKeyboardMarkup {
-	// var rows [][]tgbotapi.InlineKeyboardButton
-
-	// for i := range slc {
-	// 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(slc[i], "CAT:"+slc[i])))
-	// }
-
-	// keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
-
-	// return &keyboard
-	return getCatPageInlineKeyboard(slc, page)
 }
 
 func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {

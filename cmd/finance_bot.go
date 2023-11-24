@@ -4,11 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
+
+	// "log/slog"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"finance-tg-bot/internal/accountant"
+	"finance-tg-bot/internal/config"
 	"finance-tg-bot/internal/disk"
 	"finance-tg-bot/internal/storage"
 	"finance-tg-bot/internal/synchronizer"
@@ -22,6 +27,10 @@ var (
 	cloud *disk.Disk
 	acnt  *accountant.Accountant
 	sync  *synchronizer.Synchronizer
+
+	// log    *slog.Logger
+	ctx    context.Context
+	cancel context.CancelFunc
 )
 
 func deleteMsg(chatID int64, messageID int) {
@@ -45,12 +54,14 @@ func processNumber(u *tgbotapi.Update) (err error) {
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, u.Message.Text+"₽")
 	cats := BotUsers[u.Message.Chat.UserName].FinCategories
 	if len(cats) < 1 {
-		cats, err = acnt.GetCats(context.Background(), u.Message.Chat.UserName)
+		cats, err = acnt.GetCats(ctx, u.Message.Chat.UserName)
 		if err != nil {
 			return err
 		}
+		BotUsers[u.Message.Chat.UserName] = BotUser{FinCategories: cats}
+
 	}
-	msg.ReplyMarkup = getCatInlineKeyboard(cats, 0, 1)
+	msg.ReplyMarkup = getCatPageInlineKeyboard(cats, 0)
 	_, err = gBot.Send(msg)
 	deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 
@@ -110,13 +121,14 @@ func handleCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 
 func handleNavigationCallbackQuery(query *tgbotapi.CallbackQuery) {
 	var err error
-	// cats := BotUsers[query.Message.From.UserName].FinCategories
-	// if len(cats) < 1 {
-	cats, err := acnt.GetCats(context.Background(), query.From.UserName)
-	if err != nil {
-		log.Println(err)
+	cats := BotUsers[query.From.UserName].FinCategories
+	if len(cats) < 1 {
+		fmt.Println("User category cash is empty")
+		cats, err = acnt.GetCats(ctx, query.From.UserName)
+		if err != nil {
+			log.Println(err)
+		}
 	}
-	// }
 
 	split := strings.Split(query.Data, ":")
 	page, err := strconv.Atoi(split[2])
@@ -130,7 +142,7 @@ func handleNavigationCallbackQuery(query *tgbotapi.CallbackQuery) {
 		page--
 	}
 
-	mrkp := getCatInlineKeyboard(cats, page, 1)
+	mrkp := getCatPageInlineKeyboard(cats, page)
 
 	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
 
@@ -153,9 +165,6 @@ func handleOptionCallbackQuery(query *tgbotapi.CallbackQuery) {
 	case "OPT:deleteRecord":
 		deleteRecord(query)
 	}
-
-	// msg := tgbotapi.NewMessage(query.Message.Chat.ID, "")
-	// gBot.Send(msg)
 }
 
 func callbackQueryHandler(query *tgbotapi.CallbackQuery) {
@@ -207,12 +216,72 @@ func processResponse(u *tgbotapi.Update) {
 
 func checkUser(userName string) bool {
 	_, f := BotUsers[userName]
+	if !f {
+		active, err := acnt.GetUserStatus(ctx, userName)
+		if err != nil {
+			log.Println(err)
+		}
+		if active {
+			NewBotUser(userName)
+		}
+		return active
+	}
 	return f
 }
 
+func handleUpdate(update *tgbotapi.Update) {
+
+	if !checkUser(update.SentFrom().UserName) {
+		return
+	}
+
+	if update.CallbackQuery != nil {
+		callbackQueryHandler(update.CallbackQuery)
+		return
+	}
+
+	if update.Message != nil {
+		if ResponseIsAwaited(update.SentFrom().UserName) {
+			processResponse(update)
+		}
+
+		// if update.Message.ReplyToMessage != nil {
+		// 	processReply(&update)
+		// }
+
+		if update.Message.IsCommand() {
+			processCommand(update)
+		}
+
+		if len(update.Message.Text) > 0 {
+			if _, err := strconv.Atoi(update.Message.Text); err == nil {
+				processNumber(update)
+			}
+		}
+	}
+}
+
+func runBot(ctx context.Context) (err error) {
+	updateConfig := tgbotapi.NewUpdate(0)
+	updateConfig.Timeout = 60
+
+	updates := gBot.GetUpdatesChan(updateConfig)
+
+	gBot.Send(initCommands())
+
+	for {
+		select {
+		case update := <-updates:
+			handleUpdate(&update)
+		case <-ctx.Done():
+			gBot.StopReceivingUpdates()
+			return ctx.Err()
+		}
+	}
+}
+
 func run() (err error) {
-	//CONFIG
-	if gBot, err = tgbotapi.NewBotAPI(os.Getenv(BOT_TOKEN_NAME)); err != nil {
+	if gBot, err = tgbotapi.NewBotAPI(config.Get().TelegramBotToken); err != nil {
 		log.Println("[ERROR] failed to create botAPI")
 		return
 	}
@@ -220,54 +289,16 @@ func run() (err error) {
 
 	log.Printf("Authorized on account %s", gBot.Self.UserName)
 
-	//VARS
-	db = storage.NewPGStorage(context.Background(), connStr)
+	ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	db = storage.NewPGStorage(ctx, config.Get().DatabaseDSN)
 	cloud = disk.New()
 
 	acnt = accountant.NewAccountant(db)
 	sync = synchronizer.New(cloud, db)
 
-	//bot user
-	os.Setenv("BOT_ADMIN", BOT_ADMIN)
-	NewBotUser(BOT_ADMIN)
-	//init done
-	updateConfig := tgbotapi.NewUpdate(0)
-	updateConfig.Timeout = CONFIG_TIMEOUT
-	updates := gBot.GetUpdatesChan(updateConfig)
-
-	gBot.Send(initCommands())
-
-	for update := range updates {
-		if !checkUser(update.SentFrom().UserName) {
-			continue
-		}
-
-		if update.CallbackQuery != nil {
-			callbackQueryHandler(update.CallbackQuery)
-			continue
-		}
-
-		if update.Message != nil {
-			if ResponseIsAwaited(update.SentFrom().UserName) {
-				processResponse(&update)
-			}
-
-			// if update.Message.ReplyToMessage != nil {
-			// 	processReply(&update)
-			// }
-
-			if update.Message.IsCommand() {
-				processCommand(&update)
-			}
-
-			if len(update.Message.Text) > 0 {
-				if _, err := strconv.Atoi(update.Message.Text); err == nil {
-					processNumber(&update)
-				}
-			}
-		}
-
-	}
+	err = runBot(ctx)
 
 	return
 }
