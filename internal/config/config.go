@@ -22,7 +22,7 @@ func Get() Config {
 	once.Do(func() {
 		loader := aconfig.LoaderFor(&cfg, aconfig.Config{
 			//EnvPrefix: "",
-			Files: []string{"./config.hcl", "./config.local.hcl", "$HOME/.config/finance-tg-bot/config.hcl"},
+			Files: []string{"./internal/config/config.local.hcl", "./config.hcl", "$HOME/.config/finance-tg-bot/config.hcl"},
 			FileDecoders: map[string]aconfig.FileDecoder{
 				".hcl": aconfighcl.New(),
 			},

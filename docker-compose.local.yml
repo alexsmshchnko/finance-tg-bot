@@ -1,0 +1,66 @@
+version: "3.9"
+
+volumes:
+  app-data:
+
+networks:
+  app-network:
+
+services:
+  bot:
+    build: 
+      context: .
+    environment:
+      DATABASE_DSN: "postgres://postgres:postgres@postgres:5432/base?sslmode=disable"
+    networks:
+      - app-network
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:latest
+    #image: postgres:16.0
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "base"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - app-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    ports:
+      - 5433:5432
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d base"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4:7.8
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - app-data:/var/lib/pgadmin
+    networks:
+      - app-network
+    ports:
+      - "5050:80"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G

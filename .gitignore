@@ -2,3 +2,4 @@ env.sh
 *.env
 *.xlsx
 store
+internal/config/config.local.hcl
