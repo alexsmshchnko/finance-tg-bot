@@ -23,10 +23,11 @@ type ReceiptRec struct {
 	Category    string
 	Amount      int
 	Description string
+	Direction   int
 }
 
 func (r ReceiptRec) String() string {
-	return fmt.Sprintf("%v %s %d %s", r.Time, r.Category, r.Amount, r.Description)
+	return fmt.Sprintf("%v %s %d %s %d", r.Time, r.Category, r.Amount, r.Description, r.Direction)
 }
 
 const (
@@ -36,12 +37,13 @@ const (
 	expensesPage = "Расходы"
 )
 
-func NewReceiptRec(time time.Time, category string, amount int, description string) (rec *ReceiptRec) {
+func NewReceiptRec(time time.Time, category string, amount int, description string, direction int) (rec *ReceiptRec) {
 	return &ReceiptRec{
 		Time:        time,
 		Category:    category,
 		Amount:      amount,
 		Description: description,
+		Direction:   direction,
 	}
 }
 
@@ -89,6 +91,7 @@ func GetRowsToSync(fileName string) (rslt []ReceiptRec, err error) {
 			Category:    catR,
 			Amount:      amntR,
 			Description: desrR,
+			Direction:   -1,
 		}
 
 		rslt = append(rslt, row)

@@ -12,6 +12,7 @@ type DBDocument struct {
 	Description string    `db:"comment"`
 	MsgID       string    `db:"tg_msg_id"`
 	ClientID    string    `db:"client_id"`
+	Direction   int       `db:"direction"`
 }
 
 func (s *PGStorage) GetCategories(username string) (cat []string, err error) {
@@ -22,9 +23,9 @@ func (s *PGStorage) GetCategories(username string) (cat []string, err error) {
 func (s *PGStorage) postDocument(doc *DBDocument) (err error) {
 	tx := s.db.MustBegin()
 
-	sql := "INSERT INTO public.document (trans_date, trans_cat, trans_amount, comment, tg_msg_id, client_id)" +
-		"VALUES($1, $2, $3, $4, $5, $6);"
-	tx.MustExec(sql, doc.Time, doc.Category, doc.Amount, doc.Description, doc.MsgID, doc.ClientID)
+	sql := "INSERT INTO public.document (trans_date, trans_cat, trans_amount, comment, tg_msg_id, client_id, direction)" +
+		"VALUES($1, $2, $3, $4, $5, $6, $7);"
+	tx.MustExec(sql, doc.Time, doc.Category, doc.Amount, doc.Description, doc.MsgID, doc.ClientID, doc.Direction)
 
 	return tx.Commit()
 }
@@ -58,13 +59,14 @@ func (s *PGStorage) ClearUserHistory(username string) (err error) {
 	return tx.Commit()
 }
 
-func (s *PGStorage) LoadDocs(time time.Time, category string, amount int, description string, client string) (err error) {
+func (s *PGStorage) LoadDocs(time time.Time, category string, amount int, description string, direction int, client string) (err error) {
 	doc := &DBDocument{
 		Time:        time,
 		Category:    category,
 		Amount:      amount,
 		Description: description,
 		ClientID:    client,
+		Direction:   direction,
 	}
 
 	return s.postDocument(doc)

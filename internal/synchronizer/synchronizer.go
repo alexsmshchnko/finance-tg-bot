@@ -24,7 +24,7 @@ type Loader interface {
 type DB interface {
 	GetUserToken(username string) (token string, err error)
 	ClearUserHistory(username string) (err error)
-	LoadDocs(time time.Time, category string, amount int, description string, client string) (err error)
+	LoadDocs(time time.Time, category string, amount int, description string, direction int, client string) (err error)
 }
 
 // type File interface {
@@ -65,7 +65,7 @@ func (s *Synchronizer) MigrateFromCloud(ctx context.Context, username string) (e
 	}
 
 	for _, v := range rowsToSync {
-		if err = s.LoadDocs(v.Time, v.Category, v.Amount, v.Description, username); err != nil {
+		if err = s.LoadDocs(v.Time, v.Category, v.Amount, v.Description, v.Direction, username); err != nil {
 			return err
 		}
 	}
