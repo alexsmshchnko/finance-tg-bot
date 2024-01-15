@@ -84,7 +84,7 @@ func GetRowsToSync(fileName string) (rslt []ReceiptRec, err error) {
 			desrR = v[3]
 		}
 
-		dt, _ = time.Parse("02.01.06", v[0])
+		dt, _ = time.Parse("02/01/2006", v[0])
 
 		row := ReceiptRec{
 			Time:        dt,

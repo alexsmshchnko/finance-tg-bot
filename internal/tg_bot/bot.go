@@ -13,8 +13,9 @@ import (
 
 type accountant interface {
 	GetCats(ctx context.Context, username string) (cats []string, err error)
+	GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error)
 	GetUserStatus(ctx context.Context, username string) (status bool, err error)
-	PostDoc(category string, amount int, description string, msg_id string, client string) (err error)
+	PostDoc(category string, amount int, description string, msg_id string, direction int, client string) (err error)
 	DeleteDoc(msg_id string, client string) (err error)
 }
 
@@ -64,7 +65,7 @@ func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error)
 		BotUsers[u.Message.Chat.UserName] = BotUser{FinCategories: cats}
 
 	}
-	msg.ReplyMarkup = getCatPageInlineKeyboard(cats, 0)
+	msg.ReplyMarkup = getPagedListInlineKeyboard(cats, 0, PREFIX_CATEGORY)
 	_, err = b.api.Send(msg)
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 
@@ -72,10 +73,10 @@ func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error)
 }
 
 func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
-	amnt, _ := strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
-	cat := strings.Split(query.Message.Text, " на ")[1]
+	// amnt, _ := strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
+	// cat := strings.Split(query.Message.Text, " на ")[1]
 
-	b.accountant.PostDoc(cat, amnt, "", fmt.Sprint(query.Message.MessageID), query.From.UserName)
+	// b.accountant.PostDoc(cat, amnt, "", fmt.Sprint(query.Message.MessageID), -1, query.From.UserName)
 	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
 }
 
@@ -100,37 +101,65 @@ func (b *Bot) requestDescription(query *tgbotapi.CallbackQuery) {
 	// msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, "описание")
 	// msg.ReplyMarkup = getReply()
 
-	msg := tgbotapi.NewMessage(query.Message.Chat.ID, EMOJI_COMMENT+"...")
+	//msg := tgbotapi.NewMessage(query.Message.Chat.ID, EMOJI_COMMENT+"...")
 
-	msg.ReplyMarkup = getReply()
+	//msg.ReplyMarkup = getReply()
+	subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
+	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, subCat)
+	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY)
+	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
 	b.api.Send(msg)
 	WaitUserResponeStart(query.From.UserName, "REC_DESC", *query.Message)
 }
 
 func (b *Bot) handleCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 	// cat := strings.Split(query.Data, "CAT:")[1]
-	cat, _ := strings.CutPrefix(query.Data, "CAT:")
+	cat, _ := strings.CutPrefix(query.Data, PREFIX_CATEGORY+":")
+	amnt, _ := strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
+	b.accountant.PostDoc(cat, amnt, "", fmt.Sprint(query.Message.MessageID), -1, query.From.UserName)
+
 	query.Message.Text, _ = strings.CutSuffix(query.Message.Text, "₽")
 
+	//update text
 	resp := query.Message.Text + "₽ на " + cat
-	msg := tgbotapi.NewMessage(query.Message.Chat.ID, resp)
-	msg.ReplyMarkup = getMsgOptionsKeyboard()
-	b.api.Send(msg)
-	b.deleteMsg(query.Message.Chat.ID, query.Message.MessageID)
+	b.updateMsgText(query.Message.Chat.ID, query.Message.MessageID, resp)
 
-	// rec := internal.NewReceiptRec(time.Now(), cat, amnt, "")
-	// internal.AddNewExpense(rec)
+	//update keyboard
+	mrkp := getMsgOptionsKeyboard()
+	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
+	b.api.Send(msg)
+}
+
+func (b *Bot) handleSubCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
+	//update text
+	subCat, _ := strings.CutPrefix(query.Data, PREFIX_SUBCATEGORY+":")
+	b.updateMsgText(query.Message.Chat.ID, query.Message.MessageID, query.Message.Text+"\n"+EMOJI_COMMENT+subCat)
+
+	//update keyboard
+	mrkp := getMsgOptionsKeyboard()
+	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
+	b.api.Send(msg)
 }
 
 func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQuery) {
 	var err error
-	cats := BotUsers[query.From.UserName].FinCategories
-	if len(cats) < 1 {
-		fmt.Println("User category cash is empty")
-		cats, err = b.accountant.GetCats(ctx, query.From.UserName)
-		if err != nil {
-			log.Println(err)
+	var list []string
+
+	prefix := strings.Split(*query.Message.ReplyMarkup.InlineKeyboard[0][0].CallbackData, ":")[0]
+
+	switch prefix {
+	case PREFIX_CATEGORY:
+		list = BotUsers[query.From.UserName].FinCategories
+		if len(list) < 1 {
+			fmt.Println("User category cash is empty")
+			list, err = b.accountant.GetCats(ctx, query.From.UserName)
+			if err != nil {
+				log.Println(err)
+			}
 		}
+	case PREFIX_SUBCATEGORY:
+		subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
+		list, _ = b.accountant.GetSubCats(ctx, query.From.UserName, subCat)
 	}
 
 	split := strings.Split(query.Data, ":")
@@ -145,27 +174,19 @@ func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi
 		page--
 	}
 
-	mrkp := getCatPageInlineKeyboard(cats, page)
-
+	mrkp := getPagedListInlineKeyboard(list, page, prefix)
 	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
-
-	// msg.ReplyMarkup =
-
-	// mrkp := tgbotapi.InlineKeyboardMarkup{
-	// 	InlineKeyboard: make([][]tgbotapi.InlineKeyboardButton, 0),
-	// }
-
 	b.api.Send(msg)
-
 }
 
 func (b *Bot) handleOptionCallbackQuery(query *tgbotapi.CallbackQuery) {
-	switch query.Data {
-	case "OPT:saveRecord":
+	split := strings.Split(query.Data, ":")
+	switch split[1] {
+	case "saveRecord":
 		b.confirmRecord(query)
-	case "OPT:addDescription":
+	case "addDescription":
 		b.requestDescription(query)
-	case "OPT:deleteRecord":
+	case "deleteRecord":
 		b.deleteRecord(query)
 	}
 }
@@ -173,11 +194,13 @@ func (b *Bot) handleOptionCallbackQuery(query *tgbotapi.CallbackQuery) {
 func (b *Bot) callbackQueryHandler(ctx context.Context, query *tgbotapi.CallbackQuery) {
 	split := strings.Split(query.Data, ":")
 	switch split[0] {
-	case "CAT":
+	case PREFIX_CATEGORY:
 		b.handleCategoryCallbackQuery(query)
-	case "OPT":
+	case PREFIX_SUBCATEGORY:
+		b.handleSubCategoryCallbackQuery(query)
+	case PREFIX_OPTION:
 		b.handleOptionCallbackQuery(query)
-	case "PAGE":
+	case PREFIX_PAGE:
 		b.handleNavigationCallbackQuery(ctx, query)
 	}
 }
@@ -205,7 +228,7 @@ func (b *Bot) processResponse(u *tgbotapi.Update) {
 	amnt, _ := strconv.Atoi(strings.Split(respMsg.Text, "₽")[0])
 	cat := strings.Split(respMsg.Text, " на ")[1]
 
-	b.accountant.PostDoc(cat, amnt, u.Message.Text, fmt.Sprint(respMsg.MessageID), u.SentFrom().UserName)
+	b.accountant.PostDoc(cat, amnt, u.Message.Text, fmt.Sprint(respMsg.MessageID), -1, u.SentFrom().UserName)
 
 	// expRec := internal.NewFinRec(cat, amnt, u.Message.Text, fmt.Sprintf("%d", respMsg.MessageID))
 	// internal.NewUser(u.SentFrom().UserName).NewExpense(expRec)

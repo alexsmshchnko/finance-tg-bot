@@ -20,6 +20,12 @@ func (s *PGStorage) GetCategories(username string) (cat []string, err error) {
 	return
 }
 
+func (s *PGStorage) GetSubCategories(username, trans_cat string) (cat []string, err error) {
+	err = s.db.Select(&cat, "select lower(comment) from public.document"+
+		" where client_id = $1 and trans_cat = $2 and trans_date > current_date - 90 group by lower(comment) order by count(*) desc limit 10", username, trans_cat)
+	return
+}
+
 func (s *PGStorage) postDocument(doc *DBDocument) (err error) {
 	tx := s.db.MustBegin()
 
@@ -30,7 +36,7 @@ func (s *PGStorage) postDocument(doc *DBDocument) (err error) {
 	return tx.Commit()
 }
 
-func (s *PGStorage) PostDoc(time time.Time, category string, amount int, description string, msg_id string, client string) (err error) {
+func (s *PGStorage) PostDoc(time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error) {
 	doc := &DBDocument{
 		Time:        time,
 		Category:    category,
@@ -38,6 +44,7 @@ func (s *PGStorage) PostDoc(time time.Time, category string, amount int, descrip
 		Description: description,
 		MsgID:       msg_id,
 		ClientID:    client,
+		Direction:   direction,
 	}
 
 	return s.postDocument(doc)

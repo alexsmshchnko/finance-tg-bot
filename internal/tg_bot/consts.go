@@ -10,4 +10,11 @@ const (
 	EMOJI_ROCKET     = "\U0001f680" //🚀
 	EMOJI_NEXT       = "\u27A1"     //➡
 	EMOJI_PREV       = "\u2B05"     //⬅
+
+	PREFIX_CATEGORY    = "CAT"
+	PREFIX_SUBCATEGORY = "SUBCAT"
+	PREFIX_PAGE        = "PAGE"
+	PREFIX_OPTION      = "OPT"
+
+	maxPageLen = 5
 )

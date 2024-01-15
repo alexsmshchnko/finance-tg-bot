@@ -7,8 +7,9 @@ import (
 
 type DocumentStorage interface {
 	GetCategories(username string) ([]string, error)
+	GetSubCategories(username, trans_cat string) ([]string, error)
 	GetUserStatus(username string) (status bool, err error)
-	PostDoc(time time.Time, category string, amount int, description string, msg_id string, client string) (err error)
+	PostDoc(time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error)
 	DeleteDoc(msg_id string, client string) (err error)
 }
 
@@ -26,13 +27,19 @@ func (a *Accountant) GetCats(ctx context.Context, username string) (cats []strin
 	return
 }
 
+func (a *Accountant) GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error) {
+	cats, err = a.documents.GetSubCategories(username, trans_cat)
+	cats = append(cats, "\U00002328") //⌨ - write custom comment
+	return
+}
+
 func (a *Accountant) GetUserStatus(ctx context.Context, username string) (status bool, err error) {
 	status, err = a.documents.GetUserStatus(username)
 	return
 }
 
-func (a *Accountant) PostDoc(category string, amount int, description string, msg_id string, client string) (err error) {
-	return a.documents.PostDoc(time.Now(), category, amount, description, msg_id, client)
+func (a *Accountant) PostDoc(category string, amount int, description string, msg_id string, direction int, client string) (err error) {
+	return a.documents.PostDoc(time.Now(), category, amount, description, msg_id, direction, client)
 }
 
 func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {
