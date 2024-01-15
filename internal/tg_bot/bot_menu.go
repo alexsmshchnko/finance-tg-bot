@@ -46,6 +46,8 @@ func (b *Bot) processCommand(ctx context.Context, u *tgbotapi.Update) (err error
 		msg.Text = "Hi :)"
 	case "sync":
 		b.syncCmd(ctx, u)
+	case "push":
+		b.pushCmd(ctx, u)
 	default:
 		msg.Text = "I don't know that command"
 	}

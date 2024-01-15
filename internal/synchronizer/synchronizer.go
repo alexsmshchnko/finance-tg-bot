@@ -44,6 +44,22 @@ func New(loader Loader, db DB) *Synchronizer {
 	}
 }
 
+func (s *Synchronizer) PushToCloud(ctx context.Context, username string) (err error) {
+	token, err := s.DB.GetUserToken(username)
+	if err != nil {
+		return
+	}
+
+	// TODO add excel file creation
+
+	err = s.Loader.UploadFile(ctx, token, YA_DISK_FILE_PATH)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func (s *Synchronizer) MigrateFromCloud(ctx context.Context, username string) (err error) {
 	token, err := s.DB.GetUserToken(username)
 	if err != nil {

@@ -21,6 +21,7 @@ type accountant interface {
 
 type synchronizer interface {
 	MigrateFromCloud(ctx context.Context, username string) (err error)
+	PushToCloud(ctx context.Context, username string) (err error)
 }
 
 type Bot struct {
