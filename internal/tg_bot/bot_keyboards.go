@@ -44,6 +44,10 @@ func getPagedListInlineKeyboard(slc []string, page int, prefix string) *tgbotapi
 	var buttons []tgbotapi.InlineKeyboardButton
 
 	pageCnt := len(slc) / maxPageLen
+	if pageCnt*maxPageLen < len(slc) {
+		pageCnt++
+	}
+
 	if page == 0 && len(slc) > maxPageLen {
 		buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf(PREFIX_PAGE+":next:%d:%d", page, pageCnt)))
 	} else if page == pageCnt-1 && page != 0 {

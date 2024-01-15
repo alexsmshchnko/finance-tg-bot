@@ -73,10 +73,11 @@ func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error)
 }
 
 func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
-	// amnt, _ := strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
-	// cat := strings.Split(query.Message.Text, " на ")[1]
+	amnt, _ := strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
+	cat := strings.Split(strings.Split(query.Message.Text, "\n")[0], " на ")[1]
+	descr, _ := strings.CutPrefix(strings.Split(query.Message.Text, "\n")[1], EMOJI_COMMENT)
 
-	// b.accountant.PostDoc(cat, amnt, "", fmt.Sprint(query.Message.MessageID), -1, query.From.UserName)
+	b.accountant.PostDoc(cat, amnt, descr, fmt.Sprint(query.Message.MessageID), -1, query.From.UserName)
 	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
 }
 
@@ -98,25 +99,22 @@ func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {
 //
 
 func (b *Bot) requestDescription(query *tgbotapi.CallbackQuery) {
-	// msg := tgbotapi.NewMessage(u.CallbackQuery.Message.Chat.ID, "описание")
-	// msg.ReplyMarkup = getReply()
-
-	//msg := tgbotapi.NewMessage(query.Message.Chat.ID, EMOJI_COMMENT+"...")
-
-	//msg.ReplyMarkup = getReply()
 	subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
 	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, subCat)
 	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY)
 	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
 	b.api.Send(msg)
+}
+
+func (b *Bot) requestCustomDescription(query *tgbotapi.CallbackQuery) {
+	msg := tgbotapi.NewMessage(query.Message.Chat.ID, EMOJI_COMMENT+"...")
+	msg.ReplyMarkup = getReply()
+	b.api.Send(msg)
 	WaitUserResponeStart(query.From.UserName, "REC_DESC", *query.Message)
 }
 
 func (b *Bot) handleCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
-	// cat := strings.Split(query.Data, "CAT:")[1]
 	cat, _ := strings.CutPrefix(query.Data, PREFIX_CATEGORY+":")
-	amnt, _ := strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
-	b.accountant.PostDoc(cat, amnt, "", fmt.Sprint(query.Message.MessageID), -1, query.From.UserName)
 
 	query.Message.Text, _ = strings.CutSuffix(query.Message.Text, "₽")
 
@@ -133,6 +131,12 @@ func (b *Bot) handleCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 func (b *Bot) handleSubCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 	//update text
 	subCat, _ := strings.CutPrefix(query.Data, PREFIX_SUBCATEGORY+":")
+
+	if subCat == EMOJI_KEYBOARD {
+		b.requestCustomDescription(query)
+		return
+	}
+
 	b.updateMsgText(query.Message.Chat.ID, query.Message.MessageID, query.Message.Text+"\n"+EMOJI_COMMENT+subCat)
 
 	//update keyboard
@@ -215,13 +219,6 @@ func (b *Bot) callbackQueryHandler(ctx context.Context, query *tgbotapi.Callback
 // }
 
 func (b *Bot) processResponse(u *tgbotapi.Update) {
-	//msg := tgbotapi.NewMessage(u.Message.Chat.ID, u.Message.Text+"response processed")
-
-	// rec := internal.ReceiptRec{Description: u.Message.Text}
-	// err := internal.AddLastExpenseDescription(&rec)
-	// if err != nil {
-	//
-
 	respMsg := BotUsers[u.SentFrom().UserName].ResponseMsg
 	b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, respMsg.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
 
@@ -233,11 +230,14 @@ func (b *Bot) processResponse(u *tgbotapi.Update) {
 	// expRec := internal.NewFinRec(cat, amnt, u.Message.Text, fmt.Sprintf("%d", respMsg.MessageID))
 	// internal.NewUser(u.SentFrom().UserName).NewExpense(expRec)
 
+	mrkp := getMsgOptionsKeyboard()
+	msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
+	b.api.Send(msg)
+
 	WaitUserResponseComplete(u.SentFrom().UserName)
 
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID-1)
-	//gBot.Send(msg)
 }
 
 func (b *Bot) checkUser(ctx context.Context, userName string) bool {
