@@ -5,6 +5,7 @@ const (
 	EMOJI_CROSS      = "\u274C"     //❌
 	EMOJI_COMMENT    = "\U0001f4ac" //💬
 	EMOJI_CHANGE     = "\U0000270D" //✍
+	EMOJI_KEYBOARD   = "\U00002328" //⌨
 	EMOJI_THUMB_UP   = "\U0001f44d" //👍
 	EMOJI_THUMB_DOWN = "\U0001f44e" //👎
 	EMOJI_ROCKET     = "\U0001f680" //🚀
