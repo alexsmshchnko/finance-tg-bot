@@ -90,7 +90,7 @@ func (s *PGStorage) LoadDocs(time time.Time, category string, amount int, descri
 
 func (s *PGStorage) Export(client string) (rslt []byte, err error) {
 	data, err := s.db.Query("SELECT trans_date, trans_cat, trans_amount, comment, direction "+
-		" FROM base.public.document where client_id = $1", client)
+		" FROM base.public.document WHERE client_id = $1 ORDER BY 1 DESC", client)
 	if err != nil {
 		return rslt, err
 	}
