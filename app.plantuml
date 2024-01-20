@@ -1,0 +1,29 @@
+@startuml
+[Accountant] as acc
+() "DocumentStorage"
+[Synchronizer] as sync
+() "Loader"
+() "DB"
+() "File"
+[tg_bot] as bot
+() "accountant"
+() "synchronizer"
+storage local_storage
+database "PG (storage)" as db
+cloud disk
+
+sync -- Loader
+sync -- File
+sync -- DB
+Loader -- disk
+File -- local_storage
+DB -- db
+
+acc -- DocumentStorage
+DocumentStorage -- db
+
+bot -- accountant
+bot -- synchronizer
+accountant -- acc
+synchronizer --sync
+@enduml

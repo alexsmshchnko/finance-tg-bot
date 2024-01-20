@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -13,6 +14,14 @@ type DBDocument struct {
 	MsgID       string    `db:"tg_msg_id"`
 	ClientID    string    `db:"client_id"`
 	Direction   int       `db:"direction"`
+}
+
+type DocExport struct {
+	Time        time.Time `json:"trans_date"`
+	Category    string    `json:"trans_cat"`
+	Amount      int       `json:"trans_amount"`
+	Description string    `json:"comment"`
+	Direction   int       `json:"direction"`
 }
 
 func (s *PGStorage) GetCategories(username string) (cat []string, err error) {
@@ -77,4 +86,25 @@ func (s *PGStorage) LoadDocs(time time.Time, category string, amount int, descri
 	}
 
 	return s.postDocument(doc)
+}
+
+func (s *PGStorage) Export(client string) (rslt []byte, err error) {
+	data, err := s.db.Query("SELECT trans_date, trans_cat, trans_amount, comment, direction "+
+		" FROM base.public.document where client_id = $1", client)
+	if err != nil {
+		return rslt, err
+	}
+
+	var expDocs []DocExport
+	expDoc := DocExport{}
+
+	for data.Next() {
+		err = data.Scan(&expDoc.Time, &expDoc.Category, &expDoc.Amount, &expDoc.Description, &expDoc.Direction)
+		if err != nil {
+			return rslt, err
+		}
+		expDocs = append(expDocs, expDoc)
+	}
+	return json.Marshal(expDocs)
+
 }

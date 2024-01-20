@@ -3,6 +3,7 @@ package disk
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	yaDisk "github.com/alexsmshchnko/ya-disk-api-client"
@@ -37,7 +38,8 @@ func (c *Disk) DownloadFile(ctx context.Context, oAuth, filePath string) (err er
 func (c *Disk) UploadFile(ctx context.Context, oAuth, filePath string) (err error) {
 	client, _ := yaDisk.NewClient(oAuth, timeOut)
 
-	_, err = client.UploadFile(YA_DISK_FILE_PATH, YA_DISK_FILE_FULL_NAME, true, ctx)
+	fileName := strings.Split(filePath, "/")[len(strings.Split(filePath, "/"))-1]
+	_, err = client.UploadFile(YA_DISK_BKP_PATH+time.Now().Format("060102150405")+fileName, filePath, false, ctx)
 	return err
 }
 

@@ -1,6 +1,6 @@
 module finance-tg-bot
 
-go 1.21.4
+go 1.21.6
 
 require (
 	github.com/alexsmshchnko/ya-disk-api-client v0.2.1
