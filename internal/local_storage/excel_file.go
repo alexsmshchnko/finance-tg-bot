@@ -53,14 +53,11 @@ func OpenFile(fileName string) (file *excelize.File, err error) {
 	return
 }
 
-func GetRowsToSync(fileName string) (rslt []ReceiptRec, err error) {
-	f, err := OpenFile(fileName)
+func getRows(f *excelize.File, page string, direction int) (rslt []ReceiptRec) {
+	rows, err := f.GetRows(page)
 	if err != nil {
-		log.Fatalf("OpenFile err: %e", err)
+		log.Fatalf("GetRows err: %e", err)
 	}
-	defer f.Close()
-
-	rows, err := f.GetRows("Расходы")
 
 	var catR string
 	var amntR int
@@ -68,7 +65,7 @@ func GetRowsToSync(fileName string) (rslt []ReceiptRec, err error) {
 	var dt time.Time
 
 	for i, v := range rows {
-		if i < 16 {
+		if i < 17 {
 			continue
 		}
 
@@ -84,18 +81,40 @@ func GetRowsToSync(fileName string) (rslt []ReceiptRec, err error) {
 			desrR = v[3]
 		}
 
-		dt, _ = time.Parse("02/01/2006", v[0])
+		dt, err = time.Parse("01-02-06", v[0])
+		if err != nil {
+			dt, err = time.Parse("02/01/2006", v[0])
+			if err != nil {
+				dt, _ = time.Parse("02.01.06", v[0])
+			}
+		}
+
+		if dt.After(time.Now()) {
+			continue
+		}
 
 		row := ReceiptRec{
 			Time:        dt,
 			Category:    catR,
 			Amount:      amntR,
 			Description: desrR,
-			Direction:   -1,
+			Direction:   direction,
 		}
 
 		rslt = append(rslt, row)
 	}
+	return
+}
+
+func GetRowsToSync(fileName string) (rslt []ReceiptRec, err error) {
+	f, err := OpenFile(fileName)
+	if err != nil {
+		log.Fatalf("OpenFile err: %e", err)
+	}
+	defer f.Close()
+
+	rslt = append(rslt, getRows(f, "Расходы", -1)...)
+	rslt = append(rslt, getRows(f, "Доходы", 1)...)
 
 	return
 }

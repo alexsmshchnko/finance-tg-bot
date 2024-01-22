@@ -21,25 +21,32 @@ type DocExport struct {
 	Category    string    `json:"trans_cat"`
 	Amount      int       `json:"trans_amount"`
 	Description string    `json:"comment"`
-	Direction   int       `json:"direction"`
+	Direction   string    `json:"direction"`
 }
 
 func (s *PGStorage) GetCategories(username string) (cat []string, err error) {
-	err = s.db.Select(&cat, "select trans_cat from public.document where client_id = $1 group by trans_cat order by count(*) desc", username)
+	err = s.db.Select(&cat, "select trans_cat from public.document"+
+		" where client_id = $1 group by trans_cat order by count(*) desc", username)
 	return
 }
 
 func (s *PGStorage) GetSubCategories(username, trans_cat string) (cat []string, err error) {
 	err = s.db.Select(&cat, "select lower(comment) from public.document"+
-		" where client_id = $1 and trans_cat = $2 and trans_date > current_date - 90 group by lower(comment) order by count(*) desc limit 10", username, trans_cat)
+		" where client_id = $1 and trans_cat = $2 and trans_date > current_date - 90"+
+		" group by lower(comment) order by count(*) desc limit 10", username, trans_cat)
 	return
 }
 
 func (s *PGStorage) postDocument(doc *DBDocument) (err error) {
-	tx := s.db.MustBegin()
+	err = s.db.Get(&doc.Direction, "select direction from public.trans_category"+
+		" where client_id = $1 and trans_cat = $2 and active = true", doc.ClientID, doc.Category)
+	if err != nil {
+		return err
+	}
 
+	tx := s.db.MustBegin()
 	sql := "INSERT INTO public.document (trans_date, trans_cat, trans_amount, comment, tg_msg_id, client_id, direction)" +
-		"VALUES($1, $2, $3, $4, $5, $6, $7);"
+		" VALUES($1, $2, $3, $4, $5, $6, $7);"
 	tx.MustExec(sql, doc.Time, doc.Category, doc.Amount, doc.Description, doc.MsgID, doc.ClientID, doc.Direction)
 
 	return tx.Commit()
@@ -89,14 +96,14 @@ func (s *PGStorage) LoadDocs(time time.Time, category string, amount int, descri
 }
 
 func (s *PGStorage) Export(client string) (rslt []byte, err error) {
-	data, err := s.db.Query("SELECT trans_date, trans_cat, trans_amount, comment, direction "+
+	data, err := s.db.Query("SELECT trans_date, trans_cat, trans_amount, comment, case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction"+
 		" FROM base.public.document WHERE client_id = $1 ORDER BY 1 DESC", client)
 	if err != nil {
 		return rslt, err
 	}
 
-	var expDocs []DocExport
 	expDoc := DocExport{}
+	var expDocs []DocExport
 
 	for data.Next() {
 		err = data.Scan(&expDoc.Time, &expDoc.Category, &expDoc.Amount, &expDoc.Description, &expDoc.Direction)

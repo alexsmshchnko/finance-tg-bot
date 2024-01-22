@@ -13,7 +13,7 @@ const (
 	timeOut = 10 * time.Second
 
 	YA_DISK_APP_NAME  = "Финансовый бот"
-	YA_DISK_FILE_NAME = "FamilyBudget"
+	YA_DISK_FILE_NAME = "Семейный бюджет"
 	YA_DISK_FILE_EXT  = ".xlsx"
 
 	YA_DISK_FILE_FULL_NAME = YA_DISK_FILE_NAME + YA_DISK_FILE_EXT

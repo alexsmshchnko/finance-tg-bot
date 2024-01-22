@@ -30,7 +30,7 @@ type DocExport struct {
 	Category    string    `json:"trans_cat"`
 	Amount      int       `json:"trans_amount"`
 	Description string    `json:"comment"`
-	Direction   int       `json:"direction"`
+	Direction   string    `json:"direction"`
 }
 
 type DB interface {
@@ -85,7 +85,7 @@ func (s *Synchronizer) PushToCloud(ctx context.Context, username string) (err er
 
 	for _, value := range docs {
 		rec := []string{value.Time.UTC().Format("02.01.2006"), value.Category,
-			fmt.Sprint(value.Amount), value.Description, fmt.Sprint(value.Direction)}
+			fmt.Sprint(value.Amount), value.Description, value.Direction}
 		err := writer.Write(rec)
 		if err != nil {
 			return err
