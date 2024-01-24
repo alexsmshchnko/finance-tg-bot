@@ -74,11 +74,19 @@ func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error)
 }
 
 func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
-	amnt, _ := strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
-	cat := strings.Split(strings.Split(query.Message.Text, "\n")[0], " на ")[1]
-	descr, _ := strings.CutPrefix(strings.Split(query.Message.Text, "\n")[1], EMOJI_COMMENT)
+	var (
+		amnt, direction int
+		cat, descr      string
+	)
+	amnt, _ = strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
+	direction = 0
+	scntSplit := strings.Split(query.Message.Text, "\n")
+	cat = strings.Split(scntSplit[0], " на ")[1]
+	if len(scntSplit) > 1 {
+		descr, _ = strings.CutPrefix(scntSplit[1], EMOJI_COMMENT)
+	}
 
-	b.accountant.PostDoc(cat, amnt, descr, fmt.Sprint(query.Message.MessageID), 0, query.From.UserName)
+	b.accountant.PostDoc(cat, amnt, descr, fmt.Sprint(query.Message.MessageID), direction, query.From.UserName)
 	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
 }
 
