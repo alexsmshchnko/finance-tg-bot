@@ -96,6 +96,11 @@ func (s *Synchronizer) PushToCloud(ctx context.Context, username string) (err er
 }
 
 func (s *Synchronizer) MigrateFromCloud(ctx context.Context, username string) (err error) {
+	err = s.PushToCloud(ctx, username)
+	if err != nil {
+		return
+	}
+
 	token, err := s.DB.GetUserToken(username)
 	if err != nil {
 		return
