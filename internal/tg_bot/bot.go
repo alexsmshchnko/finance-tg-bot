@@ -78,7 +78,7 @@ func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
 	cat := strings.Split(strings.Split(query.Message.Text, "\n")[0], " на ")[1]
 	descr, _ := strings.CutPrefix(strings.Split(query.Message.Text, "\n")[1], EMOJI_COMMENT)
 
-	b.accountant.PostDoc(cat, amnt, descr, fmt.Sprint(query.Message.MessageID), -1, query.From.UserName)
+	b.accountant.PostDoc(cat, amnt, descr, fmt.Sprint(query.Message.MessageID), 0, query.From.UserName)
 	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
 }
 

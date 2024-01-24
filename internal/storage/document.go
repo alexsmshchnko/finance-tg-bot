@@ -7,13 +7,13 @@ import (
 
 type DBDocument struct {
 	ID          int64     `db:"id"`
-	Time        time.Time `db:"trans_date"`
-	Category    string    `db:"trans_cat"`
-	Amount      int       `db:"trans_amount"`
-	Description string    `db:"comment"`
+	Time        time.Time `db:"trans_date"   json:"trans_date"`
+	Category    string    `db:"trans_cat"    json:"trans_cat"`
+	Amount      int       `db:"trans_amount" json:"trans_amount"`
+	Description string    `db:"comment"      json:"comment"`
 	MsgID       string    `db:"tg_msg_id"`
 	ClientID    string    `db:"client_id"`
-	Direction   int       `db:"direction"`
+	Direction   int       `db:"direction"    json:"direction"`
 }
 
 type DocExport struct {
@@ -38,10 +38,12 @@ func (s *PGStorage) GetSubCategories(username, trans_cat string) (cat []string, 
 }
 
 func (s *PGStorage) postDocument(doc *DBDocument) (err error) {
-	err = s.db.Get(&doc.Direction, "select direction from public.trans_category"+
-		" where client_id = $1 and trans_cat = $2 and active = true", doc.ClientID, doc.Category)
-	if err != nil {
-		return err
+	if doc.Direction == 0 {
+		err = s.db.Get(&doc.Direction, "select direction from public.trans_category"+
+			" where client_id = $1 and trans_cat = $2 and active = true", doc.ClientID, doc.Category)
+		if err != nil {
+			return err
+		}
 	}
 
 	tx := s.db.MustBegin()
@@ -78,22 +80,53 @@ func (s *PGStorage) ClearUserHistory(username string) (err error) {
 	tx := s.db.MustBegin()
 
 	tx.MustExec("DELETE FROM public.document WHERE client_id = $1;", username)
+	tx.MustExec("UPDATE public.trans_category SET active = false WHERE client_id = $1;", username)
 
 	return tx.Commit()
 }
 
-func (s *PGStorage) LoadDocs(time time.Time, category string, amount int, description string, direction int, client string) (err error) {
-	doc := &DBDocument{
-		Time:        time,
-		Category:    category,
-		Amount:      amount,
-		Description: description,
-		ClientID:    client,
-		Direction:   direction,
+func (s *PGStorage) ImportDocs(data []byte, client string) (err error) {
+	var docs []DBDocument
+
+	err = json.Unmarshal(data, &docs)
+	if err != nil {
+		return err
 	}
 
-	return s.postDocument(doc)
+	for _, v := range docs {
+		s.postDocument(&DBDocument{
+			Time:        v.Time,
+			Category:    v.Category,
+			Amount:      v.Amount,
+			Description: v.Description,
+			ClientID:    client,
+			Direction:   v.Direction,
+		})
+		if err != nil {
+			return
+		}
+	}
+
+	tx := s.db.MustBegin()
+	sql := "INSERT INTO trans_category(trans_cat, direction, client_id)" +
+		" SELECT distinct trans_cat, direction, client_id FROM document WHERE client_id = $1"
+	tx.MustExec(sql, client)
+
+	return tx.Commit()
 }
+
+// func (s *PGStorage) LoadDocs(time time.Time, category string, amount int, description string, direction int, client string) (err error) {
+// 	doc := &DBDocument{
+// 		Time:        time,
+// 		Category:    category,
+// 		Amount:      amount,
+// 		Description: description,
+// 		ClientID:    client,
+// 		Direction:   direction,
+// 	}
+
+// 	return s.postDocument(doc)
+// }
 
 func (s *PGStorage) Export(client string) (rslt []byte, err error) {
 	data, err := s.db.Query("SELECT trans_date, trans_cat, trans_amount, comment, case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction"+

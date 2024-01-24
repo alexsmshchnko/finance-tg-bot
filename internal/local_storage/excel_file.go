@@ -19,11 +19,11 @@ func New() *excelFile {
 }
 
 type ReceiptRec struct {
-	Time        time.Time
-	Category    string
-	Amount      int
-	Description string
-	Direction   int
+	Time        time.Time `json:"trans_date"`
+	Category    string    `json:"trans_cat"`
+	Amount      int       `json:"trans_amount"`
+	Description string    `json:"comment"`
+	Direction   int       `json:"direction"`
 }
 
 func (r ReceiptRec) String() string {

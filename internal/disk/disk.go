@@ -2,7 +2,6 @@ package disk
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -43,21 +42,21 @@ func (c *Disk) UploadFile(ctx context.Context, oAuth, filePath string) (err erro
 	return err
 }
 
-type CloudDisk struct {
-	client   *yaDisk.Client
-	userName string
-	filePath string
-}
+// type CloudDisk struct {
+// 	client   *yaDisk.Client
+// 	userName string
+// 	filePath string
+// }
 
-func NewCloudDisk(oAuth, userName, filePath string) *CloudDisk {
-	timeOut := 10 * time.Second
-	client, _ := yaDisk.NewClient(oAuth, timeOut)
-	return &CloudDisk{
-		client:   client,
-		userName: userName,
-		filePath: filePath,
-	}
-}
+// func NewCloudDisk(oAuth, userName, filePath string) *CloudDisk {
+// 	timeOut := 10 * time.Second
+// 	client, _ := yaDisk.NewClient(oAuth, timeOut)
+// 	return &CloudDisk{
+// 		client:   client,
+// 		userName: userName,
+// 		filePath: filePath,
+// 	}
+// }
 
 // func CreateBkp(c *yaDisk.Client, ctx context.Context) (err error) {
 // 	var sc int
@@ -73,31 +72,31 @@ func NewCloudDisk(oAuth, userName, filePath string) *CloudDisk {
 // 	return
 // }
 
-func (c *CloudDisk) GetDiskInfo(ctx context.Context) (err error) {
-	disk, sc, err := c.client.GetDiskInfo(ctx)
+// func (c *CloudDisk) GetDiskInfo(ctx context.Context) (err error) {
+// 	disk, sc, err := c.client.GetDiskInfo(ctx)
 
-	fmt.Println(disk)
-	fmt.Println(sc)
-	return err
-}
+// 	fmt.Println(disk)
+// 	fmt.Println(sc)
+// 	return err
+// }
 
-func (c *CloudDisk) GetFiles(ctx context.Context) (err error) {
-	rsrc, sc, err := c.client.GetFiles(ctx)
+// func (c *CloudDisk) GetFiles(ctx context.Context) (err error) {
+// 	rsrc, sc, err := c.client.GetFiles(ctx)
 
-	fmt.Println(rsrc)
-	fmt.Println(sc)
-	return err
-}
+// 	fmt.Println(rsrc)
+// 	fmt.Println(sc)
+// 	return err
+// }
 
-func (c *CloudDisk) DownloadFile(ctx context.Context) (err error) {
-	_, err = c.client.DownloadFile(c.filePath, "file-"+c.userName, ctx)
-	return err
-}
+// func (c *CloudDisk) DownloadFile(ctx context.Context) (err error) {
+// 	_, err = c.client.DownloadFile(c.filePath, "file-"+c.userName, ctx)
+// 	return err
+// }
 
-func (c *CloudDisk) UploadFile(ctx context.Context) (err error) {
-	_, err = c.client.UploadFile(c.filePath, "file-"+c.userName, true, ctx)
-	return err
-}
+// func (c *CloudDisk) UploadFile(ctx context.Context) (err error) {
+// 	_, err = c.client.UploadFile(c.filePath, "file-"+c.userName, true, ctx)
+// 	return err
+// }
 
 // func initDownload(username string) (err error) {
 // 	token, err := NewUser(username).GetUserToken()

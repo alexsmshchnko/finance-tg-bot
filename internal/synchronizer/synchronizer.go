@@ -12,7 +12,7 @@ import (
 
 const (
 	YA_DISK_APP_NAME  = "Финансовый бот"
-	YA_DISK_FILE_NAME = "FamilyBudget"
+	YA_DISK_FILE_NAME = "Семейный бюджет"
 	YA_DISK_FILE_EXT  = ".xlsx"
 
 	YA_DISK_FILE_FULL_NAME = YA_DISK_FILE_NAME + YA_DISK_FILE_EXT
@@ -36,8 +36,8 @@ type DocExport struct {
 type DB interface {
 	GetUserToken(username string) (token string, err error)
 	ClearUserHistory(username string) (err error)
-	LoadDocs(time time.Time, category string, amount int, description string, direction int, client string) (err error)
 	Export(client string) (rslt []byte, err error)
+	ImportDocs(data []byte, client string) (err error)
 }
 
 // type File interface {
@@ -115,11 +115,10 @@ func (s *Synchronizer) MigrateFromCloud(ctx context.Context, username string) (e
 		return
 	}
 
-	for _, v := range rowsToSync {
-		if err = s.LoadDocs(v.Time, v.Category, v.Amount, v.Description, v.Direction, username); err != nil {
-			return err
-		}
+	data, err := json.Marshal(rowsToSync)
+	if err != nil {
+		return
 	}
+	return s.DB.ImportDocs(data, username)
 
-	return
 }

@@ -1,5 +1,8 @@
 env.sh
 *.env
 *.xlsx
+*.txt
 store
+budget-bot
 internal/config/config.local.hcl
+*test.go
