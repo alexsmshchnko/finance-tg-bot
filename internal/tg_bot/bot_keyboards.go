@@ -14,15 +14,26 @@ type EditMessageForceReply struct {
 	// CaptionEntities []MessageEntity
 }
 
-var msgOptionsInlineKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData(EMOJI_CROSS, PREFIX_OPTION+":deleteRecord"),
-		tgbotapi.NewInlineKeyboardButtonData(EMOJI_COMMENT, PREFIX_OPTION+":addDescription"),
-		tgbotapi.NewInlineKeyboardButtonData(EMOJI_SAVE, PREFIX_OPTION+":saveRecord"),
-	),
-	// tgbotapi.NewInlineKeyboardRow(
-	// 	tgbotapi.NewInlineKeyboardButtonData("Сохранить "+EMOJI_SAVE, PREFIX_OPTION+":saveRecord"),
-	// ),
+var (
+	msgOptionsInlineKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(EMOJI_CROSS, PREFIX_OPTION+":deleteRecord"),
+			tgbotapi.NewInlineKeyboardButtonData(EMOJI_DOWN, PREFIX_OPTION+":expandOptions"),
+			tgbotapi.NewInlineKeyboardButtonData(EMOJI_SAVE, PREFIX_OPTION+":saveRecord"),
+		),
+	)
+	msgExpandedOptionsInlineKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(EMOJI_CROSS, PREFIX_OPTION+":deleteRecord"),
+			tgbotapi.NewInlineKeyboardButtonData(EMOJI_SAVE, PREFIX_OPTION+":saveRecord"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("File", PREFIX_OPTION+":attachFile"),
+			tgbotapi.NewInlineKeyboardButtonData("Location", PREFIX_OPTION+":attachLocation"),
+			tgbotapi.NewInlineKeyboardButtonData("TIME", PREFIX_OPTION+":changeDate"),
+			tgbotapi.NewInlineKeyboardButtonData("₽➡$", PREFIX_OPTION+":changeCurrency"),
+		),
+	)
 )
 
 func getPagedListInlineKeyboard(slc []string, page int, prefix, centerButtonTag string) *tgbotapi.InlineKeyboardMarkup {
@@ -80,7 +91,8 @@ func getPagedListInlineKeyboard(slc []string, page int, prefix, centerButtonTag 
 		}
 		buttons = append(buttons,
 			tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf(PREFIX_PAGE+":next:%d:%d", page, pageCnt)))
-
+	} else if len(centerButtonTag) > 0 {
+		buttons = append(buttons, centerButton)
 	}
 
 	if len(buttons) > 0 {

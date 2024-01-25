@@ -110,7 +110,7 @@ func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {
 func (b *Bot) requestDescription(query *tgbotapi.CallbackQuery) {
 	subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
 	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, subCat)
-	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, "SUBOPTS")
+	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, PREFIX_SUBCATEGORY+":"+EMOJI_KEYBOARD)
 	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
 	b.api.Send(msg)
 }
@@ -124,7 +124,7 @@ func (b *Bot) requestCustomDescription(query *tgbotapi.CallbackQuery) {
 
 func (b *Bot) requestSubCats(query *tgbotapi.CallbackQuery, cat string) {
 	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, cat)
-	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, "SUBOPTS")
+	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, PREFIX_SUBCATEGORY+":"+EMOJI_KEYBOARD)
 	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
 	b.api.Send(msg)
 }

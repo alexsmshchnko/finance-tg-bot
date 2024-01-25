@@ -11,6 +11,8 @@ const (
 	EMOJI_ROCKET     = "\U0001f680" //🚀
 	EMOJI_NEXT       = "\u27A1"     //➡
 	EMOJI_PREV       = "\u2B05"     //⬅
+	EMOJI_UP         = "\U0001F53C" //🔼
+	EMOJI_DOWN       = "\U0001F53D" //🔽
 
 	PREFIX_CATEGORY    = "CAT"
 	PREFIX_SUBCATEGORY = "SUBCAT"
