@@ -66,7 +66,7 @@ func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error)
 		BotUsers[u.Message.Chat.UserName] = BotUser{FinCategories: cats}
 
 	}
-	msg.ReplyMarkup = getPagedListInlineKeyboard(cats, 0, PREFIX_CATEGORY)
+	msg.ReplyMarkup = getPagedListInlineKeyboard(cats, 0, PREFIX_CATEGORY, "")
 	_, err = b.api.Send(msg)
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 
@@ -110,7 +110,7 @@ func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {
 func (b *Bot) requestDescription(query *tgbotapi.CallbackQuery) {
 	subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
 	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, subCat)
-	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY)
+	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, "SUBOPTS")
 	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
 	b.api.Send(msg)
 }
@@ -122,6 +122,13 @@ func (b *Bot) requestCustomDescription(query *tgbotapi.CallbackQuery) {
 	WaitUserResponeStart(query.From.UserName, "REC_DESC", *query.Message)
 }
 
+func (b *Bot) requestSubCats(query *tgbotapi.CallbackQuery, cat string) {
+	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, cat)
+	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, "SUBOPTS")
+	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
+	b.api.Send(msg)
+}
+
 func (b *Bot) handleCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 	cat, _ := strings.CutPrefix(query.Data, PREFIX_CATEGORY+":")
 
@@ -131,10 +138,13 @@ func (b *Bot) handleCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 	resp := query.Message.Text + "₽ на " + cat
 	b.updateMsgText(query.Message.Chat.ID, query.Message.MessageID, resp)
 
+	//query description
+	b.requestSubCats(query, cat)
+
 	//update keyboard
-	mrkp := getMsgOptionsKeyboard()
-	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
-	b.api.Send(msg)
+	// mrkp := getMsgOptionsKeyboard()
+	// msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
+	// b.api.Send(msg)
 }
 
 func (b *Bot) handleSubCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
@@ -155,8 +165,11 @@ func (b *Bot) handleSubCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 }
 
 func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQuery) {
-	var err error
-	var list []string
+	var (
+		err             error
+		list            []string
+		centerButtonTag string
+	)
 
 	prefix := strings.Split(*query.Message.ReplyMarkup.InlineKeyboard[0][0].CallbackData, ":")[0]
 
@@ -173,6 +186,7 @@ func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi
 	case PREFIX_SUBCATEGORY:
 		subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
 		list, _ = b.accountant.GetSubCats(ctx, query.From.UserName, subCat)
+		centerButtonTag = PREFIX_SUBCATEGORY + ":" + EMOJI_KEYBOARD
 	}
 
 	split := strings.Split(query.Data, ":")
@@ -187,7 +201,7 @@ func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi
 		page--
 	}
 
-	mrkp := getPagedListInlineKeyboard(list, page, prefix)
+	mrkp := getPagedListInlineKeyboard(list, page, prefix, centerButtonTag)
 	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
 	b.api.Send(msg)
 }
@@ -230,11 +244,6 @@ func (b *Bot) callbackQueryHandler(ctx context.Context, query *tgbotapi.Callback
 func (b *Bot) processResponse(u *tgbotapi.Update) {
 	respMsg := BotUsers[u.SentFrom().UserName].ResponseMsg
 	b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, respMsg.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
-
-	amnt, _ := strconv.Atoi(strings.Split(respMsg.Text, "₽")[0])
-	cat := strings.Split(respMsg.Text, " на ")[1]
-
-	b.accountant.PostDoc(cat, amnt, u.Message.Text, fmt.Sprint(respMsg.MessageID), -1, u.SentFrom().UserName)
 
 	// expRec := internal.NewFinRec(cat, amnt, u.Message.Text, fmt.Sprintf("%d", respMsg.MessageID))
 	// internal.NewUser(u.SentFrom().UserName).NewExpense(expRec)

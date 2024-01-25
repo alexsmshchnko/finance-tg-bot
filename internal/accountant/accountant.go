@@ -29,7 +29,6 @@ func (a *Accountant) GetCats(ctx context.Context, username string) (cats []strin
 
 func (a *Accountant) GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error) {
 	cats, err = a.documents.GetSubCategories(username, trans_cat)
-	cats = append(cats, "\U00002328") //⌨ - write custom comment
 	return
 }
 
