@@ -14,7 +14,7 @@ COPY cmd ./cmd
 RUN CGO_ENABLED=0 go build -a -installsuffix cgo -o finance-tg-bot ./cmd/*.go
 
 # Create a minimal production image
-FROM alpine:latest
+FROM alpine:3.18
 
 # It's essential to regularly update the packages within the image to include security patches
 RUN apk update && apk upgrade
