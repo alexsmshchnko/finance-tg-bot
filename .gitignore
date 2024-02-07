@@ -4,5 +4,5 @@ env.sh
 *.txt
 store
 budget-bot
-internal/config/config.local.hcl
+config/config.local.hcl
 *test.go

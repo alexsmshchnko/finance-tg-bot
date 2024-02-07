@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type DocumentStorage interface {
+type documentStorage interface {
 	GetCategories(username string) ([]string, error)
 	GetSubCategories(username, trans_cat string) ([]string, error)
 	GetUserStatus(username string) (status bool, err error)
@@ -14,12 +14,13 @@ type DocumentStorage interface {
 }
 
 type Accountant struct {
-	documents DocumentStorage
+	documents documentStorage
 }
 
-func NewAccountant(documentStorage DocumentStorage) *Accountant {
+func New(d documentStorage) *Accountant {
 	return &Accountant{
-		documents: documentStorage}
+		documents: d,
+	}
 }
 
 func (a *Accountant) GetCats(ctx context.Context, username string) (cats []string, err error) {

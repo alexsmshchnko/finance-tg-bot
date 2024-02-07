@@ -13,10 +13,10 @@ func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 			Command:     "/settings",
 			Description: "Настройки",
 		},
-		{
-			Command:     "/push",
-			Description: "Экспорт в облако",
-		},
+		// {
+		// 	Command:     "/push",
+		// 	Description: "Экспорт в облако",
+		// },
 		{
 			Command:     "/sync",
 			Description: "Загрузить историю с облака",

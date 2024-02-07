@@ -1,25 +1,8 @@
 package storage
 
 import (
-	"context"
-	"log"
 	"time"
-
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 )
-
-type PGStorage struct {
-	db sqlx.DB
-}
-
-func NewPGStorage(ctx context.Context, connString string) *PGStorage {
-	db, err := sqlx.ConnectContext(ctx, "postgres", connString)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return &PGStorage{db: *db}
-}
 
 type DBClient struct {
 	ID         int       `db:"id"`

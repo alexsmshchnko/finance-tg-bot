@@ -2,6 +2,7 @@ package disk
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,10 +22,17 @@ const (
 )
 
 type Disk struct {
+	diskAppPath string
 }
 
 func New() *Disk {
 	return &Disk{}
+}
+
+func (c *Disk) getPaths(ctx context.Context, client *yaDisk.Client) (err error) {
+	disk, _, err := client.GetDiskInfo(ctx)
+	fmt.Printf("%#v\n", *disk)
+	return
 }
 
 func (c *Disk) DownloadFile(ctx context.Context, oAuth, filePath string) (err error) {
@@ -34,11 +42,14 @@ func (c *Disk) DownloadFile(ctx context.Context, oAuth, filePath string) (err er
 	return err
 }
 
+func getExportFileName(filePath string) string {
+	return time.Now().Format("060102150405") + strings.Split(filePath, "/")[len(strings.Split(filePath, "/"))-1]
+}
+
 func (c *Disk) UploadFile(ctx context.Context, oAuth, filePath string) (err error) {
 	client, _ := yaDisk.NewClient(oAuth, timeOut)
 
-	fileName := strings.Split(filePath, "/")[len(strings.Split(filePath, "/"))-1]
-	_, err = client.UploadFile(YA_DISK_BKP_PATH+time.Now().Format("060102150405")+fileName, filePath, false, ctx)
+	_, err = client.UploadFile(YA_DISK_BKP_PATH+getExportFileName(filePath), filePath, false, ctx)
 	return err
 }
 

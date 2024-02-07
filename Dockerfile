@@ -6,8 +6,9 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
-COPY internal ./internal
 COPY cmd ./cmd
+COPY config ./config
+COPY internal ./internal
 
 # Build the Go binary
 #RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o finance-tg-bot ./cmd/*.go
@@ -31,7 +32,8 @@ USER appuser
 WORKDIR /app
 
 # Copy only the necessary files from the builder stage
-COPY --from=builder /app .
+COPY --from=builder /app/config/config.local.hcl config.hcl 
+COPY --from=builder /app/finance-tg-bot .
 
 EXPOSE 8080
 
