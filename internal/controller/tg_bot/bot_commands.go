@@ -71,4 +71,5 @@ func (b *Bot) showReport(ctx context.Context, u *tgbotapi.Update) {
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
 	b.api.Send(msg)
+	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 }
