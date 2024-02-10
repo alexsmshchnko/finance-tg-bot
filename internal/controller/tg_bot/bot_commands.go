@@ -63,11 +63,18 @@ func (b *Bot) pushCmd(ctx context.Context, u *tgbotapi.Update) {
 }
 
 func (b *Bot) showReport(ctx context.Context, u *tgbotapi.Update) {
-	text, err := b.accountant.GetMonthReport(u.Message.Chat.UserName, "PREVMONTH")
+	var repName string
+	repCode := "PREVMONTH"
+	switch repCode {
+	case "PREVMONTH":
+		repName = time.Now().AddDate(0, -1, 0).Format("January")
+	}
+
+	text, err := b.accountant.GetMonthReport(u.Message.Chat.UserName, repCode)
 	if err != nil {
 		return
 	}
-	text = "```\n" + text + "\n" + "```"
+	text = "*" + repName + "*\n```\n" + text + "\n" + "```"
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
 	b.api.Send(msg)

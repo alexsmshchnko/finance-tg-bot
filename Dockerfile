@@ -9,6 +9,7 @@ RUN go mod download
 COPY cmd ./cmd
 COPY config ./config
 COPY internal ./internal
+COPY pkg ./pkg
 
 # Build the Go binary
 #RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o finance-tg-bot ./cmd/*.go
