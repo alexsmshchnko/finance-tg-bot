@@ -17,14 +17,14 @@ func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
 			Command:     "/settings",
 			Description: "Настройки",
 		},
-		// {
-		// 	Command:     "/push",
-		// 	Description: "Экспорт в облако",
-		// },
 		{
-			Command:     "/sync",
-			Description: "Загрузить историю с облака",
+			Command:     "/push",
+			Description: "Экспорт в облако",
 		},
+		// {
+		// 	Command:     "/sync",
+		// 	Description: "Загрузить историю с облака",
+		// },
 	}
 
 	conf = tgbotapi.NewSetMyCommands(commands...)
