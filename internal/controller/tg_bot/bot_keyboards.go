@@ -34,6 +34,17 @@ var (
 			tgbotapi.NewInlineKeyboardButtonData("₽➡$", PREFIX_OPTION+":changeCurrency"),
 		),
 	)
+	msgReportTypeKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Текущий месяц", PREFIX_REPORT+":monthReport:current"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Предыдущий месяц", PREFIX_REPORT+":monthReport:previous"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(EMOJI_CROSS, PREFIX_REPORT+":cancelReport"),
+		),
+	)
 )
 
 func getPagedListInlineKeyboard(slc []string, page int, prefix, centerButtonTag string) *tgbotapi.InlineKeyboardMarkup {
@@ -108,9 +119,9 @@ func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	return &msgOptionsInlineKeyboard
 }
 
-// func getMenuKeyboard() *tgbotapi.ReplyKeyboardMarkup {
-// 	return &menuKeyboard
-// }
+func getReportKeyboard() *tgbotapi.InlineKeyboardMarkup {
+	return &msgReportTypeKeyboard
+}
 
 func getReply() *tgbotapi.ForceReply {
 	return &tgbotapi.ForceReply{

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"finance-tg-bot/internal/entity"
 	"time"
 )
 
@@ -40,6 +41,6 @@ func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {
 	return a.repo.DeleteDoc(msg_id, client)
 }
 
-func (a *Accountant) GetMonthReport(username string, reptype string) (res string, err error) {
-	return a.repo.GetMonthReport(username, reptype)
+func (a *Accountant) GetStatement(p *entity.Report) (res string, err error) {
+	return a.repo.GetStatement(p)
 }

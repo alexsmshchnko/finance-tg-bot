@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"finance-tg-bot/internal/entity"
 	"fmt"
 	"strings"
 
@@ -13,25 +14,29 @@ type rep struct {
 	amount   int
 }
 
-func (s *Repo) GetMonthReport(username, reptype string) (res string, err error) {
-	var (
-		query, amnt string
-	)
-	if reptype == "PREVMONTH" {
-		query = `select case grouping(trans_cat)
-						  when 1 then 'Total '
-								    || case direction when 1 then 'credit' else 'debit' end
-						  else trans_cat end           as trans_cat
-					   ,direction * sum(trans_amount)  as t_sum
-				   from document d
-				  where d.trans_date between date_trunc('month', current_date - interval '1' month)
-										 and date_trunc('month', current_date) - interval '1' day
-					and d.client_id = $1
-				  group by grouping sets ((trans_cat, direction), (direction)) 
-				  order by grouping(trans_cat) asc, sum(trans_amount) desc`
+func (s *Repo) GetStatement(p *entity.Report) (res string, err error) {
+	var query, amnt string
+	switch p.RepName {
+	case "TotalsForThePeriod":
+		query = `
+select case grouping(trans_cat)
+		 when 1 then 'Total '
+		     	   || case direction when 1 then 'credit' else 'debit' end
+		 else trans_cat end           as trans_cat
+	  ,direction * sum(trans_amount)  as t_sum
+  from document d
+ where d.trans_date between to_date($1,'dd.mm.yyyy') and to_date($2,'dd.mm.yyyy')
+   and d.client_id = $3
+ group by grouping sets ((trans_cat, direction), (direction)) 
+ order by grouping(trans_cat) asc, sum(trans_amount) desc`
 	}
 
-	data, err := s.Db.Query(query, username)
+	data, err := s.Db.Query(
+		query,
+		p.RepParms["datefrom"],
+		p.RepParms["dateto"],
+		p.RepParms["username"],
+	)
 	if err != nil {
 		return res, err
 	}
@@ -49,10 +54,12 @@ func (s *Repo) GetMonthReport(username, reptype string) (res string, err error) 
 
 	printer := message.NewPrinter(language.Russian)
 	str := strings.Builder{}
+	str.WriteString("+" + strings.Repeat("-", 21) + "+" + strings.Repeat("-", 8) + "+\n")
 	for _, v := range reprt {
 		amnt = printer.Sprintf("%d", v.amount)
 		str.WriteString(fmt.Sprintf("|%-21s|%8s|\n", v.category, amnt))
 	}
+	str.WriteString("+" + strings.Repeat("-", 21) + "+" + strings.Repeat("-", 8) + "+")
 
 	return str.String(), err
 }

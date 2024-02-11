@@ -18,6 +18,7 @@ const (
 	PREFIX_SUBCATEGORY = "SUBCAT"
 	PREFIX_PAGE        = "PAGE"
 	PREFIX_OPTION      = "OPT"
+	PREFIX_REPORT      = "REPORT"
 
 	maxPageLen = 5
 )

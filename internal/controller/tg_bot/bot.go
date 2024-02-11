@@ -2,6 +2,7 @@ package tg_bot
 
 import (
 	"context"
+	"finance-tg-bot/internal/entity"
 	"fmt"
 	"log"
 	"strconv"
@@ -19,7 +20,7 @@ type accountant interface {
 	DeleteDoc(msg_id string, client string) (err error)
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
-	GetMonthReport(username, reptype string) (res string, err error)
+	GetStatement(p *entity.Report) (res string, err error)
 }
 
 type Bot struct {
@@ -225,6 +226,8 @@ func (b *Bot) callbackQueryHandler(ctx context.Context, query *tgbotapi.Callback
 		b.handleOptionCallbackQuery(query)
 	case PREFIX_PAGE:
 		b.handleNavigationCallbackQuery(ctx, query)
+	case PREFIX_REPORT:
+		b.handleReportCallbackQuery(ctx, query)
 	}
 }
 

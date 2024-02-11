@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"finance-tg-bot/internal/entity"
 	"time"
 )
 
@@ -16,7 +17,7 @@ type (
 		ClearUserHistory(username string) (err error)
 		Export(client string) (rslt []byte, err error)
 		ImportDocs(data []byte, client string) (err error)
-		GetMonthReport(username, reptype string) (res string, err error)
+		GetStatement(p *entity.Report) (res string, err error)
 	}
 	Cloud interface {
 		UploadFile(ctx context.Context, oAuth, filePath string) (err error)
