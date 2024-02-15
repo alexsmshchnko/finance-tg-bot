@@ -2,6 +2,7 @@ package tg_bot
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -25,10 +26,22 @@ func (b *Bot) editCategoryKeyboard(ctx context.Context, q *tgbotapi.CallbackQuer
 	if err != nil {
 		return
 	}
-	cats = addButtonToSlice(cats, EMOJI_ADD+" (добавить)")
 
-	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SETCATEGORY, "")
+	options := make([][]string, 0, len(cats)+1)
+	for _, v := range cats {
+		options = append(options, []string{v, PREFIX_SETCATEGORY + ":" + v})
+	}
+	options = append(options, []string{EMOJI_ADD, PREFIX_SETCATEGORY + ":addNew"})
 
-	msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *mrkp)
+	mrkp := newKeyboardForm()
+	mrkp.setOptions(options)
+	mrkp.addNavigationControl(0, []string{EMOJI_HOOK_BACK, PREFIX_SETCATEGORY + ":goBack"}, nil)
+	resMrkp, err := mrkp.getMarkup()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *resMrkp)
 	b.api.Send(msg)
 }

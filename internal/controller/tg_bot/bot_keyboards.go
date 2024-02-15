@@ -40,6 +40,58 @@ func (k *keyboardMarkup) setControl(control [][][]string) {
 	k.control = res
 }
 
+func (k *keyboardMarkup) addNavigationControl(page int, firstLeftButton, centerButton []string) {
+	var sliceBegin, sliceEnd, pageCnt, slcFullLen int
+
+	//cut options to show
+	sliceBegin = page * maxPageLen
+	slcFullLen = len(k.options)
+	if slcFullLen-page*maxPageLen < maxPageLen {
+		sliceEnd = slcFullLen
+	} else {
+		sliceEnd = page*maxPageLen + maxPageLen
+	}
+	k.options = k.options[sliceBegin:sliceEnd]
+
+	//add navigation
+	pageCnt = slcFullLen / maxPageLen
+	if pageCnt*maxPageLen < slcFullLen {
+		pageCnt++
+	}
+
+	navControl := make([][]string, 0, 3)
+
+	if page == 0 && slcFullLen > maxPageLen {
+		if len(firstLeftButton) > 0 {
+			navControl = append(navControl, []string{firstLeftButton[0], firstLeftButton[1]})
+		} else {
+			navControl = append(navControl, []string{" ", " "})
+		}
+		if len(centerButton) > 0 {
+			navControl = append(navControl, []string{centerButton[0], centerButton[1]})
+		}
+		navControl = append(navControl, []string{EMOJI_NEXT, fmt.Sprintf(PREFIX_PAGE+":next:%d:%d", page, pageCnt)})
+
+	} else if page == pageCnt-1 && page != 0 {
+		navControl = append(navControl, []string{EMOJI_PREV, fmt.Sprintf(PREFIX_PAGE+":prev:%d:%d", page, pageCnt)})
+		if len(centerButton) > 0 {
+			navControl = append(navControl, []string{centerButton[0], centerButton[1]})
+		}
+		navControl = append(navControl, []string{" ", " "})
+	} else if page > 0 && page < pageCnt-1 {
+		navControl = append(navControl, []string{EMOJI_PREV, fmt.Sprintf(PREFIX_PAGE+":prev:%d:%d", page, pageCnt)})
+		if len(centerButton) > 0 {
+			navControl = append(navControl, []string{centerButton[0], centerButton[1]})
+		}
+		navControl = append(navControl, []string{EMOJI_NEXT, fmt.Sprintf(PREFIX_PAGE+":next:%d:%d", page, pageCnt)})
+	} else if len(centerButton) > 0 {
+		navControl = append(navControl, []string{centerButton[0], centerButton[1]})
+	}
+
+	k.setControl([][][]string{navControl})
+
+}
+
 func (k *keyboardMarkup) getMarkup() (*tgbotapi.InlineKeyboardMarkup, error) {
 	if len(k.options) == 0 && len(k.control) == 0 {
 		return nil, errors.New("markup is not set")
@@ -47,10 +99,6 @@ func (k *keyboardMarkup) getMarkup() (*tgbotapi.InlineKeyboardMarkup, error) {
 	mrkp := tgbotapi.NewInlineKeyboardMarkup(append(k.options, k.control...)...)
 
 	return &mrkp, nil
-}
-
-func getNavigationControl() {
-
 }
 
 type EditMessageForceReply struct {
