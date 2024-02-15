@@ -54,12 +54,12 @@ select case grouping(trans_cat)
 
 	printer := message.NewPrinter(language.Russian)
 	str := strings.Builder{}
-	str.WriteString("+" + strings.Repeat("-", 21) + "+" + strings.Repeat("-", 8) + "+\n")
+	str.WriteString("+" + strings.Repeat("-", 22) + "+" + strings.Repeat("-", 8) + "+\n")
 	for _, v := range reprt {
 		amnt = printer.Sprintf("%d", v.amount)
-		str.WriteString(fmt.Sprintf("|%-21s|%8s|\n", v.category, amnt))
+		str.WriteString(fmt.Sprintf("|%-22s|%8s|\n", v.category, amnt))
 	}
-	str.WriteString("+" + strings.Repeat("-", 21) + "+" + strings.Repeat("-", 8) + "+")
+	str.WriteString("+" + strings.Repeat("-", 22) + "+" + strings.Repeat("-", 8) + "+")
 
 	return str.String(), err
 }

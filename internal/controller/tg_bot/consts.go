@@ -19,6 +19,7 @@ const (
 	PREFIX_PAGE        = "PAGE"
 	PREFIX_OPTION      = "OPT"
 	PREFIX_REPORT      = "REPORT"
+	PREFIX_SETTING     = "SETTING"
 
 	maxPageLen = 5
 )

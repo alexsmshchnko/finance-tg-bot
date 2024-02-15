@@ -45,6 +45,8 @@ func (b *Bot) processCommand(ctx context.Context, u *tgbotapi.Update) (err error
 		b.pushCmd(ctx, u)
 	case "report":
 		b.showReportMenu(ctx, u)
+	case "settings":
+		b.showSettingsMenu(ctx, u)
 	default:
 		msg.Text = "I don't know that command"
 	}
@@ -115,5 +117,12 @@ func (b *Bot) showReportMenu(ctx context.Context, u *tgbotapi.Update) {
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "Отчеты")
 	msg.ReplyMarkup = *getReportKeyboard()
+	b.api.Send(msg)
+}
+
+func (b *Bot) showSettingsMenu(ctx context.Context, u *tgbotapi.Update) {
+	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
+	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "Настройки")
+	msg.ReplyMarkup = *getSettingsKeyboard()
 	b.api.Send(msg)
 }

@@ -45,6 +45,11 @@ var (
 			tgbotapi.NewInlineKeyboardButtonData(EMOJI_CROSS, PREFIX_REPORT+":cancelReport"),
 		),
 	)
+	msgSettingsTypeKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Редактировать категории", PREFIX_SETTING+":editCategory"),
+		),
+	)
 )
 
 func getPagedListInlineKeyboard(slc []string, page int, prefix, centerButtonTag string) *tgbotapi.InlineKeyboardMarkup {
@@ -121,6 +126,10 @@ func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 
 func getReportKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	return &msgReportTypeKeyboard
+}
+
+func getSettingsKeyboard() *tgbotapi.InlineKeyboardMarkup {
+	return &msgSettingsTypeKeyboard
 }
 
 func getReply() *tgbotapi.ForceReply {
