@@ -2,6 +2,7 @@ package tg_bot
 
 const (
 	EMOJI_SAVE       = "\U0001f4be" //💾
+	EMOJI_ADD        = "\U00002795" //➕
 	EMOJI_CROSS      = "\u274C"     //❌
 	EMOJI_COMMENT    = "\U0001f4ac" //💬
 	EMOJI_CHANGE     = "\U0000270D" //✍
@@ -15,6 +16,7 @@ const (
 	EMOJI_DOWN       = "\U0001F53D" //🔽
 
 	PREFIX_CATEGORY    = "CAT"
+	PREFIX_SETCATEGORY = "SETCAT"
 	PREFIX_SUBCATEGORY = "SUBCAT"
 	PREFIX_PAGE        = "PAGE"
 	PREFIX_OPTION      = "OPT"

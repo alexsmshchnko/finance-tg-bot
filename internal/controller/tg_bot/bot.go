@@ -161,48 +161,6 @@ func (b *Bot) handleSubCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 	b.api.Send(msg)
 }
 
-func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQuery) {
-	var (
-		err             error
-		list            []string
-		centerButtonTag string
-	)
-
-	prefix := strings.Split(*query.Message.ReplyMarkup.InlineKeyboard[0][0].CallbackData, ":")[0]
-
-	switch prefix {
-	case PREFIX_CATEGORY:
-		list = BotUsers[query.From.UserName].FinCategories
-		if len(list) < 1 {
-			fmt.Println("User category cash is empty")
-			list, err = b.accountant.GetCats(ctx, query.From.UserName)
-			if err != nil {
-				log.Println(err)
-			}
-		}
-	case PREFIX_SUBCATEGORY:
-		subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
-		list, _ = b.accountant.GetSubCats(ctx, query.From.UserName, subCat)
-		centerButtonTag = PREFIX_SUBCATEGORY + ":" + EMOJI_KEYBOARD
-	}
-
-	split := strings.Split(query.Data, ":")
-	page, err := strconv.Atoi(split[2])
-	if err != nil {
-		log.Println(err)
-	}
-	switch split[1] {
-	case "next":
-		page++
-	case "prev":
-		page--
-	}
-
-	mrkp := getPagedListInlineKeyboard(list, page, prefix, centerButtonTag)
-	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
-	b.api.Send(msg)
-}
-
 func (b *Bot) handleOptionCallbackQuery(query *tgbotapi.CallbackQuery) {
 	split := strings.Split(query.Data, ":")
 	switch split[1] {
@@ -228,6 +186,8 @@ func (b *Bot) callbackQueryHandler(ctx context.Context, query *tgbotapi.Callback
 		b.handleNavigationCallbackQuery(ctx, query)
 	case PREFIX_REPORT:
 		b.handleReportCallbackQuery(ctx, query)
+	case PREFIX_SETTING:
+		b.handleSettingCallbackQuery(ctx, query)
 	}
 }
 

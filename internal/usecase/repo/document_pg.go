@@ -17,19 +17,32 @@ func New(pg *postgres.Postgres) *Repo {
 }
 
 type DBDocument struct {
-	ID          int64     `db:"id"`
-	Time        time.Time `db:"trans_date"   json:"trans_date"`
-	Category    string    `db:"trans_cat"    json:"trans_cat"`
-	Amount      int       `db:"trans_amount" json:"trans_amount"`
-	Description string    `db:"comment"      json:"comment"`
-	MsgID       string    `db:"tg_msg_id"`
-	ClientID    string    `db:"client_id"`
-	Direction   int       `db:"direction"    json:"direction"`
+	ID          *int64     `db:"id"`
+	Time        *time.Time `db:"trans_date"   json:"trans_date"`
+	Category    *string    `db:"trans_cat"    json:"trans_cat"`
+	Amount      *int       `db:"trans_amount" json:"trans_amount"`
+	Description *string    `db:"comment"      json:"comment"`
+	MsgID       *string    `db:"tg_msg_id"`
+	ClientID    *string    `db:"client_id"`
+	Direction   *int       `db:"direction"    json:"direction"`
+}
+
+type TransCat struct {
+	ID        *int64  `db:"id"`
+	Category  *string `db:"trans_cat"`
+	Direction *int    `db:"direction"`
+	ClientID  *string `db:"client_id"`
+	Active    *bool   `db:"active"`
 }
 
 func (s *Repo) GetCategories(username string) (cat []string, err error) {
-	err = s.Db.Select(&cat, "select trans_cat from public.document"+
-		" where client_id = $1 group by trans_cat order by count(*) desc", username)
+	err = s.Db.Select(&cat, `
+	select d.trans_cat
+      from public.document d
+      join public.trans_category tc on (tc.trans_cat = d.trans_cat
+                                    and tc.client_id = d.client_id
+									and tc.active = true)
+     where d.client_id = $1 group by d.trans_cat order by count(*) desc`, username)
 	return
 }
 
@@ -41,7 +54,7 @@ func (s *Repo) GetSubCategories(username, trans_cat string) (cat []string, err e
 }
 
 func (s *Repo) postDocument(doc *DBDocument) (err error) {
-	if doc.Direction == 0 {
+	if *doc.Direction == 0 {
 		err = s.Db.Get(&doc.Direction, "select direction from public.trans_category"+
 			" where client_id = $1 and trans_cat = $2 and active = true", doc.ClientID, doc.Category)
 		if err != nil {
@@ -57,15 +70,26 @@ func (s *Repo) postDocument(doc *DBDocument) (err error) {
 	return tx.Commit()
 }
 
+func (s *Repo) getTransCat(category string, active bool, client string) (*TransCat, error) {
+	var transCat TransCat
+	err := s.Db.Get(&transCat, "select * from trans_category tc where trans_cat = $1 and client_id = $2", category, client)
+	return &transCat, err
+}
+
+func (s *Repo) EditCategory(category string, direction int, active bool, client string) (err error) {
+
+	return
+}
+
 func (s *Repo) PostDoc(time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error) {
 	doc := &DBDocument{
-		Time:        time,
-		Category:    category,
-		Amount:      amount,
-		Description: description,
-		MsgID:       msg_id,
-		ClientID:    client,
-		Direction:   direction,
+		Time:        &time,
+		Category:    &category,
+		Amount:      &amount,
+		Description: &description,
+		MsgID:       &msg_id,
+		ClientID:    &client,
+		Direction:   &direction,
 	}
 
 	return s.postDocument(doc)
@@ -102,7 +126,7 @@ func (s *Repo) ImportDocs(data []byte, client string) (err error) {
 			Category:    v.Category,
 			Amount:      v.Amount,
 			Description: v.Description,
-			ClientID:    client,
+			ClientID:    &client,
 			Direction:   v.Direction,
 		})
 		if err != nil {
