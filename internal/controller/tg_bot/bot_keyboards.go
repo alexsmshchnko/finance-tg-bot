@@ -201,6 +201,19 @@ func getSettingsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	return res
 }
 
+func getDebitCreditKeyboard() *tgbotapi.InlineKeyboardMarkup {
+	mrkp := newKeyboardForm()
+	mrkp.setOptions([][]string{
+		{"Дебетовая", PREFIX_SETCATEGORY + ":newCatRole:debit"},
+		{"Кредитовая", PREFIX_SETCATEGORY + ":newCatRole:credit"},
+	})
+	res, err := mrkp.getMarkup()
+	if err != nil {
+		return nil
+	}
+	return res
+}
+
 func getReply() *tgbotapi.ForceReply {
 	return &tgbotapi.ForceReply{
 		ForceReply:            true,

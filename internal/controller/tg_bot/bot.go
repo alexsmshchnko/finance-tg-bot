@@ -21,6 +21,7 @@ type accountant interface {
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
 	GetStatement(p *entity.Report) (res string, err error)
+	EditCats(category string, direction int, active bool, client string) (err error)
 }
 
 type Bot struct {
@@ -146,11 +147,11 @@ func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {
 // 	b.api.Send(msg)
 // }
 
-func (b *Bot) requestCustomDescription(query *tgbotapi.CallbackQuery) {
+func (b *Bot) requestReply(query *tgbotapi.CallbackQuery, respCode string) {
 	msg := tgbotapi.NewMessage(query.Message.Chat.ID, EMOJI_COMMENT+"...")
 	msg.ReplyMarkup = getReply()
 	b.api.Send(msg)
-	waitUserResponeStart(query.From.UserName, "REC_DESC", *query.Message)
+	waitUserResponeStart(query.From.UserName, respCode, *query.Message)
 }
 
 func (b *Bot) requestSubCats(ctx context.Context, page int, query *tgbotapi.CallbackQuery) {
@@ -162,6 +163,10 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, query *tgbotapi.Call
 	}
 
 	subCats, err := b.accountant.GetSubCats(ctx, query.From.UserName, cat)
+	fmt.Printf("%#v %d\n %v", subCats, len(subCats), err)
+	if len(subCats) == 0 {
+		subCats = []string{" "}
+	}
 	if err != nil {
 		return
 	}

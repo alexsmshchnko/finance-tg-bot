@@ -44,7 +44,7 @@ func (b *Bot) handleSubCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 	subCat, _ := strings.CutPrefix(query.Data, PREFIX_SUBCATEGORY+":")
 
 	if subCat == "writeCustom" {
-		b.requestCustomDescription(query)
+		b.requestReply(query, "REC_DESC")
 		return
 	}
 
@@ -69,18 +69,22 @@ func (b *Bot) handleOptionCallbackQuery(query *tgbotapi.CallbackQuery) {
 }
 
 func (b *Bot) responseHandler(u *tgbotapi.Update) {
+	respCode := BotUsers[u.SentFrom().UserName].ResponseCode
 	respMsg := BotUsers[u.SentFrom().UserName].ResponseMsg
-	b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, respMsg.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
-
-	// expRec := internal.NewFinRec(cat, amnt, u.Message.Text, fmt.Sprintf("%d", respMsg.MessageID))
-	// internal.NewUser(u.SentFrom().UserName).NewExpense(expRec)
-
-	mrkp := getMsgOptionsKeyboard()
-	msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
-	b.api.Send(msg)
+	switch respCode {
+	case "REC_DESC":
+		b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, respMsg.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
+		mrkp := getMsgOptionsKeyboard()
+		msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
+		b.api.Send(msg)
+	case "REC_NEWCAT":
+		b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, u.Message.Text)
+		mrkp := getDebitCreditKeyboard()
+		msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
+		b.api.Send(msg)
+	}
 
 	waitUserResponseComplete(u.SentFrom().UserName)
-
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID-1)
 }

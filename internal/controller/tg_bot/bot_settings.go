@@ -22,9 +22,21 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, query *tgbotapi.
 	split := strings.Split(query.Data, ":")
 	switch split[1] {
 	case "addNew":
-		// b.req
+		b.requestReply(query, "REC_NEWCAT")
 	case "goBack":
 		b.showSettingsMenu(ctx, nil, query)
+	case "newCatRole":
+		//save
+		direction := 0
+		switch split[2] {
+		case "debit":
+			direction = -1
+		case "credit":
+			direction = 1
+		}
+		b.accountant.EditCats(query.Message.Text, direction, true, query.From.UserName)
+		//show prev menu
+		b.requestCategoryKeyboardEditor(ctx, 0, query)
 	default:
 
 	}

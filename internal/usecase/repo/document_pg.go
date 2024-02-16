@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -47,9 +48,15 @@ func (s *Repo) GetCategories(username string) (cat []string, err error) {
 }
 
 func (s *Repo) GetSubCategories(username, trans_cat string) (cat []string, err error) {
-	err = s.Db.Select(&cat, "select lower(comment) from public.document"+
+	var res []sql.NullString
+	err = s.Db.Select(&res, "select lower(comment) from public.document"+
 		" where client_id = $1 and trans_cat = $2 and trans_date > current_date - 90"+
 		" group by lower(comment) order by count(*) desc limit 10", username, trans_cat)
+
+	cat = make([]string, 0, len(res))
+	for _, v := range res {
+		cat = append(cat, v.String)
+	}
 	return
 }
 
@@ -76,8 +83,34 @@ func (s *Repo) getTransCat(category string, active bool, client string) (*TransC
 	return &transCat, err
 }
 
-func (s *Repo) EditCategory(category string, direction int, active bool, client string) (err error) {
+func (s *Repo) createTransCat(tc *TransCat) (err error) {
+	tx := s.Db.MustBegin()
+	sql := `INSERT INTO public.trans_category(trans_cat, direction, client_id, active)
+		    VALUES($1, $2, $3, true)`
+	tx.MustExec(sql, tc.Category, tc.Direction, tc.ClientID)
 
+	sql = `INSERT INTO public.document(trans_cat, trans_amount, client_id, direction)
+	       select tc.trans_cat, 0, tc.client_id, tc.direction
+	         from trans_category tc
+            where trans_cat = $1 and direction = $2
+	          and client_id = $3 and active = true
+			limit 1`
+	tx.MustExec(sql, tc.Category, tc.Direction, tc.ClientID)
+
+	return tx.Commit()
+}
+
+func (s *Repo) EditCategory(category string, direction int, active bool, client string) (err error) {
+	_, err = s.getTransCat(category, active, client)
+	if err == sql.ErrNoRows {
+		//create new
+		tc := &TransCat{
+			Category:  &category,
+			Direction: &direction,
+			ClientID:  &client,
+		}
+		err = s.createTransCat(tc)
+	}
 	return
 }
 

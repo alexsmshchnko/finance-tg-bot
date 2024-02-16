@@ -23,6 +23,11 @@ func (a *Accountant) GetCats(ctx context.Context, username string) (cats []strin
 	return
 }
 
+func (a *Accountant) EditCats(category string, direction int, active bool, client string) (err error) {
+	err = a.repo.EditCategory(category, direction, active, client)
+	return
+}
+
 func (a *Accountant) GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error) {
 	cats, err = a.repo.GetSubCategories(username, trans_cat)
 	return
