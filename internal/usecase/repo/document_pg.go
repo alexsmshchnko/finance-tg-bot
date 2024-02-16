@@ -86,13 +86,13 @@ func (s *Repo) getTransCat(category string, active bool, client string) (*TransC
 func (s *Repo) createTransCat(tc *TransCat) (err error) {
 	tx := s.Db.MustBegin()
 	sql := `INSERT INTO public.trans_category(trans_cat, direction, client_id, active)
-		    VALUES($1, $2, $3, true)`
+		    VALUES(lower($1), $2, $3, true)`
 	tx.MustExec(sql, tc.Category, tc.Direction, tc.ClientID)
 
 	sql = `INSERT INTO public.document(trans_cat, trans_amount, client_id, direction)
 	       select tc.trans_cat, 0, tc.client_id, tc.direction
 	         from trans_category tc
-            where trans_cat = $1 and direction = $2
+            where trans_cat = lower($1) and direction = $2
 	          and client_id = $3 and active = true
 			limit 1`
 	tx.MustExec(sql, tc.Category, tc.Direction, tc.ClientID)
@@ -183,13 +183,17 @@ func (s *Repo) Export(client string) (rslt []byte, err error) {
 	}
 
 	expDoc := entity.Document{}
-	var expDocs []entity.Document
+	var (
+		expDocs     []entity.Document
+		description sql.NullString
+	)
 
 	for data.Next() {
-		err = data.Scan(&expDoc.Time, &expDoc.Category, &expDoc.Amount, &expDoc.Description, &expDoc.Direction)
+		err = data.Scan(&expDoc.Time, &expDoc.Category, &expDoc.Amount, &description, &expDoc.Direction)
 		if err != nil {
 			return rslt, err
 		}
+		expDoc.Description = description.String
 		expDocs = append(expDocs, expDoc)
 	}
 	return json.Marshal(expDocs)
