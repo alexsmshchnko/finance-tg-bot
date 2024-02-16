@@ -12,7 +12,7 @@ func (b *Bot) handleSettingCallbackQuery(ctx context.Context, query *tgbotapi.Ca
 	split := strings.Split(query.Data, ":")
 	switch split[1] {
 	case "editCategory":
-		b.editCategoryKeyboard(ctx, query)
+		b.requestCategoryKeyboardEditor(ctx, 0, query)
 	case "cancelSettings":
 		b.cancelSettings(query)
 	}
@@ -21,7 +21,7 @@ func (b *Bot) cancelSettings(q *tgbotapi.CallbackQuery) {
 	b.deleteMsg(q.Message.Chat.ID, q.Message.MessageID)
 }
 
-func (b *Bot) editCategoryKeyboard(ctx context.Context, q *tgbotapi.CallbackQuery) {
+func (b *Bot) requestCategoryKeyboardEditor(ctx context.Context, page int, q *tgbotapi.CallbackQuery) {
 	cats, err := b.accountant.GetCats(ctx, q.From.UserName)
 	if err != nil {
 		return
@@ -35,7 +35,7 @@ func (b *Bot) editCategoryKeyboard(ctx context.Context, q *tgbotapi.CallbackQuer
 
 	mrkp := newKeyboardForm()
 	mrkp.setOptions(options)
-	mrkp.addNavigationControl(0, []string{EMOJI_HOOK_BACK, PREFIX_SETCATEGORY + ":goBack"}, nil)
+	mrkp.addNavigationControl(page, []string{EMOJI_HOOK_BACK, PREFIX_SETCATEGORY + ":goBack"}, nil)
 	resMrkp, err := mrkp.getMarkup()
 	if err != nil {
 		fmt.Println(err)

@@ -52,19 +52,53 @@ func (b *Bot) updateMsgText(chatID int64, messageID int, text string) {
 	b.api.Send(tgbotapi.NewEditMessageText(chatID, messageID, text))
 }
 
-func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error) {
-	msg := tgbotapi.NewMessage(u.Message.Chat.ID, u.Message.Text+"₽")
-	cats := BotUsers[u.Message.Chat.UserName].FinCategories
-	if len(cats) < 1 {
-		cats, err = b.accountant.GetCats(ctx, u.Message.Chat.UserName)
-		if err != nil {
-			return err
-		}
-		BotUsers[u.Message.Chat.UserName] = BotUser{FinCategories: cats}
+func (b *Bot) requestCats(ctx context.Context, page int, query *tgbotapi.CallbackQuery, update *tgbotapi.Update) {
+	var (
+		userName  string
+		chatID    int64
+		messageID int
+	)
 
+	if update == nil {
+		userName = query.From.UserName
+		chatID = query.Message.Chat.ID
+		messageID = query.Message.MessageID
+	} else {
+		userName = update.SentFrom().UserName
+		chatID = update.Message.Chat.ID
+		messageID = update.Message.MessageID
 	}
-	msg.ReplyMarkup = getPagedListInlineKeyboard(cats, 0, PREFIX_CATEGORY, "")
-	_, err = b.api.Send(msg)
+
+	cats, err := b.accountant.GetCats(ctx, userName)
+	if err != nil {
+		return
+	}
+	options := make([][]string, 0, len(cats))
+	for _, v := range cats {
+		options = append(options, []string{v, PREFIX_CATEGORY + ":" + v})
+	}
+
+	mrkp := newKeyboardForm()
+	mrkp.setOptions(options)
+	mrkp.addNavigationControl(page, nil, nil)
+	resMrkp, err := mrkp.getMarkup()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	if update == nil {
+		msg := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, *resMrkp)
+		b.api.Send(msg)
+	} else {
+		msg := tgbotapi.NewMessage(chatID, update.Message.Text+"₽")
+		msg.ReplyMarkup = resMrkp
+		b.api.Send(msg)
+	}
+}
+
+func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error) {
+	b.requestCats(ctx, 0, nil, u)
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 
 	return err
@@ -104,13 +138,13 @@ func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {
 
 //
 
-func (b *Bot) requestDescription(query *tgbotapi.CallbackQuery) {
-	subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
-	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, subCat)
-	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, PREFIX_SUBCATEGORY+":"+EMOJI_KEYBOARD)
-	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
-	b.api.Send(msg)
-}
+// func (b *Bot) requestDescription(query *tgbotapi.CallbackQuery) {
+// 	subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
+// 	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, subCat)
+// 	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, PREFIX_SUBCATEGORY+":"+EMOJI_KEYBOARD)
+// 	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
+// 	b.api.Send(msg)
+// }
 
 func (b *Bot) requestCustomDescription(query *tgbotapi.CallbackQuery) {
 	msg := tgbotapi.NewMessage(query.Message.Chat.ID, EMOJI_COMMENT+"...")
@@ -119,10 +153,33 @@ func (b *Bot) requestCustomDescription(query *tgbotapi.CallbackQuery) {
 	WaitUserResponeStart(query.From.UserName, "REC_DESC", *query.Message)
 }
 
-func (b *Bot) requestSubCats(query *tgbotapi.CallbackQuery, cat string) {
-	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, cat)
-	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, PREFIX_SUBCATEGORY+":"+EMOJI_KEYBOARD)
-	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
+func (b *Bot) requestSubCats(ctx context.Context, page int, query *tgbotapi.CallbackQuery) {
+	var cat string
+	if len(strings.Split(query.Message.Text, " ")) < 3 {
+		cat, _ = strings.CutPrefix(query.Data, PREFIX_CATEGORY+":")
+	} else {
+		cat = strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
+	}
+
+	subCats, err := b.accountant.GetSubCats(ctx, query.From.UserName, cat)
+	if err != nil {
+		return
+	}
+	options := make([][]string, 0, len(subCats))
+	for _, v := range subCats {
+		options = append(options, []string{v, PREFIX_SUBCATEGORY + ":" + v})
+	}
+
+	mrkp := newKeyboardForm()
+	mrkp.setOptions(options)
+	mrkp.addNavigationControl(page, nil, []string{EMOJI_KEYBOARD, PREFIX_SUBCATEGORY + ":writeCustom"})
+	resMrkp, err := mrkp.getMarkup()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *resMrkp)
 	b.api.Send(msg)
 }
 
@@ -132,23 +189,17 @@ func (b *Bot) handleCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 	query.Message.Text, _ = strings.CutSuffix(query.Message.Text, "₽")
 
 	//update text
-	resp := query.Message.Text + "₽ на " + cat
-	b.updateMsgText(query.Message.Chat.ID, query.Message.MessageID, resp)
+	b.updateMsgText(query.Message.Chat.ID, query.Message.MessageID, query.Message.Text+"₽ на "+cat)
 
 	//query description
-	b.requestSubCats(query, cat)
-
-	//update keyboard
-	// mrkp := getMsgOptionsKeyboard()
-	// msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
-	// b.api.Send(msg)
+	b.requestSubCats(context.Background(), 0, query)
 }
 
 func (b *Bot) handleSubCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
 	//update text
 	subCat, _ := strings.CutPrefix(query.Data, PREFIX_SUBCATEGORY+":")
 
-	if subCat == EMOJI_KEYBOARD {
+	if subCat == "writeCustom" {
 		b.requestCustomDescription(query)
 		return
 	}
@@ -166,8 +217,8 @@ func (b *Bot) handleOptionCallbackQuery(query *tgbotapi.CallbackQuery) {
 	switch split[1] {
 	case "saveRecord":
 		b.confirmRecord(query)
-	case "addDescription":
-		b.requestDescription(query)
+	// case "addDescription":
+	// 	b.requestDescription(query)
 	case "deleteRecord":
 		b.deleteRecord(query)
 	}

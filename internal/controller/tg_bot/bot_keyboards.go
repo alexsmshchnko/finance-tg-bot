@@ -126,38 +126,14 @@ type EditMessageForceReply struct {
 
 func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQuery) {
 	var (
-		err             error
-		list            []string
-		centerButtonTag string
+		page int
+		err  error
 	)
 
 	prefix := strings.Split(*query.Message.ReplyMarkup.InlineKeyboard[0][0].CallbackData, ":")[0]
 
-	switch prefix {
-	case PREFIX_CATEGORY:
-		list = BotUsers[query.From.UserName].FinCategories
-		if len(list) < 1 {
-			fmt.Println("User category cash is empty")
-			list, err = b.accountant.GetCats(ctx, query.From.UserName)
-			if err != nil {
-				log.Println(err)
-			}
-		}
-	case PREFIX_SUBCATEGORY:
-		subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
-		list, _ = b.accountant.GetSubCats(ctx, query.From.UserName, subCat)
-		centerButtonTag = PREFIX_SUBCATEGORY + ":" + EMOJI_KEYBOARD
-	case PREFIX_SETCATEGORY:
-		list, err = b.accountant.GetCats(ctx, query.From.UserName)
-		if err != nil {
-			log.Println(err)
-		}
-		list = addButtonToSlice(list, EMOJI_ADD+" (добавить)")
-		fmt.Println(list)
-	}
-
 	split := strings.Split(query.Data, ":")
-	page, err := strconv.Atoi(split[2])
+	page, err = strconv.Atoi(split[2])
 	if err != nil {
 		log.Println(err)
 	}
@@ -168,82 +144,14 @@ func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi
 		page--
 	}
 
-	mrkp := getPagedListInlineKeyboard(list, page, prefix, centerButtonTag)
-	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
-	b.api.Send(msg)
-}
-
-func addButtonToSlice(slc []string, buttonText string) []string {
-	slc = append(slc, buttonText)
-	return slc
-}
-
-func getPagedListInlineKeyboard(slc []string, page int, prefix, centerButtonTag string) *tgbotapi.InlineKeyboardMarkup {
-	var rows [][]tgbotapi.InlineKeyboardButton
-	var sliceBegin, sliceEnd int
-
-	sliceBegin = page * maxPageLen
-	if len(slc)-page*maxPageLen < maxPageLen {
-		sliceEnd = len(slc)
-	} else {
-		sliceEnd = page*maxPageLen + maxPageLen
+	switch prefix {
+	case PREFIX_CATEGORY:
+		b.requestCats(ctx, page, query, nil)
+	case PREFIX_SUBCATEGORY:
+		b.requestSubCats(ctx, page, query)
+	case PREFIX_SETCATEGORY:
+		b.requestCategoryKeyboardEditor(ctx, page, query)
 	}
-
-	rowsToShow := slc[sliceBegin:sliceEnd]
-
-	for i := range rowsToShow {
-		rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(rowsToShow[i], prefix+":"+rowsToShow[i])))
-	}
-
-	var (
-		buttons      []tgbotapi.InlineKeyboardButton
-		centerButton tgbotapi.InlineKeyboardButton
-	)
-
-	pageCnt := len(slc) / maxPageLen
-	if pageCnt*maxPageLen < len(slc) {
-		pageCnt++
-	}
-
-	if len(centerButtonTag) > 0 {
-		centerButton = tgbotapi.NewInlineKeyboardButtonData(EMOJI_KEYBOARD, centerButtonTag)
-	}
-
-	if page == 0 && len(slc) > maxPageLen {
-		buttons = append(buttons,
-			tgbotapi.NewInlineKeyboardButtonData(" ", " "))
-		if len(centerButtonTag) > 0 {
-			buttons = append(buttons, centerButton)
-		}
-		buttons = append(buttons,
-			tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf(PREFIX_PAGE+":next:%d:%d", page, pageCnt)))
-	} else if page == pageCnt-1 && page != 0 {
-		buttons = append(buttons,
-			tgbotapi.NewInlineKeyboardButtonData(EMOJI_PREV, fmt.Sprintf(PREFIX_PAGE+":prev:%d:%d", page, pageCnt)))
-		if len(centerButtonTag) > 0 {
-			buttons = append(buttons, centerButton)
-		}
-		buttons = append(buttons,
-			tgbotapi.NewInlineKeyboardButtonData(" ", " "))
-	} else if page > 0 && page < pageCnt-1 {
-		buttons = append(buttons,
-			tgbotapi.NewInlineKeyboardButtonData(EMOJI_PREV, fmt.Sprintf(PREFIX_PAGE+":prev:%d:%d", page, pageCnt)))
-		if len(centerButtonTag) > 0 {
-			buttons = append(buttons, centerButton)
-		}
-		buttons = append(buttons,
-			tgbotapi.NewInlineKeyboardButtonData(EMOJI_NEXT, fmt.Sprintf(PREFIX_PAGE+":next:%d:%d", page, pageCnt)))
-	} else if len(centerButtonTag) > 0 {
-		buttons = append(buttons, centerButton)
-	}
-
-	if len(buttons) > 0 {
-		rows = append(rows, buttons)
-	}
-
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
-
-	return &keyboard
 }
 
 func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
