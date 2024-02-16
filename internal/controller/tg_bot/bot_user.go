@@ -32,11 +32,11 @@ func NewBotUser(userName string) {
 	log.Printf("BotUsers: %v\n", BotUsers)
 }
 
-func ResponseIsAwaited(userName string) bool {
+func responseIsAwaited(userName string) bool {
 	return BotUsers[userName].ResponseWait
 }
 
-func WaitUserResponeStart(userName, respCode string, message tgbotapi.Message) {
+func waitUserResponeStart(userName, respCode string, message tgbotapi.Message) {
 	if _, ok := BotUsers[userName]; ok {
 		BotUsers[userName] = BotUser{
 			ResponseWait: true,
@@ -47,7 +47,7 @@ func WaitUserResponeStart(userName, respCode string, message tgbotapi.Message) {
 	log.Printf("ResponseWaitStart: %v\n", BotUsers[userName])
 }
 
-func WaitUserResponseComplete(userName string) {
+func waitUserResponseComplete(userName string) {
 	if _, ok := BotUsers[userName]; ok {
 		BotUsers[userName] = BotUser{
 			ResponseWait: false,

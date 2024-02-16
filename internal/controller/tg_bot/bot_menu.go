@@ -46,7 +46,7 @@ func (b *Bot) processCommand(ctx context.Context, u *tgbotapi.Update) (err error
 	case "report":
 		b.showReportMenu(ctx, u)
 	case "settings":
-		b.showSettingsMenu(ctx, u)
+		b.showSettingsMenu(ctx, u, nil)
 	default:
 		msg.Text = "I don't know that command"
 	}
@@ -120,9 +120,17 @@ func (b *Bot) showReportMenu(ctx context.Context, u *tgbotapi.Update) {
 	b.api.Send(msg)
 }
 
-func (b *Bot) showSettingsMenu(ctx context.Context, u *tgbotapi.Update) {
-	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
-	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "Настройки")
-	msg.ReplyMarkup = *getSettingsKeyboard()
-	b.api.Send(msg)
+func (b *Bot) showSettingsMenu(ctx context.Context, u *tgbotapi.Update, q *tgbotapi.CallbackQuery) {
+	if q == nil {
+		b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
+		msg := tgbotapi.NewMessage(u.Message.Chat.ID, "Настройки")
+		msg.ReplyMarkup = *getSettingsKeyboard()
+		b.api.Send(msg)
+
+	} else {
+		b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, "Настройки")
+
+		msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *getSettingsKeyboard())
+		b.api.Send(msg)
+	}
 }
