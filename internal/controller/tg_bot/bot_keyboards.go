@@ -150,7 +150,7 @@ func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi
 	case PREFIX_SUBCATEGORY:
 		b.requestSubCats(ctx, page, query)
 	case PREFIX_SETCATEGORY:
-		b.requestCategoryKeyboardEditor(ctx, page, query)
+		requestCategoryKeyboardEditor(b, ctx, page, query)
 	}
 }
 

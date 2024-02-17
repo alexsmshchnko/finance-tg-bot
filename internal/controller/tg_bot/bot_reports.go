@@ -12,18 +12,14 @@ import (
 func (b *Bot) handleReportCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQuery) {
 	split := strings.Split(query.Data, ":")
 	switch split[1] {
-	case "cancelReport":
-		b.cancelReport(query)
 	case "monthReport":
-		b.statementReport(query)
+		statementReport(b, query)
+	case "cancelReport":
+		b.deleteMsg(query.Message.Chat.ID, query.Message.MessageID)
 	}
 }
 
-func (b *Bot) cancelReport(q *tgbotapi.CallbackQuery) {
-	b.deleteMsg(q.Message.Chat.ID, q.Message.MessageID)
-}
-
-func (b *Bot) statementReport(q *tgbotapi.CallbackQuery) {
+func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 	var (
 		t    time.Time
 		text string

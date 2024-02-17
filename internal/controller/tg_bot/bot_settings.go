@@ -12,7 +12,7 @@ func (b *Bot) handleSettingCallbackQuery(ctx context.Context, query *tgbotapi.Ca
 	split := strings.Split(query.Data, ":")
 	switch split[1] {
 	case "editCategory":
-		b.requestCategoryKeyboardEditor(ctx, 0, query)
+		requestCategoryKeyboardEditor(b, ctx, 0, query)
 	case "cancelSettings":
 		b.deleteMsg(query.Message.Chat.ID, query.Message.MessageID)
 	}
@@ -36,13 +36,13 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, query *tgbotapi.
 		}
 		b.accountant.EditCats(query.Message.Text, direction, true, query.From.UserName)
 		//show prev menu
-		b.requestCategoryKeyboardEditor(ctx, 0, query)
+		requestCategoryKeyboardEditor(b, ctx, 0, query)
 	default:
 
 	}
 }
 
-func (b *Bot) requestCategoryKeyboardEditor(ctx context.Context, page int, q *tgbotapi.CallbackQuery) {
+func requestCategoryKeyboardEditor(b *Bot, ctx context.Context, page int, q *tgbotapi.CallbackQuery) {
 	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, "Настройки категорий")
 	cats, err := b.accountant.GetCats(ctx, q.From.UserName)
 	if err != nil {
