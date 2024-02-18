@@ -49,9 +49,9 @@ func requestCategoryKeyboardEditor(b *Bot, ctx context.Context, page int, q *tgb
 		return
 	}
 
-	options := make([][]string, 0, len(cats)+1)
-	for _, v := range cats {
-		options = append(options, []string{v, PREFIX_SETCATEGORY + ":" + v})
+	options := make([][]string, len(cats), len(cats)+1)
+	for i, v := range cats {
+		options[i] = []string{v, PREFIX_SETCATEGORY + ":" + v}
 	}
 	options = append(options, []string{EMOJI_ADD, PREFIX_SETCATEGORY + ":addNew"})
 	mrkp := newKeyboardForm()

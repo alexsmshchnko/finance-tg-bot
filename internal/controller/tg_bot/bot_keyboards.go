@@ -21,21 +21,21 @@ func newKeyboardForm() *keyboardMarkup {
 }
 
 func (k *keyboardMarkup) setOptions(options [][]string) {
-	res := make([][]tgbotapi.InlineKeyboardButton, 0, len(options))
-	for _, v := range options {
-		res = append(res, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(v[0], v[1])))
+	res := make([][]tgbotapi.InlineKeyboardButton, len(options))
+	for i, v := range options {
+		res[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(v[0], v[1]))
 	}
 	k.options = res
 }
 
 func (k *keyboardMarkup) setControl(control [][][]string) {
-	res := make([][]tgbotapi.InlineKeyboardButton, 0, len(control))
-	for _, r := range control {
-		buttons := make([]tgbotapi.InlineKeyboardButton, 0, len(r))
-		for _, b := range r {
-			buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(b[0], b[1]))
+	res := make([][]tgbotapi.InlineKeyboardButton, len(control))
+	for i, r := range control {
+		buttons := make([]tgbotapi.InlineKeyboardButton, len(r))
+		for j, b := range r {
+			buttons[j] = tgbotapi.NewInlineKeyboardButtonData(b[0], b[1])
 		}
-		res = append(res, buttons)
+		res[i] = buttons
 	}
 	k.control = res
 }
