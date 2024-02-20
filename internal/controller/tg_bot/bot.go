@@ -13,7 +13,8 @@ import (
 )
 
 type accountant interface {
-	GetCats(ctx context.Context, username string) (cats []string, err error)
+	// GetCats(ctx context.Context, username string) (cats []string, err error)
+	GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error)
 	GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error)
 	GetUserStatus(ctx context.Context, username string) (status bool, err error)
 	PostDoc(category string, amount int, description string, msg_id string, direction int, client string) (err error)
@@ -21,12 +22,18 @@ type accountant interface {
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
 	GetStatement(p *entity.Report) (res string, err error)
-	EditCats(category string, direction int, active bool, client string) (err error)
+	EditCats(tc entity.TransCatLimit, client string) (err error)
 }
 
 type Bot struct {
 	api *tgbotapi.BotAPI
 	accountant
+}
+
+type userChat struct {
+	chatID    int64
+	messageID int
+	userName  string
 }
 
 func New(api *tgbotapi.BotAPI, acc accountant) *Bot {
@@ -58,6 +65,7 @@ func (b *Bot) requestCats(ctx context.Context, page int, query *tgbotapi.Callbac
 		userName  string
 		chatID    int64
 		messageID int
+		limit     string
 	)
 
 	if update == nil {
@@ -70,13 +78,18 @@ func (b *Bot) requestCats(ctx context.Context, page int, query *tgbotapi.Callbac
 		messageID = update.Message.MessageID
 	}
 
-	cats, err := b.accountant.GetCats(ctx, userName)
+	cats, err := b.accountant.GetCatsLimit(ctx, userName, "balance")
 	if err != nil {
 		return
 	}
 	options := make([][]string, 0, len(cats))
 	for _, v := range cats {
-		options = append(options, []string{v, PREFIX_CATEGORY + ":" + v})
+		if v.Limit.Valid {
+			limit = fmt.Sprintf(" (%d)", v.Limit.Int64)
+		} else {
+			limit = ""
+		}
+		options = append(options, []string{v.Category.String + limit, PREFIX_CATEGORY + ":" + v.Category.String})
 	}
 
 	mrkp := newKeyboardForm()
@@ -226,6 +239,7 @@ func (b *Bot) handleUpdate(ctx context.Context, update *tgbotapi.Update) {
 	if update.Message != nil {
 		if responseIsAwaited(update.SentFrom().UserName) {
 			b.responseHandler(update)
+			return
 		}
 
 		// if update.Message.ReplyToMessage != nil {
@@ -234,11 +248,13 @@ func (b *Bot) handleUpdate(ctx context.Context, update *tgbotapi.Update) {
 
 		if update.Message.IsCommand() {
 			b.processCommand(ctx, update)
+			return
 		}
 
 		if len(update.Message.Text) > 0 {
 			if _, err := strconv.Atoi(update.Message.Text); err == nil {
 				b.processNumber(ctx, update)
+				return
 			}
 		}
 	}

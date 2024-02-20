@@ -31,7 +31,7 @@ func (a *Accountant) PushToCloud(ctx context.Context, username string) (err erro
 		return err
 	}
 
-	var docs []entity.Document
+	var docs []entity.DocumentExport
 	err = json.Unmarshal(data, &docs)
 	if err != nil {
 		return err

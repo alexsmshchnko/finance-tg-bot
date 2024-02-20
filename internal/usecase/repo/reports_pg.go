@@ -31,7 +31,7 @@ select case grouping(trans_cat)
  order by grouping(trans_cat) asc, sum(trans_amount) desc`
 	}
 
-	data, err := s.Db.Query(
+	data, err := s.Query(
 		query,
 		p.RepParms["datefrom"],
 		p.RepParms["dateto"],

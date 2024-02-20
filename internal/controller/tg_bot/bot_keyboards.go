@@ -124,15 +124,15 @@ type EditMessageForceReply struct {
 // 	)
 // )
 
-func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQuery) {
+func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, q *tgbotapi.CallbackQuery) {
 	var (
 		page int
 		err  error
 	)
 
-	prefix := strings.Split(*query.Message.ReplyMarkup.InlineKeyboard[0][0].CallbackData, ":")[0]
+	prefix := strings.Split(*q.Message.ReplyMarkup.InlineKeyboard[0][0].CallbackData, ":")[0]
 
-	split := strings.Split(query.Data, ":")
+	split := strings.Split(q.Data, ":")
 	page, err = strconv.Atoi(split[2])
 	if err != nil {
 		log.Println(err)
@@ -146,11 +146,11 @@ func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, query *tgbotapi
 
 	switch prefix {
 	case PREFIX_CATEGORY:
-		b.requestCats(ctx, page, query, nil)
+		b.requestCats(ctx, page, q, nil)
 	case PREFIX_SUBCATEGORY:
-		b.requestSubCats(ctx, page, query)
+		b.requestSubCats(ctx, page, q)
 	case PREFIX_SETCATEGORY:
-		requestCategoryKeyboardEditor(b, ctx, page, query)
+		requestCategoriesKeyboardEditor(b, ctx, page, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
 	}
 }
 
@@ -162,22 +162,6 @@ func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 			{EMOJI_DOWN, PREFIX_OPTION + ":expandOptions"},
 			{EMOJI_SAVE, PREFIX_OPTION + ":saveRecord"},
 		},
-	})
-	res, err := mrkp.getMarkup()
-	if err != nil {
-		return nil
-	}
-	return res
-}
-
-func getReportKeyboard() *tgbotapi.InlineKeyboardMarkup {
-	mrkp := newKeyboardForm()
-	mrkp.setOptions([][]string{
-		{"Текущий месяц", PREFIX_REPORT + ":monthReport:current"},
-		{"Предыдущий месяц", PREFIX_REPORT + ":monthReport:previous"},
-	})
-	mrkp.setControl([][][]string{
-		{{EMOJI_CROSS, PREFIX_REPORT + ":cancelReport"}},
 	})
 	res, err := mrkp.getMarkup()
 	if err != nil {
@@ -200,20 +184,6 @@ func getSettingsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	}
 	return res
 }
-
-func getDebitCreditKeyboard() *tgbotapi.InlineKeyboardMarkup {
-	mrkp := newKeyboardForm()
-	mrkp.setOptions([][]string{
-		{"Дебетовая", PREFIX_SETCATEGORY + ":newCatRole:debit"},
-		{"Кредитовая", PREFIX_SETCATEGORY + ":newCatRole:credit"},
-	})
-	res, err := mrkp.getMarkup()
-	if err != nil {
-		return nil
-	}
-	return res
-}
-
 func getReply() *tgbotapi.ForceReply {
 	return &tgbotapi.ForceReply{
 		ForceReply:            true,

@@ -9,7 +9,8 @@ import (
 type (
 	Repo interface {
 		GetCategories(username string) ([]string, error)
-		EditCategory(category string, direction int, active bool, client string) (err error)
+		GetCats(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error)
+		EditCategory(tc entity.TransCatLimit, client string) (err error)
 		GetSubCategories(username, trans_cat string) ([]string, error)
 		PostDoc(time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error)
 		DeleteDoc(msg_id string, client string) (err error)

@@ -23,8 +23,13 @@ func (a *Accountant) GetCats(ctx context.Context, username string) (cats []strin
 	return
 }
 
-func (a *Accountant) EditCats(category string, direction int, active bool, client string) (err error) {
-	err = a.repo.EditCategory(category, direction, active, client)
+func (a *Accountant) GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
+	cats, err = a.repo.GetCats(ctx, username, limit)
+	return
+}
+
+func (a *Accountant) EditCats(tc entity.TransCatLimit, client string) (err error) {
+	err = a.repo.EditCategory(tc, client)
 	return
 }
 

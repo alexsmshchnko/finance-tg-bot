@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"time"
@@ -29,15 +30,16 @@ type DBDocument struct {
 }
 
 type TransCat struct {
-	ID        *int64  `db:"id"`
-	Category  *string `db:"trans_cat"`
-	Direction *int    `db:"direction"`
-	ClientID  *string `db:"client_id"`
-	Active    *bool   `db:"active"`
+	ID        sql.NullInt64  `db:"id"`
+	Category  sql.NullString `db:"trans_cat"`
+	Direction sql.NullInt16  `db:"direction"`
+	ClientID  sql.NullString `db:"client_id"`
+	Active    sql.NullBool   `db:"active"`
+	Limit     sql.NullInt64  `db:"trans_limit"`
 }
 
 func (s *Repo) GetCategories(username string) (cat []string, err error) {
-	err = s.Db.Select(&cat, `
+	err = s.Select(&cat, `
 	select d.trans_cat
       from public.document d
       join public.trans_category tc on (tc.trans_cat = d.trans_cat
@@ -47,9 +49,40 @@ func (s *Repo) GetCategories(username string) (cat []string, err error) {
 	return
 }
 
+func (s *Repo) GetCats(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error) {
+	var sql string
+	switch limit {
+	case "setting":
+		sql = `
+		select tc.trans_cat, tc.direction, tc.trans_limit
+		  from public.trans_category tc
+		  left join public.document d on (tc.trans_cat = d.trans_cat
+									  and tc.client_id = d.client_id)
+		 where tc.active = true
+		   and tc.client_id = $1
+		 group by tc.trans_cat, tc.direction, tc.trans_limit
+		 order by count(*) desc`
+	case "balance":
+		sql = `
+		select tc.trans_cat, tc.direction
+		      ,tc.trans_limit - sum(case when d.trans_date >= date_trunc('month', current_date) then d.trans_amount else 0 end) as trans_limit
+	      from public.trans_category tc
+	      left join public.document d on (d.trans_cat = tc.trans_cat
+								      and d.client_id = tc.client_id
+								      and d.trans_date between date_trunc('month', current_date - interval '3' month)
+									                       and date_trunc('day', current_date + interval '1' day) - interval '1' second)
+         where tc.active = true
+	       and tc.client_id = $1
+         group by tc.trans_cat, tc.direction, tc.trans_limit
+         order by count(d.*) desc`
+	}
+	err = s.Select(&cat, sql, username)
+	return
+}
+
 func (s *Repo) GetSubCategories(username, trans_cat string) (cat []string, err error) {
 	var res []sql.NullString
-	err = s.Db.Select(&res, "select lower(comment) from public.document"+
+	err = s.Select(&res, "select lower(comment) from public.document"+
 		" where client_id = $1 and trans_cat = $2 and trans_date > current_date - 90"+
 		" group by lower(comment) order by count(*) desc limit 10", username, trans_cat)
 
@@ -62,14 +95,14 @@ func (s *Repo) GetSubCategories(username, trans_cat string) (cat []string, err e
 
 func (s *Repo) postDocument(doc *DBDocument) (err error) {
 	if *doc.Direction == 0 {
-		err = s.Db.Get(&doc.Direction, "select direction from public.trans_category"+
+		err = s.Get(&doc.Direction, "select direction from public.trans_category"+
 			" where client_id = $1 and trans_cat = $2 and active = true", doc.ClientID, doc.Category)
 		if err != nil {
 			return err
 		}
 	}
 
-	tx := s.Db.MustBegin()
+	tx := s.MustBegin()
 	sql := "INSERT INTO public.document (trans_date, trans_cat, trans_amount, comment, tg_msg_id, client_id, direction)" +
 		" VALUES($1, $2, $3, $4, $5, $6, $7);"
 	tx.MustExec(sql, doc.Time, doc.Category, doc.Amount, doc.Description, doc.MsgID, doc.ClientID, doc.Direction)
@@ -79,12 +112,12 @@ func (s *Repo) postDocument(doc *DBDocument) (err error) {
 
 func (s *Repo) getTransCat(category string, active bool, client string) (*TransCat, error) {
 	var transCat TransCat
-	err := s.Db.Get(&transCat, "select * from trans_category tc where trans_cat = $1 and client_id = $2", category, client)
+	err := s.Get(&transCat, "select * from trans_category tc where trans_cat = $1 and client_id = $2", category, client)
 	return &transCat, err
 }
 
 func (s *Repo) createTransCat(tc *TransCat) (err error) {
-	tx := s.Db.MustBegin()
+	tx := s.MustBegin()
 	sql := `INSERT INTO public.trans_category(trans_cat, direction, client_id, active)
 		    VALUES(lower($1), $2, $3, true)`
 	tx.MustExec(sql, tc.Category, tc.Direction, tc.ClientID)
@@ -100,16 +133,30 @@ func (s *Repo) createTransCat(tc *TransCat) (err error) {
 	return tx.Commit()
 }
 
-func (s *Repo) EditCategory(category string, direction int, active bool, client string) (err error) {
-	_, err = s.getTransCat(category, active, client)
+func (s *Repo) updateTransCatLimit(tc *TransCat) (err error) {
+	tx := s.MustBegin()
+	sql := `UPDATE public.trans_category SET trans_limit = $1
+	         WHERE trans_cat = $2
+			   AND client_id = $3
+			   AND active = true`
+	tx.MustExec(sql, tc.Limit.Int64, tc.Category.String, tc.ClientID.String)
+
+	return tx.Commit()
+}
+
+func (s *Repo) EditCategory(tc entity.TransCatLimit, client string) (err error) {
+	_, err = s.getTransCat(tc.Category.String, tc.Active.Bool, client)
+	t := &TransCat{
+		Category:  tc.Category,
+		Direction: tc.Direction,
+		ClientID:  sql.NullString{String: client, Valid: true},
+		Limit:     tc.Limit,
+	}
 	if err == sql.ErrNoRows {
 		//create new
-		tc := &TransCat{
-			Category:  &category,
-			Direction: &direction,
-			ClientID:  &client,
-		}
-		err = s.createTransCat(tc)
+		err = s.createTransCat(t)
+	} else if tc.Limit.Valid {
+		err = s.updateTransCatLimit(t)
 	}
 	return
 }
@@ -129,7 +176,7 @@ func (s *Repo) PostDoc(time time.Time, category string, amount int, description 
 }
 
 func (s *Repo) DeleteDoc(msg_id string, client string) (err error) {
-	tx := s.Db.MustBegin()
+	tx := s.MustBegin()
 
 	tx.MustExec("DELETE FROM public.document WHERE tg_msg_id = $1 and client_id = $2;", msg_id, client)
 
@@ -137,7 +184,7 @@ func (s *Repo) DeleteDoc(msg_id string, client string) (err error) {
 }
 
 func (s *Repo) ClearUserHistory(username string) (err error) {
-	tx := s.Db.MustBegin()
+	tx := s.MustBegin()
 
 	tx.MustExec("DELETE FROM public.document WHERE client_id = $1;", username)
 	tx.MustExec("UPDATE public.trans_category SET active = false WHERE client_id = $1;", username)
@@ -167,7 +214,7 @@ func (s *Repo) ImportDocs(data []byte, client string) (err error) {
 		}
 	}
 
-	tx := s.Db.MustBegin()
+	tx := s.MustBegin()
 	sql := "INSERT INTO trans_category(trans_cat, direction, client_id)" +
 		" SELECT distinct trans_cat, direction, client_id FROM document WHERE client_id = $1"
 	tx.MustExec(sql, client)
@@ -176,15 +223,15 @@ func (s *Repo) ImportDocs(data []byte, client string) (err error) {
 }
 
 func (s *Repo) Export(client string) (rslt []byte, err error) {
-	data, err := s.Db.Query("SELECT trans_date, trans_cat, trans_amount, comment, case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction"+
+	data, err := s.Query("SELECT trans_date, trans_cat, trans_amount, comment, case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction"+
 		" FROM base.public.document WHERE client_id = $1 ORDER BY 1 DESC", client)
 	if err != nil {
 		return rslt, err
 	}
 
-	expDoc := entity.Document{}
+	expDoc := entity.DocumentExport{}
 	var (
-		expDocs     []entity.Document
+		expDocs     []entity.DocumentExport
 		description sql.NullString
 	)
 

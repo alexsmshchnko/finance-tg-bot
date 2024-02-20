@@ -2,7 +2,9 @@ package tg_bot
 
 const (
 	EMOJI_SAVE       = "\U0001f4be" //💾
-	EMOJI_ADD        = "\U00002795" //➕
+	EMOJI_COIN       = "\U0001fa99" //
+	EMOJI_PLUS       = "\U00002795" //➕
+	EMOJI_MINUS      = "\U00002796" //➖
 	EMOJI_CROSS      = "\u274C"     //❌
 	EMOJI_COMMENT    = "\U0001f4ac" //💬
 	EMOJI_CHANGE     = "\U0000270D" //✍

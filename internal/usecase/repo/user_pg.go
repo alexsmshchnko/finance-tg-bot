@@ -16,7 +16,7 @@ type DBClient struct {
 
 func (s *Repo) getUserInfo(username string) (*DBClient, error) {
 	var client DBClient
-	err := s.Db.Get(&client, "select * from client where username = $1", username)
+	err := s.Get(&client, "select * from client where username = $1", username)
 	return &client, err
 }
 
