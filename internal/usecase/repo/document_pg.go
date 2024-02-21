@@ -144,6 +144,17 @@ func (s *Repo) updateTransCatLimit(tc *TransCat) (err error) {
 	return tx.Commit()
 }
 
+func (s *Repo) disableTransCat(tc *TransCat) (err error) {
+	tx := s.MustBegin()
+	sql := `UPDATE public.trans_category SET active = false
+	         WHERE trans_cat = $1
+			   AND client_id = $2
+			   AND active = true`
+	tx.MustExec(sql, tc.Category.String, tc.ClientID.String)
+
+	return tx.Commit()
+}
+
 func (s *Repo) EditCategory(tc entity.TransCatLimit, client string) (err error) {
 	_, err = s.getTransCat(tc.Category.String, tc.Active.Bool, client)
 	t := &TransCat{
@@ -157,6 +168,8 @@ func (s *Repo) EditCategory(tc entity.TransCatLimit, client string) (err error) 
 		err = s.createTransCat(t)
 	} else if tc.Limit.Valid {
 		err = s.updateTransCatLimit(t)
+	} else if !tc.Active.Bool && tc.Active.Valid {
+		err = s.disableTransCat(t)
 	}
 	return
 }

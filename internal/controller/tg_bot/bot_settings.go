@@ -50,7 +50,14 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 	case "limit":
 		b.requestReply(q, "REC_NEWLIMIT")
 	case "disable":
-		return
+		cat := entity.TransCatLimit{
+			Category:  sql.NullString{String: q.Message.Text, Valid: true},
+			Direction: sql.NullInt16{Int16: 0, Valid: false},
+			Active:    sql.NullBool{Bool: false, Valid: true},
+			Limit:     sql.NullInt64{Int64: 0, Valid: false},
+		}
+		b.accountant.EditCats(cat, q.From.UserName)
+		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
 	default:
 		requestCategoryKeyboardEditor(b, ctx, q)
 	}
