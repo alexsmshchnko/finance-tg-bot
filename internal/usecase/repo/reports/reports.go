@@ -5,7 +5,9 @@ import (
 	repPkg "finance-tg-bot/pkg/repository"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -24,14 +26,27 @@ func (r *Reports) GetStatementTotals(ctx context.Context, log *slog.Logger, p ma
 	if err != nil {
 		return "", err
 	}
-
-	printer := message.NewPrinter(language.Russian)
-	str := strings.Builder{}
-	str.WriteString("+" + strings.Repeat("-", 22) + "+" + strings.Repeat("-", 8) + "+\n")
-	for _, v := range rows {
-		str.WriteString(fmt.Sprintf("|%-22s|%8s|\n", v.Name, printer.Sprintf("%d", v.Val)))
+	if len(rows) < 1 {
+		return "NO DATA", err
 	}
-	str.WriteString("+" + strings.Repeat("-", 22) + "+" + strings.Repeat("-", 8) + "+")
+
+	var nl, vl int
+	printer := message.NewPrinter(language.Russian)
+	for _, v := range rows {
+		if nl < utf8.RuneCountInString(v.Name) {
+			nl = utf8.RuneCountInString(v.Name)
+		}
+		if vl < utf8.RuneCountInString(printer.Sprintf("%d", v.Val)) {
+			vl = utf8.RuneCountInString(printer.Sprintf("%d", v.Val))
+		}
+	}
+
+	str := strings.Builder{}
+	str.WriteString(strings.Repeat("-", nl+1) + "+" + strings.Repeat("-", vl+1) + "\n")
+	for _, v := range rows {
+		str.WriteString(fmt.Sprintf("%-"+strconv.Itoa(nl+1)+"s|%"+strconv.Itoa(vl+1)+"s\n", v.Name, printer.Sprintf("%d", v.Val)))
+	}
+	str.WriteString(strings.Repeat("-", nl+1) + "+" + strings.Repeat("-", vl+1) + "")
 
 	return str.String(), err
 }
