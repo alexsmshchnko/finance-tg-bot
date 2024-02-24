@@ -17,6 +17,9 @@ const (
 	EMOJI_PREV       = "\u2B05"     //⬅
 	EMOJI_UP         = "\U0001F53C" //🔼
 	EMOJI_DOWN       = "\U0001F53D" //🔽
+	EMOJI_CREDIT     = "\U0001f4b0" //💰
+	EMOJI_DEBIT      = "\U0001f4b8" //💸
+	EMOJI_DEPOSIT    = "\U0001f3e6" //🏦
 
 	PREFIX_CATEGORY    = "CAT"
 	PREFIX_SETCATEGORY = "SETCAT"

@@ -82,7 +82,7 @@ func (b *Bot) responseHandler(u *tgbotapi.Update) {
 		msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
 		b.api.Send(msg)
 	case "REC_NEWCAT":
-		b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, u.Message.Text)
+		b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, "Тип траты для "+u.Message.Text)
 		mrkp := getDebitCreditKeyboard()
 		msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
 		b.api.Send(msg)

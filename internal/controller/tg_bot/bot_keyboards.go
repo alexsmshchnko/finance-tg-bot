@@ -173,7 +173,7 @@ func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 func getSettingsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	mrkp := newKeyboardForm()
 	mrkp.setOptions([][]string{
-		{"Редактировать категории", PREFIX_SETTING + ":editCategory"},
+		{"Редактировать категории и лимиты", PREFIX_SETTING + ":editCategory"},
 	})
 	mrkp.setControl([][][]string{
 		{{EMOJI_CROSS, PREFIX_SETTING + ":cancelSettings"}},

@@ -66,6 +66,7 @@ func (b *Bot) requestCats(ctx context.Context, page int, query *tgbotapi.Callbac
 		chatID    int64
 		messageID int
 		limit     string
+		direction string
 	)
 
 	if update == nil {
@@ -82,14 +83,25 @@ func (b *Bot) requestCats(ctx context.Context, page int, query *tgbotapi.Callbac
 	if err != nil {
 		return
 	}
-	options := make([][]string, 0, len(cats))
-	for _, v := range cats {
+	options := make([][]string, len(cats))
+	for i, v := range cats {
+		switch v.Direction.Int16 {
+		case -1:
+			direction = EMOJI_DEBIT
+		case 0:
+			direction = EMOJI_DEPOSIT
+		case 1:
+			direction = EMOJI_CREDIT
+		}
 		if v.Limit.Valid {
 			limit = fmt.Sprintf(" (%d)", v.Limit.Int64)
 		} else {
 			limit = ""
 		}
-		options = append(options, []string{v.Category.String + limit, PREFIX_CATEGORY + ":" + v.Category.String})
+		options[i] = []string{
+			v.Category.String + " " + direction + limit,
+			PREFIX_CATEGORY + ":" + v.Category.String,
+		}
 	}
 
 	mrkp := newKeyboardForm()

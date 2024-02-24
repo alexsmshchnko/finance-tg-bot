@@ -29,21 +29,20 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 		b.showSettingsMenu(ctx, nil, q)
 	case "backToCategories":
 		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
-	case "newDebit":
+	case "new":
+		str, _ := strings.CutPrefix(q.Message.Text, "Тип траты для ")
 		cat := entity.TransCatLimit{
-			Category:  sql.NullString{String: q.Message.Text, Valid: true},
-			Direction: sql.NullInt16{Int16: -1, Valid: true},
-			Active:    sql.NullBool{Bool: true, Valid: true},
-			Limit:     sql.NullInt64{Int64: 0, Valid: false},
+			Category: sql.NullString{String: str, Valid: true},
+			Active:   sql.NullBool{Bool: true, Valid: true},
+			Limit:    sql.NullInt64{Int64: 0, Valid: false},
 		}
-		b.accountant.EditCats(cat, q.From.UserName)
-		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
-	case "newCredit":
-		cat := entity.TransCatLimit{
-			Category:  sql.NullString{String: q.Message.Text, Valid: true},
-			Direction: sql.NullInt16{Int16: 1, Valid: true},
-			Active:    sql.NullBool{Bool: true, Valid: true},
-			Limit:     sql.NullInt64{Int64: 0, Valid: false},
+		switch split[2] {
+		case "debit":
+			cat.Direction = sql.NullInt16{Int16: -1, Valid: true}
+		case "deposit":
+			cat.Direction = sql.NullInt16{Int16: 0, Valid: true}
+		case "credit":
+			cat.Direction = sql.NullInt16{Int16: 1, Valid: true}
 		}
 		b.accountant.EditCats(cat, q.From.UserName)
 		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
@@ -66,8 +65,9 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 func getDebitCreditKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	mrkp := newKeyboardForm()
 	mrkp.setOptions([][]string{
-		{"Дебетовая", PREFIX_SETCATEGORY + ":newDebit"},
-		{"Кредитовая", PREFIX_SETCATEGORY + ":newCredit"},
+		{"Доходы " + EMOJI_CREDIT, PREFIX_SETCATEGORY + ":new:credit"},
+		{"Сбережения " + EMOJI_DEPOSIT, PREFIX_SETCATEGORY + ":new:deposit"},
+		{"Расходы " + EMOJI_DEBIT, PREFIX_SETCATEGORY + ":new:debit"},
 	})
 	res, err := mrkp.getMarkup()
 	if err != nil {
@@ -110,10 +110,13 @@ func requestCategoriesKeyboardEditor(b *Bot, ctx context.Context, page int, c *u
 	options := make([][]string, len(cats), len(cats)+1)
 	var catDirection, catLimit string
 	for i, v := range cats {
-		if v.Direction.Int16 == -1 {
-			catDirection = " (Debit)"
-		} else {
-			catDirection = " (Credit)"
+		switch v.Direction.Int16 {
+		case -1:
+			catDirection = EMOJI_DEBIT
+		case 0:
+			catDirection = EMOJI_DEPOSIT
+		case 1:
+			catDirection = EMOJI_CREDIT
 		}
 		if v.Limit.Valid {
 			catLimit = fmt.Sprintf(" (%d₽)", v.Limit.Int64)
@@ -121,7 +124,7 @@ func requestCategoriesKeyboardEditor(b *Bot, ctx context.Context, page int, c *u
 			catLimit = ""
 		}
 		options[i] = []string{
-			v.Category.String + catDirection + catLimit,
+			v.Category.String + " " + catDirection + catLimit,
 			PREFIX_SETCATEGORY + ":" + v.Category.String,
 		}
 	}
