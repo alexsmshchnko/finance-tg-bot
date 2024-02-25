@@ -7,14 +7,16 @@ import (
 )
 
 type Accountant struct {
-	repo Repo
-	sync Cloud
+	repo     Repo
+	reporter Reporter
+	sync     Cloud
 }
 
-func New(d Repo, s Cloud) *Accountant {
+func New(d Repo, r Reporter, s Cloud) *Accountant {
 	return &Accountant{
-		repo: d,
-		sync: s,
+		repo:     d,
+		reporter: r,
+		sync:     s,
 	}
 }
 
@@ -51,6 +53,6 @@ func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {
 	return a.repo.DeleteDoc(msg_id, client)
 }
 
-func (a *Accountant) GetStatement(p *entity.Report) (res string, err error) {
-	return a.repo.GetStatement(p)
+func (a *Accountant) GetStatement(p map[string]string) (res string, err error) {
+	return a.reporter.GetStatementTotals(context.Background(), nil, p)
 }

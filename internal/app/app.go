@@ -14,7 +14,9 @@ import (
 	accountant "finance-tg-bot/internal/usecase"
 	cloud "finance-tg-bot/internal/usecase/cloud"
 	repo "finance-tg-bot/internal/usecase/repo"
+	reports "finance-tg-bot/internal/usecase/repo/reports"
 	"finance-tg-bot/pkg/postgres"
+	"finance-tg-bot/pkg/repository"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -36,7 +38,7 @@ func Run(config config.Config) (err error) {
 	}
 	defer postgres.Close()
 
-	acnt := accountant.New(repo.New(postgres), cloud.New())
+	acnt := accountant.New(repo.New(postgres), reports.New(&repository.Repository{Postgres: postgres}), cloud.New())
 	bot := tg_bot.New(gBot, acnt)
 
 	return bot.Run(ctx)

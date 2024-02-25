@@ -7,7 +7,6 @@ import (
 )
 
 type BotUser struct {
-	//UserName     string `json:"username,omitempty"`
 	//FirstLogin   time.Time
 	// diskToken    string
 	ResponseWait bool
@@ -28,7 +27,7 @@ var BotUsers map[string]BotUser
 // }
 
 func NewBotUser(userName string) {
-	BotUsers = map[string]BotUser{userName: BotUser{}}
+	BotUsers = map[string]BotUser{userName: {}}
 	log.Printf("BotUsers: %v\n", BotUsers)
 }
 

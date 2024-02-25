@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"finance-tg-bot/internal/entity"
+	"log/slog"
 	"time"
 )
 
@@ -20,6 +21,9 @@ type (
 		Export(client string) (rslt []byte, err error)
 		ImportDocs(data []byte, client string) (err error)
 		GetStatement(p *entity.Report) (res string, err error)
+	}
+	Reporter interface {
+		GetStatementTotals(ctx context.Context, log *slog.Logger, p map[string]string) (res string, err error)
 	}
 	Cloud interface {
 		UploadFile(ctx context.Context, oAuth, filePath string) (err error)

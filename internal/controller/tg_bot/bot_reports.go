@@ -2,7 +2,6 @@ package tg_bot
 
 import (
 	"context"
-	"finance-tg-bot/internal/entity"
 	"fmt"
 	"strings"
 	"time"
@@ -62,16 +61,12 @@ func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 		t2 = t.AddDate(0, 1, 0).Add(-time.Second)
 	}
 
-	rep := &entity.Report{
-		RepName: "TotalsForThePeriod",
-		RepParms: map[string]string{
+	text, err = b.accountant.GetStatement(
+		map[string]string{
 			"username": q.From.UserName,
 			"datefrom": t.Format("02.01.2006"),
 			"dateto":   t2.Format("02.01.2006"),
-		},
-	}
-
-	text, err = b.accountant.GetStatement(rep)
+		})
 	if err != nil {
 		return
 	}

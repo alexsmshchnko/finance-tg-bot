@@ -13,7 +13,6 @@ import (
 )
 
 type accountant interface {
-	// GetCats(ctx context.Context, username string) (cats []string, err error)
 	GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error)
 	GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error)
 	GetUserStatus(ctx context.Context, username string) (status bool, err error)
@@ -21,7 +20,7 @@ type accountant interface {
 	DeleteDoc(msg_id string, client string) (err error)
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
-	GetStatement(p *entity.Report) (res string, err error)
+	GetStatement(p map[string]string) (res string, err error)
 	EditCats(tc entity.TransCatLimit, client string) (err error)
 }
 
