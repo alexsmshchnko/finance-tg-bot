@@ -24,9 +24,11 @@ func New(repPkg repPkg.Reporter) *Reports {
 func (r *Reports) GetStatementTotals(ctx context.Context, log *slog.Logger, p map[string]string) (res string, err error) {
 	rows, err := r.repo.GetStatementTotals(ctx, log, p)
 	if err != nil {
-		return "", err
+		log.Error("repo.GetStatementTotals", "err", err)
+		return
 	}
 	if len(rows) < 1 {
+		log.Debug("got no rows from repo.GetStatementTotals")
 		return "NO DATA", err
 	}
 

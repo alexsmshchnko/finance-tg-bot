@@ -2,8 +2,7 @@ package app
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"log/slog"
 
 	"os"
 	"os/signal"
@@ -22,23 +21,32 @@ import (
 )
 
 func Run(config config.Config) (err error) {
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	gBot, err := tgbotapi.NewBotAPI(config.TelegramBotToken)
 	if err != nil {
-		return fmt.Errorf("app - Run - tgbotapi.NewBotAPI: %w", err)
+		log.Error("app - Run - tgbotapi.NewBotAPI", "err", err)
+		return
 	}
-	log.Printf("authorized on account %s", gBot.Self.UserName)
 	gBot.Debug = true
+	log.Info("authorized on account", "botName", gBot.Self.UserName)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	postgres, err := postgres.New(ctx, config.DatabaseDSN)
 	if err != nil {
-		return fmt.Errorf("app - Run - postgres.New: %w", err)
+		log.Error("app - Run - postgres.New", "err", err)
+		return
 	}
 	defer postgres.Close()
 
-	acnt := accountant.New(repo.New(postgres), reports.New(&repository.Repository{Postgres: postgres}), cloud.New())
+	acnt := accountant.New(
+		repo.New(postgres),
+		reports.New(&repository.Repository{Postgres: postgres}),
+		cloud.New(),
+		log,
+	)
 	bot := tg_bot.New(gBot, acnt)
 
 	return bot.Run(ctx)

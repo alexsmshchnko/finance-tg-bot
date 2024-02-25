@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"finance-tg-bot/internal/entity"
+	"log/slog"
 	"time"
 )
 
@@ -10,13 +11,15 @@ type Accountant struct {
 	repo     Repo
 	reporter Reporter
 	sync     Cloud
+	log      *slog.Logger
 }
 
-func New(d Repo, r Reporter, s Cloud) *Accountant {
+func New(d Repo, r Reporter, s Cloud, l *slog.Logger) *Accountant {
 	return &Accountant{
 		repo:     d,
 		reporter: r,
 		sync:     s,
+		log:      l,
 	}
 }
 
@@ -54,5 +57,10 @@ func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {
 }
 
 func (a *Accountant) GetStatement(p map[string]string) (res string, err error) {
-	return a.reporter.GetStatementTotals(context.Background(), nil, p)
+	a.log.Debug("GetStatementTotals", "p", p)
+	res, err = a.reporter.GetStatementTotals(context.Background(), a.log, p)
+	if err != nil {
+		a.log.Error("reporter.GetStatementTotals", "err", err)
+	}
+	return
 }
