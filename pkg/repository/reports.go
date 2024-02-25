@@ -19,12 +19,17 @@ func (r *Repository) GetStatementTotals(ctx context.Context, log *slog.Logger, p
 	query := `
 	select case grouping(trans_cat)
 			 when 1 then 'Total '
-					   || case direction when 1 then 'credit' else 'debit' end
+					  || case direction
+					       when 1 then 'credit'
+						   when 0 then 'deposit'
+						   else 'debit'
+						 end
 			 else trans_cat end           as trans_cat
 		  ,direction * sum(trans_amount)  as t_sum
-	  from document d
-	 where d.trans_date between to_date($1,'dd.mm.yyyy') and to_date($2,'dd.mm.yyyy')
-	   and d.client_id = $3
+	  from document
+	 where trans_date between to_date($1,'dd.mm.yyyy') and to_date($2,'dd.mm.yyyy')
+	   and client_id = $3
+	   and trans_amount != 0
 	 group by grouping sets ((trans_cat, direction), (direction)) 
 	 order by grouping(trans_cat) asc, sum(trans_amount) desc`
 
