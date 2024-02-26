@@ -24,8 +24,12 @@ func (r *Repository) GetStatementTotals(ctx context.Context, log *slog.Logger, p
 						   when 0 then 'deposit'
 						   else 'debit'
 						 end
-			 else trans_cat end           as trans_cat
-		  ,direction * sum(trans_amount)  as t_sum
+			 else trans_cat
+		   end as trans_cat
+		  ,case direction
+		     when 0 then sum(trans_amount)
+			 else direction * sum(trans_amount) 
+		   end as t_sum
 	  from document
 	 where trans_date between to_date($1,'dd.mm.yyyy') and to_date($2,'dd.mm.yyyy')
 	   and client_id = $3
