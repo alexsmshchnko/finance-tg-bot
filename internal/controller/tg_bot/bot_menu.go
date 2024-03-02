@@ -50,10 +50,10 @@ func (b *Bot) processCommand(ctx context.Context, u *tgbotapi.Update) (err error
 	default:
 		msg.Text = "I don't know that command"
 	}
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	// if err != nil {
+	// 	log.Println(err)
+	// 	return
+	// }
 	_, err = b.api.Send(msg)
 
 	return

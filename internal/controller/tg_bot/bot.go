@@ -172,6 +172,7 @@ func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {
 // }
 
 func (b *Bot) requestReply(query *tgbotapi.CallbackQuery, respCode string) {
+	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
 	msg := tgbotapi.NewMessage(query.Message.Chat.ID, EMOJI_COMMENT+"...")
 	msg.ReplyMarkup = getReply()
 	b.api.Send(msg)
