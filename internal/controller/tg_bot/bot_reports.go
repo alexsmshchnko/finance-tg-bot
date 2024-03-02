@@ -44,22 +44,26 @@ func getReportKeyboard() *tgbotapi.InlineKeyboardMarkup {
 
 func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 	var (
-		t, t2 time.Time
-		text  string
-		err   error
+		t, t2        time.Time
+		header, text string
+		err          error
 	)
 	t = time.Now()
 
 	switch strings.Split(q.Data, ":")[2] {
 	case "day":
 		t2 = t.AddDate(0, 0, 1).Add(-time.Second)
+		header = t.Format("02 January 2006")
 	case "current":
 		t2 = t.AddDate(0, 0, 1).Add(-time.Second)
 		t = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+		header = t.Format("January 2006")
 	case "previous":
 		t = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location()).AddDate(0, -1, 0)
 		t2 = t.AddDate(0, 1, 0).Add(-time.Second)
+		header = t.Format("January 2006")
 	}
+	header = "*" + header + "*\n"
 
 	text, err = b.accountant.GetStatement(
 		map[string]string{
@@ -70,7 +74,7 @@ func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 	if err != nil {
 		return
 	}
-	text = "*" + t.Format("January 2006") + "*\n```\n" + text + "\n" + "```"
+	text = header + "```\n" + text + "\n" + "```"
 
 	msg := tgbotapi.NewEditMessageText(q.Message.Chat.ID, q.Message.MessageID, text)
 	msg.ParseMode = "Markdown"
