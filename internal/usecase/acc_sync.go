@@ -21,8 +21,11 @@ const (
 )
 
 func (a *Accountant) PushToCloud(ctx context.Context, username string) (err error) {
-	token, err := a.repo.GetUserToken(username)
+	a.log.Debug("PushToCloud", "username", username)
+
+	token, err := a.user.GetToken(ctx, username)
 	if err != nil {
+		a.log.Error("user.GetStatus", "err", err)
 		return
 	}
 
@@ -59,13 +62,16 @@ func (a *Accountant) PushToCloud(ctx context.Context, username string) (err erro
 }
 
 func (a *Accountant) MigrateFromCloud(ctx context.Context, username string) (err error) {
+	a.log.Debug("MigrateFromCloud", "username", username)
+
 	err = a.PushToCloud(ctx, username)
 	if err != nil {
 		return
 	}
 
-	token, err := a.repo.GetUserToken(username)
+	token, err := a.user.GetToken(ctx, username)
 	if err != nil {
+		a.log.Error("user.GetStatus", "err", err)
 		return
 	}
 

@@ -6,3 +6,4 @@ store
 budget-bot
 config/config.local.hcl
 *test.go
+*key.json

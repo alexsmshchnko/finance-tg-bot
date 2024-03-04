@@ -9,14 +9,16 @@ import (
 
 type Accountant struct {
 	repo     Repo
+	user     User
 	reporter Reporter
 	sync     Cloud
 	log      *slog.Logger
 }
 
-func New(d Repo, r Reporter, s Cloud, l *slog.Logger) *Accountant {
+func New(d Repo, u User, r Reporter, s Cloud, l *slog.Logger) *Accountant {
 	return &Accountant{
 		repo:     d,
+		user:     u,
 		reporter: r,
 		sync:     s,
 		log:      l,
@@ -44,7 +46,11 @@ func (a *Accountant) GetSubCats(ctx context.Context, username, trans_cat string)
 }
 
 func (a *Accountant) GetUserStatus(ctx context.Context, username string) (status bool, err error) {
-	status, err = a.repo.GetUserStatus(username)
+	a.log.Debug("GetUserStatus", "username", username)
+	status, err = a.user.GetStatus(ctx, username)
+	if err != nil {
+		a.log.Error("user.GetStatus", "err", err)
+	}
 	return
 }
 

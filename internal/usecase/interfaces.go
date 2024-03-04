@@ -15,11 +15,13 @@ type (
 		GetSubCategories(username, trans_cat string) ([]string, error)
 		PostDoc(time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error)
 		DeleteDoc(msg_id string, client string) (err error)
-		GetUserStatus(username string) (status bool, err error)
-		GetUserToken(username string) (token string, err error)
 		ClearUserHistory(username string) (err error)
 		Export(client string) (rslt []byte, err error)
 		ImportDocs(data []byte, client string) (err error)
+	}
+	User interface {
+		GetStatus(ctx context.Context, username string) (status bool, err error)
+		GetToken(ctx context.Context, username string) (token string, err error)
 	}
 	Reporter interface {
 		GetStatementTotals(ctx context.Context, log *slog.Logger, p map[string]string) (res string, err error)

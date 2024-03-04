@@ -14,8 +14,10 @@ import (
 	cloud "finance-tg-bot/internal/usecase/cloud"
 	repo "finance-tg-bot/internal/usecase/repo"
 	reports "finance-tg-bot/internal/usecase/repo/reports"
+	users "finance-tg-bot/internal/usecase/repo/users"
 	"finance-tg-bot/pkg/postgres"
 	"finance-tg-bot/pkg/repository"
+	"finance-tg-bot/pkg/ydb"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -41,8 +43,18 @@ func Run(config config.Config) (err error) {
 	}
 	defer postgres.Close()
 
+	ydb, err := ydb.New(ctx,
+		"grpcs://ydb.serverless.yandexcloud.net:2135/?database=/ru-central1/b1gstbbjpgpb79b67e1d/etnjb5bo9tjl9asgs5ca",
+		"authorized_key.json")
+	if err != nil {
+		log.Error("app - Run - ydb.New", "err", err)
+		return
+	}
+	defer ydb.Close()
+
 	acnt := accountant.New(
 		repo.New(postgres),
+		users.New(*ydb),
 		reports.New(&repository.Repository{Postgres: postgres}),
 		cloud.New(),
 		log,
