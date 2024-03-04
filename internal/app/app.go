@@ -44,7 +44,7 @@ func Run(config config.Config) (err error) {
 	defer postgres.Close()
 
 	ydb, err := ydb.New(ctx,
-		"grpcs://ydb.serverless.yandexcloud.net:2135/?database=/ru-central1/b1gstbbjpgpb79b67e1d/etnjb5bo9tjl9asgs5ca",
+		config.YdbDSN,
 		"authorized_key.json")
 	if err != nil {
 		log.Error("app - Run - ydb.New", "err", err)

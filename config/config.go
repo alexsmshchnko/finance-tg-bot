@@ -11,6 +11,7 @@ import (
 type Config struct {
 	TelegramBotToken string `hcl:"tg_bot_token" env:"TG_BOT_TOKEN" required:"true"`
 	DatabaseDSN      string `hcl:"database_dsn" env:"DATABASE_DSN" default:"postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"`
+	YdbDSN           string `hcl:"ydb_dsn" env:"YDB_DSN" required:"true"`
 }
 
 var (
