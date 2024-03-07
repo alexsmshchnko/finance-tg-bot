@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"finance-tg-bot/pkg/ydb"
 	"time"
 
@@ -74,6 +75,40 @@ SELECT $trans_date   as trans_date
 					table.ValueParam("$tg_chat_id", types.BytesValueFromString(doc.ChatID.String)),
 					table.ValueParam("$client_id", types.BytesValueFromString(doc.ClientID.String)),
 					table.ValueParam("$direction", types.Int8Value(int8(doc.Direction.Int16))),
+				),
+			)
+			if err != nil {
+				return err
+			}
+			if err = res.Err(); err != nil {
+				return err
+			}
+			return res.Close()
+		}, table.WithIdempotent(),
+	)
+
+	return err
+}
+
+func DeleteDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error) {
+	if !doc.MsgID.Valid || !doc.ClientID.Valid {
+		return errors.New("not enough input params to delete document")
+	}
+
+	err = db.Table().DoTx( // Do retry operation on errors with best effort
+		ctx, // context manages exiting from Do
+		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
+			res, err := tx.Execute(
+				ctx, `DECLARE $tg_msg_id    AS String;
+				      DECLARE $tg_chat_id   AS String;
+				      DECLARE $client_id    AS String;
+ DELETE FROM document
+  WHERE tg_msg_id = $tg_msg_id
+    AND client_id = $client_id;`,
+				table.NewQueryParameters(
+					table.ValueParam("$tg_msg_id", types.BytesValueFromString(doc.MsgID.String)),
+					table.ValueParam("$tg_chat_id", types.BytesValueFromString(doc.ChatID.String)),
+					table.ValueParam("$client_id", types.BytesValueFromString(doc.ClientID.String)),
 				),
 			)
 			if err != nil {

@@ -79,7 +79,23 @@ func (a *Accountant) PostDoc(ctx context.Context, category string, amount int, d
 }
 
 func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {
-	return a.repo.DeleteDoc(msg_id, client)
+	err = a.repo.DeleteDoc(msg_id, client)
+	if err != nil {
+		return
+	}
+	a.log.Debug("DeleteDoc", "client", client, "msg_id", msg_id)
+	err = a.repo.DeleteDocument(context.Background(),
+		&entity.Document{
+			MsgID:    msg_id,
+			ChatID:   "",
+			ClientID: client,
+		},
+	)
+	if err != nil {
+		a.log.Error("nrepo.DeleteDocument", "err", err)
+	}
+
+	return
 }
 
 func (a *Accountant) GetStatement(p map[string]string) (res string, err error) {

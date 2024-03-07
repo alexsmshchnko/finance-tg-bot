@@ -53,6 +53,15 @@ func (s *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err erro
 		Direction:   sql.NullInt16{Int16: 0, Valid: false},
 	}
 	return repository.PostDocument(*s.Ydb, ctx, dbdoc)
+}
+
+func (s *Repo) DeleteDocument(ctx context.Context, doc *entity.Document) (err error) {
+	dbdoc := &repository.DBDocument{
+		MsgID:    sql.NullString{String: doc.MsgID, Valid: true},
+		ChatID:   sql.NullString{String: doc.ChatID, Valid: true},
+		ClientID: sql.NullString{String: doc.ClientID, Valid: true},
+	}
+	return repository.DeleteDocument(*s.Ydb, ctx, dbdoc)
 
 }
 

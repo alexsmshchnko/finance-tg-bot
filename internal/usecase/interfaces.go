@@ -13,12 +13,13 @@ type (
 		GetCats(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error)
 		EditCategory(tc entity.TransCatLimit, client string) (err error)
 		GetSubCategories(username, trans_cat string) ([]string, error)
-		PostDoc(ctx context.Context, time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error)
-		DeleteDoc(msg_id string, client string) (err error)
+		PostDoc(ctx context.Context, time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error) //
+		DeleteDoc(msg_id string, client string) (err error)                                                                                                    //
 		ClearUserHistory(username string) (err error)
 		Export(client string) (rslt []byte, err error)
 		ImportDocs(data []byte, client string) (err error)
 		PostDocument(ctx context.Context, doc *entity.Document) (err error)
+		DeleteDocument(ctx context.Context, doc *entity.Document) (err error)
 	}
 	User interface {
 		GetStatus(ctx context.Context, username string) (status bool, err error)
