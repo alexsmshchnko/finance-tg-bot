@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"finance-tg-bot/internal/entity"
 	"finance-tg-bot/pkg/ydb"
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
@@ -122,4 +124,71 @@ func DeleteDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error
 	)
 
 	return err
+}
+
+func GetDocumentCategories(db ydb.Ydb, ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
+	query := `DECLARE $client_id      AS String;
+	          DECLARE $month_interval AS Datetime;
+			  DECLARE $date_interval  AS Datetime;`
+	if limit == "setting" {
+		query = query + `
+SELECT trans_cat, direction, trans_limit
+  FROM doc_category
+ WHERE client_id = $client_id
+   AND active;`
+	} else {
+		query = query + `
+SELECT dc.trans_cat        AS trans_cat
+     , dc.direction        AS direction
+	 , count(d.trans_date) AS cnt
+     , dc.trans_limit
+	 - sum(case when d.trans_date >= $month_interval then d.trans_amount
+				  else 0 end) AS trans_limit
+  FROM doc_category dc
+  LEFT JOIN document d on (d.trans_cat = dc.trans_cat
+					   and d.client_id = dc.client_id)
+ WHERE dc.client_id = $client_id
+   AND (d.trans_date is null
+	 OR d.trans_date > $date_interval)
+   AND dc.active
+ GROUP BY dc.trans_cat, dc.direction, dc.trans_limit
+ ORDER BY cnt desc;`
+	}
+
+	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+		t := time.Now()
+		tcl := &entity.TransCatLimit{}
+		_, res, err := s.Execute(
+			ctx,
+			table.DefaultTxControl(),
+			query,
+			table.NewQueryParameters(
+				table.ValueParam("$client_id", types.BytesValueFromString(username)),
+				table.ValueParam("$month_interval",
+					types.DatetimeValueFromTime(time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location()))),
+				table.ValueParam("$date_interval", types.DatetimeValueFromTime(t.AddDate(0, -3, 0))),
+			),
+		)
+		if err != nil {
+			return err
+		}
+		defer res.Close()
+		if err = res.NextResultSetErr(ctx); err != nil {
+			return err
+		}
+		for res.NextRow() {
+			err = res.ScanNamed(
+				named.Optional("trans_cat", &tcl.Category),
+				named.Optional("direction", &tcl.Direction),
+				named.Optional("trans_limit", &tcl.Limit),
+			)
+			if err != nil {
+				return err
+			}
+			cats = append(cats, *tcl)
+		}
+		return res.Err() // for driver retry if not nil
+	})
+
+	return cats, err
 }
