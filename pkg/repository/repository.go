@@ -2,74 +2,89 @@ package repository
 
 import (
 	"context"
-	"finance-tg-bot/pkg/entity"
-	"log/slog"
+	"database/sql"
+	"finance-tg-bot/pkg/ydb"
+	"time"
 
-	sq "github.com/Masterminds/squirrel"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
-// type Repository struct {
-// 	*postgres.Postgres
+// type TransCat struct {
+// 	Category  sql.NullString `db:"trans_cat"`
+// 	Direction sql.NullInt16  `db:"direction"`
+// 	ClientID  sql.NullString `db:"client_id"`
+// 	Active    sql.NullBool   `db:"active"`
+// 	Limit     sql.NullInt64  `db:"trans_limit"`
 // }
 
-type DocumentRepo interface {
-	Save(ctx context.Context, log *slog.Logger, doc entity.DBDocument) (err error)
-	Get(ctx context.Context, log *slog.Logger, filter string) (docs []entity.DBDocument, err error)
+type DBDocument struct {
+	TransDate   sql.NullTime   `db:"trans_date"   json:"trans_date"`
+	Category    sql.NullString `db:"trans_cat"    json:"trans_cat"`
+	Amount      sql.NullInt64  `db:"trans_amount" json:"trans_amount"`
+	Description sql.NullString `db:"comment"      json:"comment"`
+	MsgID       sql.NullString `db:"tg_msg_id"`
+	ChatID      sql.NullString `db:"tg_chat_id"`
+	ClientID    sql.NullString `db:"client_id"`
+	Direction   sql.NullInt16  `db:"direction"    json:"direction"`
 }
 
-func (r *Repository) Get(ctx context.Context, log *slog.Logger, filter string) (docs []entity.DBDocument, err error) {
-	return
-}
-
-func (r *Repository) Save(ctx context.Context, log *slog.Logger, doc entity.DBDocument) (err error) {
-	if doc.Direction == 0 {
-		log.Debug("input direction is zero")
-		query, args, err := sq.Select("direction").From("trans_category").
-			Where(sq.Eq{"client_id": doc.ClientID, "trans_cat": doc.Category, "active": true}).
-			PlaceholderFormat(sq.Dollar).ToSql()
-
-		if err != nil {
-			log.Error("direction query builder", "err", err)
-			return err
-		}
-		err = r.GetContext(ctx, &doc.Direction, query, args...)
-		if err != nil {
-			log.Error("direction query execution", "err", err)
-			return err
-		}
-		log.Debug("got from trans_cat table", "direction", doc.Direction)
+func PostDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error) {
+	query := `	DECLARE $trans_date   AS Datetime;
+				DECLARE $trans_cat    AS String;	
+				DECLARE $trans_amount AS Int64;
+				DECLARE $comment      AS String;
+				DECLARE $tg_msg_id    AS String;
+				DECLARE $tg_chat_id   AS String;
+				DECLARE $client_id    AS String;
+				DECLARE $direction    AS Int8;`
+	if doc.Direction.Valid {
+		query = query + `
+ UPSERT INTO document ( trans_date, trans_cat, trans_amount, comment, tg_msg_id, tg_chat_id, client_id, direction )
+ VALUES ( $trans_date, $trans_cat, $trans_amount, $comment, $tg_msg_id, $tg_chat_id, $client_id, $direction );`
+	} else {
+		query = query + `
+UPSERT INTO document ( trans_date, trans_cat, trans_amount, comment, tg_msg_id, tg_chat_id, client_id, direction )
+SELECT $trans_date   as trans_date
+     , trans_cat     as trans_cat
+	 , $trans_amount as trans_amount
+	 , $comment      as comment
+	 , $tg_msg_id    as tg_msg_id
+	 , $tg_chat_id   as tg_chat_id
+	 , client_id     as client_id
+	 , direction     as direction
+  FROM doc_category
+ WHERE trans_cat = $trans_cat
+   AND client_id = $client_id
+   AND active;`
 	}
 
-	query, args, err := sq.Insert("document").
-		Columns("trans_date", "trans_cat", "trans_amount", "comment", "tg_msg_id", "client_id", "direction").
-		Values(doc.Time, doc.Category, doc.Amount, doc.Description, doc.MsgID, doc.ClientID, doc.Direction).Suffix("RETURNING id").
-		PlaceholderFormat(sq.Dollar).ToSql()
+	err = db.Table().DoTx( // Do retry operation on errors with best effort
+		ctx, // context manages exiting from Do
+		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
+			res, err := tx.Execute(
+				ctx,
+				query,
+				table.NewQueryParameters(
+					table.ValueParam("$trans_date", types.DatetimeValueFromTime(time.Now())),
+					table.ValueParam("$trans_cat", types.BytesValueFromString(doc.Category.String)),
+					table.ValueParam("$trans_amount", types.Int64Value(doc.Amount.Int64)),
+					table.ValueParam("$comment", types.BytesValueFromString(doc.Description.String)),
+					table.ValueParam("$tg_msg_id", types.BytesValueFromString(doc.MsgID.String)),
+					table.ValueParam("$tg_chat_id", types.BytesValueFromString(doc.ChatID.String)),
+					table.ValueParam("$client_id", types.BytesValueFromString(doc.ClientID.String)),
+					table.ValueParam("$direction", types.Int8Value(int8(doc.Direction.Int16))),
+				),
+			)
+			if err != nil {
+				return err
+			}
+			if err = res.Err(); err != nil {
+				return err
+			}
+			return res.Close()
+		}, table.WithIdempotent(),
+	)
 
-	if err != nil {
-		log.Error("insert query builder", "err", err)
-		return err
-	}
-
-	tx, _ := r.BeginTx(ctx, nil)
-	rows, err := tx.Query(query, args...)
-	if err != nil {
-		rollbackErr := tx.Rollback()
-		if rollbackErr != nil {
-			log.Error("rollback err", "err", err)
-			return err
-		}
-
-		return err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		if err := rows.Scan(&doc.ID); err != nil {
-			log.Error("can't scan document.ID", "err", err)
-			return err
-		}
-	}
-	log.Debug("document inserted", "id", doc.ID)
-
-	return tx.Commit()
+	return err
 }

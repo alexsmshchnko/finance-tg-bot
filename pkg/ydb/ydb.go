@@ -13,6 +13,18 @@ type DB struct {
 	*sql.DB
 }
 
+type Ydb struct {
+	*ydb.Driver
+}
+
+func NewNative(ctx context.Context, dsn, saPath string) (*Ydb, error) {
+	nativeDriver, err := ydb.Open(ctx, dsn, yc.WithInternalCA(),
+		yc.WithServiceAccountKeyFileCredentials(saPath), // auth from service account key file
+		//yc.WithMetadataCredentials(ctx), // auth inside cloud (virual machine or yandex function)
+	)
+	return &Ydb{nativeDriver}, err
+}
+
 func New(ctx context.Context, dsn, saPath string) (*DB, error) {
 	nativeDriver, err := ydb.Open(ctx, dsn, yc.WithInternalCA(),
 		yc.WithServiceAccountKeyFileCredentials(saPath), // auth from service account key file

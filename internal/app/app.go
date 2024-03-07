@@ -43,17 +43,17 @@ func Run(config config.Config) (err error) {
 	}
 	defer postgres.Close()
 
-	ydb, err := ydb.New(ctx,
+	ydb, err := ydb.NewNative(ctx,
 		config.YdbDSN,
 		"authorized_key.json")
 	if err != nil {
 		log.Error("app - Run - ydb.New", "err", err)
 		return
 	}
-	defer ydb.Close()
+	defer ydb.Close(ctx)
 
 	acnt := accountant.New(
-		repo.New(postgres),
+		repo.New(postgres, ydb),
 		users.New(*ydb),
 		reports.New(&repository.Repository{Postgres: postgres}),
 		cloud.New(),

@@ -6,6 +6,7 @@ import (
 	"finance-tg-bot/pkg/ydb"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
@@ -18,24 +19,51 @@ type DBClient struct {
 	CloudToken sql.NullString `db:"external_system_token"`
 }
 
-func GetUserInfo(db ydb.DB, ctx context.Context, username string) (*DBClient, error) {
-	var client DBClient
+func GetUserInfo(db ydb.Ydb, ctx context.Context, username string) (*DBClient, error) {
+	var (
+		client DBClient
+		qError error = sql.ErrNoRows
+	)
 
-	query := `DECLARE $uname AS String;
-			SELECT
-				id,
-				username,
-				first_login_date,
-				is_active,
-				external_system_name,
-				external_system_token
-			FROM
-				client
-			WHERE
-				username = $uname;`
+	err := db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+		_, res, err := s.Execute(
+			ctx,
+			table.DefaultTxControl(),
+			`DECLARE $uname AS String;
+			SELECT id, username, first_login_date,
+				   is_active,
+				   external_system_name, external_system_token
+			  FROM client
+			 WHERE username = $uname;`,
+			table.NewQueryParameters(table.ValueParam("$uname", types.BytesValueFromString(username))),
+		)
+		if err != nil {
+			return err
+		}
+		defer res.Close()
+		if err = res.NextResultSetErr(ctx); err != nil {
+			return err
+		}
+		for res.NextRow() {
+			qError = nil
+			err = res.ScanNamed(
+				named.Required("id", &client.ID),
+				named.Optional("username", &client.Username),
+				named.Optional("first_login_date", &client.FirstLogin),
+				named.OptionalWithDefault("is_active", &client.IsActive),
+				named.Optional("external_system_name", &client.CloudName),
+				named.Optional("external_system_token", &client.CloudToken),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return res.Err() // for driver retry if not nil
+	})
 
-	err := db.QueryRowContext(ctx, query, table.NewQueryParameters(table.ValueParam("$uname", types.BytesValueFromString(username)))).
-		Scan(&client.ID, &client.Username, &client.FirstLogin, &client.IsActive, &client.CloudName, &client.CloudToken)
+	if err != nil {
+		return nil, err
+	}
 
-	return &client, err
+	return &client, qError
 }

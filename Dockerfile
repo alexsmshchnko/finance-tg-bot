@@ -34,6 +34,7 @@ WORKDIR /app
 
 # Copy only the necessary files from the builder stage
 COPY --from=builder /app/config/config.local.hcl config.hcl 
+COPY --from=builder /app/config/authorized_key.json authorized_key.json 
 COPY --from=builder /app/finance-tg-bot .
 
 EXPOSE 8080

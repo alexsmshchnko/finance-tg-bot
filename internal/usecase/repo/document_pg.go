@@ -8,14 +8,17 @@ import (
 
 	"finance-tg-bot/internal/entity"
 	"finance-tg-bot/pkg/postgres"
+	"finance-tg-bot/pkg/repository"
+	"finance-tg-bot/pkg/ydb"
 )
 
 type Repo struct {
 	*postgres.Postgres
+	*ydb.Ydb
 }
 
-func New(pg *postgres.Postgres) *Repo {
-	return &Repo{pg}
+func New(pg *postgres.Postgres, ydb *ydb.Ydb) *Repo {
+	return &Repo{Postgres: pg, Ydb: ydb}
 }
 
 type DBDocument struct {
@@ -36,6 +39,21 @@ type TransCat struct {
 	ClientID  sql.NullString `db:"client_id"`
 	Active    sql.NullBool   `db:"active"`
 	Limit     sql.NullInt64  `db:"trans_limit"`
+}
+
+func (s *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err error) {
+	dbdoc := &repository.DBDocument{
+		TransDate:   sql.NullTime{Time: time.Time{}, Valid: false},
+		Category:    sql.NullString{String: doc.Category, Valid: true},
+		Amount:      sql.NullInt64{Int64: doc.Amount, Valid: true},
+		Description: sql.NullString{String: doc.Description, Valid: true},
+		MsgID:       sql.NullString{String: doc.MsgID, Valid: true},
+		ChatID:      sql.NullString{String: doc.ChatID, Valid: true},
+		ClientID:    sql.NullString{String: doc.ClientID, Valid: true},
+		Direction:   sql.NullInt16{Int16: 0, Valid: false},
+	}
+	return repository.PostDocument(*s.Ydb, ctx, dbdoc)
+
 }
 
 func (s *Repo) GetCategories(username string) (cat []string, err error) {
@@ -174,7 +192,7 @@ func (s *Repo) EditCategory(tc entity.TransCatLimit, client string) (err error) 
 	return
 }
 
-func (s *Repo) PostDoc(time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error) {
+func (s *Repo) PostDoc(ctx context.Context, time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error) {
 	doc := &DBDocument{
 		Time:        &time,
 		Category:    &category,

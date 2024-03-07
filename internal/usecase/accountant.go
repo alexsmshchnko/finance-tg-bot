@@ -54,8 +54,28 @@ func (a *Accountant) GetUserStatus(ctx context.Context, username string) (status
 	return
 }
 
-func (a *Accountant) PostDoc(category string, amount int, description string, msg_id string, direction int, client string) (err error) {
-	return a.repo.PostDoc(time.Now(), category, amount, description, msg_id, direction, client)
+func (a *Accountant) PostDoc(ctx context.Context, category string, amount int, description string, msg_id string, direction int, client string) (err error) {
+	err = a.repo.PostDoc(ctx, time.Now(), category, amount, description, msg_id, direction, client)
+	if err != nil {
+		return
+	}
+	a.log.Debug("PostDoc", "client", client, "category", category, "msg_id", msg_id)
+	err = a.repo.PostDocument(ctx,
+		&entity.Document{
+			Category:    category,
+			Amount:      int64(amount),
+			Description: description,
+			MsgID:       msg_id,
+			ChatID:      "",
+			ClientID:    client,
+			Direction:   int16(direction),
+		},
+	)
+	if err != nil {
+		a.log.Error("nrepo.PostDocument", "err", err)
+	}
+
+	return
 }
 
 func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {

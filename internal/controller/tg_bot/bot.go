@@ -16,7 +16,7 @@ type accountant interface {
 	GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error)
 	GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error)
 	GetUserStatus(ctx context.Context, username string) (status bool, err error)
-	PostDoc(category string, amount int, description string, msg_id string, direction int, client string) (err error)
+	PostDoc(ctx context.Context, category string, amount int, description string, msg_id string, direction int, client string) (err error)
 	DeleteDoc(msg_id string, client string) (err error)
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
@@ -142,7 +142,7 @@ func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
 		descr, _ = strings.CutPrefix(scntSplit[1], EMOJI_COMMENT)
 	}
 
-	b.accountant.PostDoc(cat, amnt, descr, fmt.Sprint(query.Message.MessageID), direction, query.From.UserName)
+	b.accountant.PostDoc(context.Background(), cat, amnt, descr, fmt.Sprint(query.Message.MessageID), direction, query.From.UserName)
 	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
 }
 

@@ -30,3 +30,14 @@ type TransCatLimit struct {
 	Active    sql.NullBool   `db:"active"`
 	Limit     sql.NullInt64  `db:"trans_limit"`
 }
+
+type Document struct {
+	TransDate   time.Time `db:"trans_date"   json:"trans_date"`
+	Category    string    `db:"trans_cat"    json:"trans_cat"`
+	Amount      int64     `db:"trans_amount" json:"trans_amount"`
+	Description string    `db:"comment"      json:"comment"`
+	MsgID       string    `db:"tg_msg_id"`
+	ChatID      string    `db:"tg_chat_id"`
+	ClientID    string    `db:"client_id"`
+	Direction   int16     `db:"direction"    json:"direction"`
+}
