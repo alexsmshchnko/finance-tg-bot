@@ -182,6 +182,20 @@ func (s *Repo) disableTransCat(tc *TransCat) (err error) {
 	return tx.Commit()
 }
 
+func (s *Repo) EditDocCategory(ctx context.Context, tc entity.TransCatLimit) (err error) {
+	dbTCL := &repository.TransCat{
+		Category:  tc.Category,
+		Direction: tc.Direction,
+		ClientID:  tc.ClientID,
+		Active:    tc.Active,
+	}
+	if tc.Limit.Valid {
+		dbTCL.Limit = tc.Limit
+	}
+
+	return repository.EditCategory(*s.Ydb, ctx, dbTCL)
+}
+
 func (s *Repo) EditCategory(tc entity.TransCatLimit, client string) (err error) {
 	_, err = s.getTransCat(tc.Category.String, tc.Active.Bool, client)
 	t := &TransCat{

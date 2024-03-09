@@ -198,9 +198,16 @@ func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
 				DECLARE $direction    AS Int8;
 				DECLARE $client_id    AS String;
 				DECLARE $active       AS Bool;
-				DECLARE $trans_limit  AS Int64;
-UPSERT INTO doc_category ( trans_cat, direction, client_id, active, trans_limit )
-VALUES ( $trans_cat, $direction, $client_id, $active, $trans_limit );`
+				DECLARE $trans_limit  AS Int64;`
+	if cat.Limit.Valid {
+		query = query + `
+		UPSERT INTO doc_category ( trans_cat, direction, client_id, active, trans_limit )
+		VALUES ( $trans_cat, $direction, $client_id, $active, $trans_limit );`
+	} else {
+		query = query + `
+		UPSERT INTO doc_category ( trans_cat, direction, client_id, active )
+		VALUES ( $trans_cat, $direction, $client_id, $active );`
+	}
 
 	err = db.Table().DoTx( // Do retry operation on errors with best effort
 		ctx, // context manages exiting from Do
