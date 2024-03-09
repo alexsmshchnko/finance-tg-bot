@@ -13,13 +13,13 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
-// type TransCat struct {
-// 	Category  sql.NullString `db:"trans_cat"`
-// 	Direction sql.NullInt16  `db:"direction"`
-// 	ClientID  sql.NullString `db:"client_id"`
-// 	Active    sql.NullBool   `db:"active"`
-// 	Limit     sql.NullInt64  `db:"trans_limit"`
-// }
+type TransCat struct {
+	Category  sql.NullString `db:"trans_cat"`
+	Direction sql.NullInt16  `db:"direction"`
+	ClientID  sql.NullString `db:"client_id"`
+	Active    sql.NullBool   `db:"active"`
+	Limit     sql.NullInt64  `db:"trans_limit"`
+}
 
 type DBDocument struct {
 	TransDate   sql.NullTime   `db:"trans_date"   json:"trans_date"`
@@ -191,4 +191,40 @@ SELECT dc.trans_cat        AS trans_cat
 	})
 
 	return cats, err
+}
+
+func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
+	query := `	DECLARE $trans_cat    AS String;
+				DECLARE $direction    AS Int8;
+				DECLARE $client_id    AS String;
+				DECLARE $active       AS Bool;
+				DECLARE $trans_limit  AS Int64;
+UPSERT INTO doc_category ( trans_cat, direction, client_id, active, trans_limit )
+VALUES ( $trans_cat, $direction, $client_id, $active, $trans_limit );`
+
+	err = db.Table().DoTx( // Do retry operation on errors with best effort
+		ctx, // context manages exiting from Do
+		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
+			res, err := tx.Execute(
+				ctx,
+				query,
+				table.NewQueryParameters(
+					table.ValueParam("$trans_cat", types.BytesValueFromString(cat.Category.String)),
+					table.ValueParam("$direction", types.Int8Value(int8(cat.Direction.Int16))),
+					table.ValueParam("$client_id", types.BytesValueFromString(cat.ClientID.String)),
+					table.ValueParam("$active", types.BoolValue(cat.Active.Bool)),
+					table.ValueParam("$trans_limit", types.Int64Value(cat.Limit.Int64)),
+				),
+			)
+			if err != nil {
+				return err
+			}
+			if err = res.Err(); err != nil {
+				return err
+			}
+			return res.Close()
+		}, table.WithIdempotent(),
+	)
+
+	return err
 }
