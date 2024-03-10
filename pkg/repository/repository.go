@@ -198,20 +198,42 @@ func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
 				DECLARE $direction    AS Int8;
 				DECLARE $client_id    AS String;
 				DECLARE $active       AS Bool;
-				DECLARE $trans_limit  AS Int64;`
-	if cat.Limit.Valid {
+				DECLARE $date_to      AS Datetime;
+				DECLARE $trans_limit  AS Int64;
+				DECLARE $date_to_max  AS Datetime;`
+	if !cat.Active.Bool && cat.Active.Valid {
 		query = query + `
-		UPSERT INTO doc_category ( trans_cat, direction, client_id, active, trans_limit )
-		VALUES ( $trans_cat, $direction, $client_id, $active, $trans_limit );`
+		UPDATE doc_category
+		   SET active = false
+		      ,date_to = $date_to
+		 WHERE active
+		   AND date_to = $date_to_max
+		   AND trans_cat = $trans_cat
+		   AND client_id = $client_id;`
+	} else if cat.Limit.Valid {
+		query = query + `
+			UPSERT INTO doc_category ( trans_cat, direction, client_id, active, date_to, trans_limit )
+			SELECT trans_cat, direction, client_id
+				 , false as active, $date_to as date_to
+				 , trans_limit
+			  FROM doc_category
+			 WHERE active
+			   AND date_to = $date_to_max
+			   AND trans_cat = $trans_cat
+			   AND client_id = $client_id;
+	
+			UPSERT INTO doc_category ( trans_cat, direction, client_id, active, date_to, trans_limit )
+			VALUES ( $trans_cat, $direction, $client_id, $active, $date_to_max, $trans_limit );`
 	} else {
 		query = query + `
-		UPSERT INTO doc_category ( trans_cat, direction, client_id, active )
-		VALUES ( $trans_cat, $direction, $client_id, $active );`
+		UPSERT INTO doc_category ( trans_cat, direction, client_id, date_to, active )
+		VALUES ( $trans_cat, $direction, $client_id, $date_to_max, $active );`
 	}
 
 	err = db.Table().DoTx( // Do retry operation on errors with best effort
 		ctx, // context manages exiting from Do
 		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
+			t, _ := time.Parse("2006-01-02", "2100-01-01")
 			res, err := tx.Execute(
 				ctx,
 				query,
@@ -220,7 +242,9 @@ func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
 					table.ValueParam("$direction", types.Int8Value(int8(cat.Direction.Int16))),
 					table.ValueParam("$client_id", types.BytesValueFromString(cat.ClientID.String)),
 					table.ValueParam("$active", types.BoolValue(cat.Active.Bool)),
+					table.ValueParam("$date_to", types.DatetimeValueFromTime(time.Now())),
 					table.ValueParam("$trans_limit", types.Int64Value(cat.Limit.Int64)),
+					table.ValueParam("$date_to_max", types.DatetimeValueFromTime(t)),
 				),
 			)
 			if err != nil {
@@ -234,4 +258,51 @@ func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
 	)
 
 	return err
+}
+
+func GetDocumentSubCategories(db ydb.Ydb, ctx context.Context, username, trans_cat string) (subcats []string, err error) {
+	query := `DECLARE $client_id      AS String;
+			  DECLARE $trans_cat 	  AS String;
+			  DECLARE $date_interval  AS Datetime;
+SELECT comment, count(*) AS cnt
+  FROM document
+ WHERE comment != ''
+   AND client_id = $client_id
+   AND trans_cat = $trans_cat
+   AND trans_date > $date_interval
+ GROUP BY comment
+ ORDER BY cnt DESC
+ LIMIT 20;`
+	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+		t := time.Now()
+		_, res, err := s.Execute(
+			ctx,
+			table.DefaultTxControl(),
+			query,
+			table.NewQueryParameters(
+				table.ValueParam("$client_id", types.BytesValueFromString(username)),
+				table.ValueParam("$trans_cat", types.BytesValueFromString(trans_cat)),
+				table.ValueParam("$date_interval", types.DatetimeValueFromTime(t.AddDate(0, -3, 0))),
+			),
+		)
+		if err != nil {
+			return err
+		}
+		defer res.Close()
+		if err = res.NextResultSetErr(ctx); err != nil {
+			return err
+		}
+		var subcat sql.NullString
+		for res.NextRow() {
+			err = res.ScanNamed(named.Optional("comment", &subcat))
+
+			if err != nil {
+				return err
+			}
+			subcats = append(subcats, subcat.String)
+		}
+		return res.Err() // for driver retry if not nil
+	})
+
+	return
 }

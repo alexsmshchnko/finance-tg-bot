@@ -197,6 +197,8 @@ func (s *Repo) EditDocCategory(ctx context.Context, tc entity.TransCatLimit) (er
 }
 
 func (s *Repo) EditCategory(tc entity.TransCatLimit, client string) (err error) {
+	s.EditDocCategory(context.Background(), tc)
+
 	_, err = s.getTransCat(tc.Category.String, tc.Active.Bool, client)
 	t := &TransCat{
 		Category:  tc.Category,
@@ -277,7 +279,7 @@ func (s *Repo) ImportDocs(data []byte, client string) (err error) {
 }
 
 func (s *Repo) Export(client string) (rslt []byte, err error) {
-	data, err := s.Query("SELECT trans_date, trans_cat, trans_amount, comment, case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction"+
+	data, err := s.Postgres.Query("SELECT trans_date, trans_cat, trans_amount, comment, case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction"+
 		" FROM base.public.document WHERE client_id = $1 ORDER BY 1 DESC", client)
 	if err != nil {
 		return rslt, err

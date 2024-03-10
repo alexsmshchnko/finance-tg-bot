@@ -25,10 +25,10 @@ func New(d Repo, u User, r Reporter, s Cloud, l *slog.Logger) *Accountant {
 	}
 }
 
-func (a *Accountant) GetCats(ctx context.Context, username string) (cats []string, err error) {
-	cats, err = a.repo.GetCategories(username)
-	return
-}
+// func (a *Accountant) GetCats(ctx context.Context, username string) (cats []string, err error) {
+// 	cats, err = a.repo.GetCategories(username)
+// 	return
+// }
 
 func (a *Accountant) GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
 	cats, err = a.repo.GetCats(ctx, username, limit)
