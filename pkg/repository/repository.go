@@ -212,18 +212,22 @@ func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
 		   AND client_id = $client_id;`
 	} else if cat.Limit.Valid {
 		query = query + `
-			UPSERT INTO doc_category ( trans_cat, direction, client_id, active, date_to, trans_limit )
-			SELECT trans_cat, direction, client_id
-				 , false as active, $date_to as date_to
-				 , trans_limit
-			  FROM doc_category
-			 WHERE active
-			   AND date_to = $date_to_max
-			   AND trans_cat = $trans_cat
-			   AND client_id = $client_id;
-	
-			UPSERT INTO doc_category ( trans_cat, direction, client_id, active, date_to, trans_limit )
-			VALUES ( $trans_cat, $direction, $client_id, $active, $date_to_max, $trans_limit );`
+		UPSERT INTO doc_category ( trans_cat, direction, client_id, active, date_to, trans_limit )
+		SELECT trans_cat, direction, client_id
+			 , false as active, $date_to as date_to
+			 , trans_limit
+		  FROM doc_category
+		 WHERE active
+		   AND date_to = $date_to_max
+		   AND trans_cat = $trans_cat
+		   AND client_id = $client_id;
+
+		UPDATE doc_category
+		   SET trans_limit = $trans_limit
+		 WHERE active
+		   AND date_to = $date_to_max
+		   AND trans_cat = $trans_cat
+		   AND client_id = $client_id;`
 	} else {
 		query = query + `
 		UPSERT INTO doc_category ( trans_cat, direction, client_id, date_to, active )

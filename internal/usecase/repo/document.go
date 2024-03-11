@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"finance-tg-bot/internal/entity"
@@ -197,8 +198,6 @@ func (s *Repo) EditDocCategory(ctx context.Context, tc entity.TransCatLimit) (er
 }
 
 func (s *Repo) EditCategory(tc entity.TransCatLimit, client string) (err error) {
-	s.EditDocCategory(context.Background(), tc)
-
 	_, err = s.getTransCat(tc.Category.String, tc.Active.Bool, client)
 	t := &TransCat{
 		Category:  tc.Category,
@@ -214,6 +213,10 @@ func (s *Repo) EditCategory(tc entity.TransCatLimit, client string) (err error) 
 	} else if !tc.Active.Bool && tc.Active.Valid {
 		err = s.disableTransCat(t)
 	}
+
+	tc.ClientID = sql.NullString{String: client, Valid: true}
+	fmt.Println(s.EditDocCategory(context.Background(), tc))
+
 	return
 }
 
