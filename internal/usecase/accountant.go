@@ -31,7 +31,11 @@ func New(d Repo, u User, r Reporter, s Cloud, l *slog.Logger) *Accountant {
 // }
 
 func (a *Accountant) GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
-	cats, err = a.repo.GetCats(ctx, username, limit)
+	if limit == "setting" {
+		cats, err = a.repo.GetCategories(ctx, username, limit)
+	} else {
+		cats, err = a.repo.GetCats(ctx, username, limit)
+	}
 	return
 }
 

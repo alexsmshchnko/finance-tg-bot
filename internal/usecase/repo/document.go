@@ -66,15 +66,8 @@ func (s *Repo) DeleteDocument(ctx context.Context, doc *entity.Document) (err er
 
 }
 
-func (s *Repo) GetCategories(username string) (cat []string, err error) {
-	err = s.Select(&cat, `
-	select d.trans_cat
-      from public.document d
-      join public.trans_category tc on (tc.trans_cat = d.trans_cat
-                                    and tc.client_id = d.client_id
-									and tc.active = true)
-     where d.client_id = $1 group by d.trans_cat order by count(*) desc`, username)
-	return
+func (s *Repo) GetCategories(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error) {
+	return repository.GetDocumentCategories(*s.Ydb, ctx, username, limit)
 }
 
 func (s *Repo) GetCats(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error) {

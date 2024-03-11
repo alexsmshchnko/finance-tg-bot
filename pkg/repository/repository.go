@@ -139,7 +139,8 @@ func GetDocumentCategories(db ydb.Ydb, ctx context.Context, username, limit stri
 SELECT trans_cat, direction, trans_limit
   FROM doc_category
  WHERE client_id = $client_id
-   AND active;`
+   AND active
+ ORDER BY trans_limit DESC, trans_cat ASC;`
 	} else {
 		query = query + `
 SELECT dc.trans_cat        AS trans_cat

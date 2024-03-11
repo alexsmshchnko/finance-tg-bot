@@ -9,7 +9,7 @@ import (
 
 type (
 	Repo interface {
-		// GetCategories(username string) ([]string, error)
+		GetCategories(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error)                                                     //
 		GetCats(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error)                                                           //
 		EditCategory(tc entity.TransCatLimit, client string) (err error)                                                                                       //
 		GetSubCategories(username, trans_cat string) ([]string, error)                                                                                         //
