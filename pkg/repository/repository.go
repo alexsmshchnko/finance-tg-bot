@@ -212,7 +212,6 @@ func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
 		query = query + `
 		UPDATE doc_category
 		   SET active = false
-		      ,date_to = $date_to
 		 WHERE active
 		   AND date_to = $date_to_max
 		   AND trans_cat = $trans_cat
