@@ -6,6 +6,7 @@ import (
 	"errors"
 	"finance-tg-bot/internal/entity"
 	"finance-tg-bot/pkg/ydb"
+	"strings"
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -33,6 +34,9 @@ type DBDocument struct {
 }
 
 func PostDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error) {
+	//preformat
+	doc.Description.String = strings.ToLower(strings.TrimSpace(doc.Description.String))
+	//
 	query := `	DECLARE $trans_date   AS Datetime;
 				DECLARE $trans_cat    AS String;	
 				DECLARE $trans_amount AS Int64;
@@ -194,6 +198,9 @@ SELECT dc.trans_cat        AS trans_cat
 }
 
 func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
+	//preformat
+	cat.Category.String = strings.ToLower(strings.TrimSpace(cat.Category.String))
+	//
 	query := `	DECLARE $trans_cat    AS String;
 				DECLARE $direction    AS Int8;
 				DECLARE $client_id    AS String;
