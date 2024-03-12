@@ -36,6 +36,21 @@ func (m *MockReporter) EXPECT() *MockReporterMockRecorder {
 	return m.recorder
 }
 
+// GetStatementCatTotals mocks base method.
+func (m *MockReporter) GetStatementCatTotals(ctx context.Context, p map[string]string) ([]entity.ReportResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStatementCatTotals", ctx, p)
+	ret0, _ := ret[0].([]entity.ReportResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetStatementCatTotals indicates an expected call of GetStatementCatTotals.
+func (mr *MockReporterMockRecorder) GetStatementCatTotals(ctx, p interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatementCatTotals", reflect.TypeOf((*MockReporter)(nil).GetStatementCatTotals), ctx, p)
+}
+
 // GetStatementTotals mocks base method.
 func (m *MockReporter) GetStatementTotals(ctx context.Context, log *slog.Logger, p map[string]string) ([]entity.ReportResult, error) {
 	m.ctrl.T.Helper()
