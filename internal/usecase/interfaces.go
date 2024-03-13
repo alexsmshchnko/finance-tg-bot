@@ -4,18 +4,13 @@ import (
 	"context"
 	"finance-tg-bot/internal/entity"
 	"log/slog"
-	"time"
 )
 
 type (
 	Repo interface {
-		GetCategories(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error)                                                     //
-		GetCats(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error)                                                           //
-		EditCategory(tc entity.TransCatLimit, client string) (err error)                                                                                       //
-		GetSubCategories(username, trans_cat string) ([]string, error)                                                                                         //
-		PostDoc(ctx context.Context, time time.Time, category string, amount int, description string, msg_id string, direction int, client string) (err error) //
-		DeleteDoc(msg_id string, client string) (err error)                                                                                                    //
-		ClearUserHistory(username string) (err error)
+		GetCategories(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error)
+		EditCategory(ctx context.Context, tc entity.TransCatLimit, client string) (err error) //TODO include client
+		GetSubCategories(ctx context.Context, username, trans_cat string) ([]string, error)
 		Export(client string) (rslt []byte, err error)
 		ImportDocs(data []byte, client string) (err error)
 		PostDocument(ctx context.Context, doc *entity.Document) (err error)

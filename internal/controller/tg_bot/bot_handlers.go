@@ -98,7 +98,7 @@ func (b *Bot) responseHandler(u *tgbotapi.Update) {
 			Active:    sql.NullBool{Bool: true, Valid: true},
 			Limit:     sql.NullInt64{Int64: int64(limit), Valid: true},
 		}
-		err = b.accountant.EditCats(cat, u.SentFrom().UserName)
+		err = b.accountant.EditCats(context.Background(), cat, u.SentFrom().UserName)
 		if err != nil {
 			fmt.Println(err)
 			return

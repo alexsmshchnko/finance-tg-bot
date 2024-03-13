@@ -4,7 +4,6 @@ import (
 	"context"
 	"finance-tg-bot/internal/entity"
 	"log/slog"
-	"time"
 )
 
 type Accountant struct {
@@ -25,27 +24,30 @@ func New(d Repo, u User, r Reporter, s Cloud, l *slog.Logger) *Accountant {
 	}
 }
 
-// func (a *Accountant) GetCats(ctx context.Context, username string) (cats []string, err error) {
-// 	cats, err = a.repo.GetCategories(username)
-// 	return
-// }
-
 func (a *Accountant) GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
-	if limit == "setting" {
-		cats, err = a.repo.GetCategories(ctx, username, limit)
-	} else {
-		cats, err = a.repo.GetCats(ctx, username, limit)
+	a.log.Debug("GetCatsLimit", "username", username, "limit", limit)
+	cats, err = a.repo.GetCategories(ctx, username, limit)
+	if err != nil {
+		a.log.Error("repo.GetCategories", "err", err)
 	}
 	return
 }
 
-func (a *Accountant) EditCats(tc entity.TransCatLimit, client string) (err error) {
-	err = a.repo.EditCategory(tc, client)
+func (a *Accountant) EditCats(ctx context.Context, tc entity.TransCatLimit, client string) (err error) {
+	a.log.Debug("EditCats", "client", client)
+	err = a.repo.EditCategory(ctx, tc, client)
+	if err != nil {
+		a.log.Error("repo.EditCategory", "err", err)
+	}
 	return
 }
 
 func (a *Accountant) GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error) {
-	cats, err = a.repo.GetSubCategories(username, trans_cat)
+	a.log.Debug("GetSubCats", "username", username, "trans_cat", trans_cat)
+	cats, err = a.repo.GetSubCategories(ctx, username, trans_cat)
+	if err != nil {
+		a.log.Error("repo.GetSubCategories", "err", err)
+	}
 	return
 }
 
@@ -59,10 +61,6 @@ func (a *Accountant) GetUserStatus(ctx context.Context, username string) (status
 }
 
 func (a *Accountant) PostDoc(ctx context.Context, category string, amount int, description string, msg_id string, direction int, client string) (err error) {
-	err = a.repo.PostDoc(ctx, time.Now(), category, amount, description, msg_id, direction, client)
-	if err != nil {
-		return
-	}
 	a.log.Debug("PostDoc", "client", client, "category", category, "msg_id", msg_id)
 	err = a.repo.PostDocument(ctx,
 		&entity.Document{
@@ -83,10 +81,6 @@ func (a *Accountant) PostDoc(ctx context.Context, category string, amount int, d
 }
 
 func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {
-	err = a.repo.DeleteDoc(msg_id, client)
-	if err != nil {
-		return
-	}
 	a.log.Debug("DeleteDoc", "client", client, "msg_id", msg_id)
 	err = a.repo.DeleteDocument(context.Background(),
 		&entity.Document{

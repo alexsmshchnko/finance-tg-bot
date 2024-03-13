@@ -26,11 +26,7 @@ func (r *Reports) GetStatementTotals(ctx context.Context, log *slog.Logger, p ma
 	var (
 		rows []entity.ReportResult
 	)
-	// if p["username"] == "quile17" {
 	rows, err = r.repo.GetStatementCatTotals(ctx, p)
-	// } else {
-	// 	rows, err = r.repo.GetStatementTotals(ctx, log, p)
-	// }
 
 	if err != nil {
 		log.Error("repo.GetStatementTotals", "err", err)

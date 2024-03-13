@@ -44,7 +44,7 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 		case "credit":
 			cat.Direction = sql.NullInt16{Int16: 1, Valid: true}
 		}
-		b.accountant.EditCats(cat, q.From.UserName)
+		b.accountant.EditCats(ctx, cat, q.From.UserName)
 		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
 	case "limit":
 		b.requestReply(q, "REC_NEWLIMIT")
@@ -55,7 +55,7 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 			Active:    sql.NullBool{Bool: false, Valid: true},
 			Limit:     sql.NullInt64{Int64: 0, Valid: false},
 		}
-		b.accountant.EditCats(cat, q.From.UserName)
+		b.accountant.EditCats(ctx, cat, q.From.UserName)
 		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
 	default:
 		requestCategoryKeyboardEditor(b, ctx, q)

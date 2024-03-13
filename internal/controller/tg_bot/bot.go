@@ -21,7 +21,7 @@ type accountant interface {
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
 	GetStatement(p map[string]string) (res string, err error)
-	EditCats(tc entity.TransCatLimit, client string) (err error)
+	EditCats(ctx context.Context, tc entity.TransCatLimit, client string) (err error)
 }
 
 type Bot struct {

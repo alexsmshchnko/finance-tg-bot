@@ -75,9 +75,9 @@ func (a *Accountant) MigrateFromCloud(ctx context.Context, username string) (err
 		return
 	}
 
-	if err := a.repo.ClearUserHistory(username); err != nil {
-		return err
-	}
+	// if err := a.repo.ClearUserHistory(username); err != nil {
+	// 	return err
+	// }
 
 	err = a.sync.DownloadFile(ctx, token, YA_DISK_FILE_PATH)
 	if err != nil {
