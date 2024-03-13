@@ -28,33 +28,37 @@ func (r *Repository) GetStatementCatTotals(ctx context.Context, p map[string]str
 	query := `DECLARE $client_id   AS String;
 	          DECLARE $datefrom    AS Datetime;
 			  DECLARE $dateto      AS Datetime;
-select trans_cat
-      ,case direction
-         when 0 then sum(trans_amount)
-         else direction * sum(trans_amount) 
+select d.trans_cat as trans_cat
+      ,case d.direction
+         when 0 then sum(d.trans_amount)
+         else d.direction * sum(d.trans_amount) 
        end as t_sum
-      ,sum(trans_amount) as ta, 1 as tp
-  from document
- where trans_date between $datefrom and $dateto
-   and client_id = $client_id
-   and trans_amount != 0
- group by trans_cat, direction
+      ,sum(d.trans_amount) as ta, 1 as tp
+  from doc d
+ inner join client c on (c.id = d.client_id)
+ where d.trans_date between $datefrom and $dateto
+   and d.trans_amount != 0
+   and c.username = $client_id
+   and c.is_active
+ group by d.trans_cat, d.direction
 union all
-select case direction
+select case d.direction
          when -1 then 'Total debit'
          when 0  then 'Total deposit'
          else         'Total credit'
        end as trans_cat
-      ,case direction
-         when 0 then sum(trans_amount)
-         else direction * sum(trans_amount) 
+      ,case d.direction
+         when 0 then sum(d.trans_amount)
+         else d.direction * sum(d.trans_amount) 
        end as t_sum
-      ,sum(trans_amount) as ta, 2 as tp
-  from document
- where trans_date between $datefrom and $dateto
-   and client_id = $client_id
-   and trans_amount != 0
- group by direction
+      ,sum(d.trans_amount) as ta, 2 as tp
+  from doc d
+ inner join client c on (c.id = d.client_id)
+ where d.trans_date between $datefrom and $dateto
+   and d.trans_amount != 0
+   and c.username = $client_id
+   and c.is_active
+ group by d.direction
  order by tp ASC, ta DESC;`
 
 	err = r.Ydb.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {

@@ -9,6 +9,8 @@ type DocumentExport struct {
 	Time        time.Time `json:"trans_date"`
 	Category    string    `json:"trans_cat"`
 	Amount      int       `json:"trans_amount"`
+	ClientID    string    `json:"client_id"`
+	MsgID       string    `json:"tg_msg_id"`
 	Description string    `json:"comment"`
 	Direction   string    `json:"direction"`
 }

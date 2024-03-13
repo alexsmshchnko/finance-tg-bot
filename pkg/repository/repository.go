@@ -23,12 +23,13 @@ type TransCat struct {
 }
 
 type DBDocument struct {
+	RecDate     sql.NullTime   `db:"rec_time"`
 	TransDate   sql.NullTime   `db:"trans_date"   json:"trans_date"`
 	Category    sql.NullString `db:"trans_cat"    json:"trans_cat"`
 	Amount      sql.NullInt64  `db:"trans_amount" json:"trans_amount"`
 	Description sql.NullString `db:"comment"      json:"comment"`
-	MsgID       sql.NullString `db:"tg_msg_id"`
-	ChatID      sql.NullString `db:"tg_chat_id"`
+	MsgID       sql.NullString `db:"msg_id"`
+	ChatID      sql.NullString `db:"chat_id"`
 	ClientID    sql.NullString `db:"client_id"`
 	Direction   sql.NullInt16  `db:"direction"    json:"direction"`
 }
@@ -37,33 +38,49 @@ func PostDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error) 
 	//preformat
 	doc.Description.String = strings.ToLower(strings.TrimSpace(doc.Description.String))
 	//
-	query := `	DECLARE $trans_date   AS Datetime;
+	query := `	DECLARE $rec_time     AS Timestamp;
+				DECLARE $trans_date   AS Datetime;
 				DECLARE $trans_cat    AS String;	
 				DECLARE $trans_amount AS Int64;
 				DECLARE $comment      AS String;
-				DECLARE $tg_msg_id    AS String;
-				DECLARE $tg_chat_id   AS String;
+				DECLARE $msg_id       AS String;
+				DECLARE $chat_id      AS String;
 				DECLARE $client_id    AS String;
 				DECLARE $direction    AS Int8;`
 	if doc.Direction.Valid {
 		query = query + `
- UPSERT INTO document ( trans_date, trans_cat, trans_amount, comment, tg_msg_id, tg_chat_id, client_id, direction )
- VALUES ( $trans_date, $trans_cat, $trans_amount, $comment, $tg_msg_id, $tg_chat_id, $client_id, $direction );`
+ UPSERT INTO doc ( rec_time, trans_date, trans_cat, trans_amount, comment, msg_id, chat_id, client_id, direction )
+ SELECT $rec_time, $trans_date, $trans_cat, $trans_amount, $comment, $msg_id, $chat_id, c.id as client_id, $direction
+   FROM client c
+  WHERE c.is_active
+    AND c.username = $client_id;`
 	} else {
 		query = query + `
-UPSERT INTO document ( trans_date, trans_cat, trans_amount, comment, tg_msg_id, tg_chat_id, client_id, direction )
-SELECT $trans_date   as trans_date
+UPSERT INTO doc ( rec_time, trans_date, trans_cat, trans_amount, comment, msg_id, chat_id, client_id, direction )
+SELECT $rec_time     as rec_time
+     , $trans_date   as trans_date
      , trans_cat     as trans_cat
 	 , $trans_amount as trans_amount
 	 , $comment      as comment
-	 , $tg_msg_id    as tg_msg_id
-	 , $tg_chat_id   as tg_chat_id
-	 , client_id     as client_id
+	 , $msg_id       as msg_id
+	 , $chat_id      as chat_id
+	 , c.id          as client_id
 	 , direction     as direction
-  FROM doc_category
- WHERE trans_cat = $trans_cat
-   AND client_id = $client_id
-   AND active;`
+  FROM client c
+ INNER JOIN doc_category dc ON (dc.client_id = c.username)
+ WHERE c.is_active
+   AND c.username = $client_id
+   AND dc.active
+   AND dc.trans_cat = $trans_cat;`
+	}
+
+	if !doc.TransDate.Valid {
+		doc.TransDate.Time = time.Now()
+		doc.TransDate.Valid = true
+	}
+	if !doc.RecDate.Valid {
+		doc.RecDate.Time = time.Now()
+		doc.RecDate.Valid = true
 	}
 
 	err = db.Table().DoTx( // Do retry operation on errors with best effort
@@ -73,12 +90,13 @@ SELECT $trans_date   as trans_date
 				ctx,
 				query,
 				table.NewQueryParameters(
-					table.ValueParam("$trans_date", types.DatetimeValueFromTime(time.Now())),
+					table.ValueParam("$rec_time", types.TimestampValueFromTime(doc.RecDate.Time)),
+					table.ValueParam("$trans_date", types.DatetimeValueFromTime(doc.TransDate.Time)),
 					table.ValueParam("$trans_cat", types.BytesValueFromString(doc.Category.String)),
 					table.ValueParam("$trans_amount", types.Int64Value(doc.Amount.Int64)),
 					table.ValueParam("$comment", types.BytesValueFromString(doc.Description.String)),
-					table.ValueParam("$tg_msg_id", types.BytesValueFromString(doc.MsgID.String)),
-					table.ValueParam("$tg_chat_id", types.BytesValueFromString(doc.ChatID.String)),
+					table.ValueParam("$msg_id", types.BytesValueFromString(doc.MsgID.String)),
+					table.ValueParam("$chat_id", types.BytesValueFromString(doc.ChatID.String)),
 					table.ValueParam("$client_id", types.BytesValueFromString(doc.ClientID.String)),
 					table.ValueParam("$direction", types.Int8Value(int8(doc.Direction.Int16))),
 				),
@@ -105,15 +123,15 @@ func DeleteDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error
 		ctx, // context manages exiting from Do
 		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
 			res, err := tx.Execute(
-				ctx, `DECLARE $tg_msg_id    AS String;
-				      DECLARE $tg_chat_id   AS String;
-				      DECLARE $client_id    AS String;
- DELETE FROM document
-  WHERE tg_msg_id = $tg_msg_id
-    AND client_id = $client_id;`,
+				ctx, `DECLARE $msg_id      AS String;
+				      DECLARE $chat_id     AS String;
+				      DECLARE $client_id   AS String;
+ DELETE FROM doc
+  WHERE msg_id = $msg_id
+    AND client_id in (select c.id from client c where c.username = $client_id);`,
 				table.NewQueryParameters(
-					table.ValueParam("$tg_msg_id", types.BytesValueFromString(doc.MsgID.String)),
-					table.ValueParam("$tg_chat_id", types.BytesValueFromString(doc.ChatID.String)),
+					table.ValueParam("$msg_id", types.BytesValueFromString(doc.MsgID.String)),
+					table.ValueParam("$chat_id", types.BytesValueFromString(doc.ChatID.String)),
 					table.ValueParam("$client_id", types.BytesValueFromString(doc.ClientID.String)),
 				),
 			)
@@ -150,12 +168,13 @@ SELECT dc.trans_cat        AS trans_cat
 	 - sum(case when d.trans_date >= $month_interval then d.trans_amount
 				  else 0 end) AS trans_limit
   FROM doc_category dc
-  LEFT JOIN document d on (d.trans_cat = dc.trans_cat
-					   and d.client_id = dc.client_id)
- WHERE dc.client_id = $client_id
+ INNER JOIN client c on (c.username = dc.client_id)
+  LEFT JOIN doc d on (d.trans_cat = dc.trans_cat
+				  and d.client_id = c.id)
+ WHERE dc.active
    AND (d.trans_date is null
 	 OR d.trans_date > $date_interval)
-   AND dc.active
+   AND c.username = $client_id
  GROUP BY dc.trans_cat, dc.direction, dc.trans_limit
  ORDER BY cnt desc;`
 	}
@@ -275,13 +294,16 @@ func GetDocumentSubCategories(db ydb.Ydb, ctx context.Context, username, trans_c
 	query := `DECLARE $client_id      AS String;
 			  DECLARE $trans_cat 	  AS String;
 			  DECLARE $date_interval  AS Datetime;
-SELECT comment, count(*) AS cnt
-  FROM document
- WHERE comment != ''
-   AND client_id = $client_id
-   AND trans_cat = $trans_cat
-   AND trans_date > $date_interval
- GROUP BY comment
+SELECT d.comment as comment
+     , count(*) AS cnt
+  FROM doc d
+ INNER JOIN client c ON (c.id = d.client_id)
+ WHERE d.comment != ''
+   AND d.trans_cat = $trans_cat
+   AND d.trans_date > $date_interval
+   AND c.username = $client_id
+   AND c.is_active
+ GROUP BY d.comment
  ORDER BY cnt DESC
  LIMIT 20;`
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {

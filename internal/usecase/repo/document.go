@@ -275,8 +275,14 @@ func (s *Repo) ImportDocs(data []byte, client string) (err error) {
 }
 
 func (s *Repo) Export(client string) (rslt []byte, err error) {
-	data, err := s.Postgres.Query("SELECT trans_date, trans_cat, trans_amount, comment, case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction"+
-		" FROM base.public.document WHERE client_id = $1 ORDER BY 1 DESC", client)
+	data, err := s.Postgres.Query(`
+	SELECT trans_date,
+	trans_cat,
+	trans_amount,
+	comment,
+	case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction,
+	tg_msg_id
+	  FROM base.public.document WHERE client_id = $1 ORDER BY 1 DESC`, client)
 	if err != nil {
 		return rslt, err
 	}
@@ -285,14 +291,17 @@ func (s *Repo) Export(client string) (rslt []byte, err error) {
 	var (
 		expDocs     []entity.DocumentExport
 		description sql.NullString
+		msgId       sql.NullString
 	)
 
 	for data.Next() {
-		err = data.Scan(&expDoc.Time, &expDoc.Category, &expDoc.Amount, &description, &expDoc.Direction)
+		err = data.Scan(&expDoc.Time, &expDoc.Category, &expDoc.Amount, &description, &expDoc.Direction, &msgId)
 		if err != nil {
 			return rslt, err
 		}
 		expDoc.Description = description.String
+		expDoc.MsgID = msgId.String
+		expDoc.ClientID = client
 		expDocs = append(expDocs, expDoc)
 	}
 	return json.Marshal(expDocs)
