@@ -2,6 +2,7 @@ package reports
 
 import (
 	"context"
+	"finance-tg-bot/internal/entity"
 	repPkg "finance-tg-bot/pkg/repository"
 	"fmt"
 	"log/slog"
@@ -22,7 +23,15 @@ func New(repPkg repPkg.Reporter) *Reports {
 }
 
 func (r *Reports) GetStatementTotals(ctx context.Context, log *slog.Logger, p map[string]string) (res string, err error) {
-	rows, err := r.repo.GetStatementTotals(ctx, log, p)
+	var (
+		rows []entity.ReportResult
+	)
+	// if p["username"] == "quile17" {
+	rows, err = r.repo.GetStatementCatTotals(ctx, p)
+	// } else {
+	// 	rows, err = r.repo.GetStatementTotals(ctx, log, p)
+	// }
+
 	if err != nil {
 		log.Error("repo.GetStatementTotals", "err", err)
 		return

@@ -55,7 +55,7 @@ func Run(config config.Config) (err error) {
 	acnt := accountant.New(
 		repo.New(postgres, ydb),
 		users.New(*ydb),
-		reports.New(&repository.Repository{Postgres: postgres, Ydb: ydb}),
+		reports.New(&repository.Repository{Ydb: ydb}),
 		cloud.New(),
 		log,
 	)
