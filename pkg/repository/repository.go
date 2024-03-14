@@ -293,14 +293,14 @@ func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
 func GetDocumentSubCategories(db ydb.Ydb, ctx context.Context, username, trans_cat string) (subcats []string, err error) {
 	query := `DECLARE $client_id      AS String;
 			  DECLARE $trans_cat 	  AS String;
-			  DECLARE $date_interval  AS Datetime;
+			  DECLARE $date_interval  AS Timestamp;
 SELECT d.comment as comment
      , count(*) AS cnt
   FROM doc d
  INNER JOIN client c ON (c.id = d.client_id)
  WHERE d.comment != ''
    AND d.trans_cat = $trans_cat
-   AND d.trans_date > $date_interval
+   AND d.rec_time > $date_interval
    AND c.username = $client_id
    AND c.is_active
  GROUP BY d.comment
@@ -315,7 +315,7 @@ SELECT d.comment as comment
 			table.NewQueryParameters(
 				table.ValueParam("$client_id", types.BytesValueFromString(username)),
 				table.ValueParam("$trans_cat", types.BytesValueFromString(trans_cat)),
-				table.ValueParam("$date_interval", types.DatetimeValueFromTime(t.AddDate(0, -3, 0))),
+				table.ValueParam("$date_interval", types.TimestampValueFromTime(t.AddDate(0, -3, 0))),
 			),
 		)
 		if err != nil {

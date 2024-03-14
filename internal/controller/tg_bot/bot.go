@@ -130,6 +130,8 @@ func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error)
 }
 
 func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
+	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
+
 	var (
 		amnt, direction int
 		cat, descr      string
@@ -143,7 +145,6 @@ func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
 	}
 
 	b.accountant.PostDoc(context.Background(), cat, amnt, descr, fmt.Sprint(query.Message.MessageID), direction, query.From.UserName)
-	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
 }
 
 func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {
