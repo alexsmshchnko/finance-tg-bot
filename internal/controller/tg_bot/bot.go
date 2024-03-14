@@ -4,7 +4,6 @@ import (
 	"context"
 	"finance-tg-bot/internal/entity"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -222,21 +221,6 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, query *tgbotapi.Call
 
 // 	return
 // }
-
-func (b *Bot) checkUser(ctx context.Context, userName string) bool {
-	_, f := BotUsers[userName]
-	if !f {
-		active, err := b.accountant.GetUserStatus(ctx, userName)
-		if err != nil {
-			log.Println(err)
-		}
-		if active {
-			NewBotUser(userName)
-		}
-		return active
-	}
-	return f
-}
 
 func (b *Bot) handleUpdate(ctx context.Context, update *tgbotapi.Update) {
 

@@ -15,7 +15,6 @@ import (
 	repo "finance-tg-bot/internal/usecase/repo"
 	reports "finance-tg-bot/internal/usecase/repo/reports"
 	users "finance-tg-bot/internal/usecase/repo/users"
-	"finance-tg-bot/pkg/postgres"
 	"finance-tg-bot/pkg/repository"
 	"finance-tg-bot/pkg/ydb"
 
@@ -36,12 +35,12 @@ func Run(config config.Config) (err error) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	postgres, err := postgres.New(ctx, config.DatabaseDSN)
-	if err != nil {
-		log.Error("app - Run - postgres.New", "err", err)
-		return
-	}
-	defer postgres.Close()
+	// postgres, err := postgres.New(ctx, config.DatabaseDSN)
+	// if err != nil {
+	// 	log.Error("app - Run - postgres.New", "err", err)
+	// 	return
+	// }
+	// defer postgres.Close()
 
 	ydb, err := ydb.NewNative(ctx,
 		config.YdbDSN,
@@ -53,7 +52,7 @@ func Run(config config.Config) (err error) {
 	defer ydb.Close(ctx)
 
 	acnt := accountant.New(
-		repo.New(postgres, ydb),
+		repo.New(ydb),
 		users.New(*ydb),
 		reports.New(&repository.Repository{Ydb: ydb}),
 		cloud.New(),

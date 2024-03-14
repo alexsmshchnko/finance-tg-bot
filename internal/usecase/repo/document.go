@@ -3,34 +3,34 @@ package repo
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
+	"errors"
 	"time"
 
 	"finance-tg-bot/internal/entity"
-	"finance-tg-bot/pkg/postgres"
 	"finance-tg-bot/pkg/repository"
 	"finance-tg-bot/pkg/ydb"
 )
 
 type Repo struct {
-	*postgres.Postgres
+	// *postgres.Postgres
 	*ydb.Ydb
 }
 
-func New(pg *postgres.Postgres, ydb *ydb.Ydb) *Repo {
-	return &Repo{Postgres: pg, Ydb: ydb}
+func New( //pg *postgres.Postgres,
+	ydb *ydb.Ydb) *Repo {
+	return &Repo{Ydb: ydb}
 }
 
-type DBDocument struct {
-	ID          *int64     `db:"id"`
-	Time        *time.Time `db:"trans_date"   json:"trans_date"`
-	Category    *string    `db:"trans_cat"    json:"trans_cat"`
-	Amount      *int       `db:"trans_amount" json:"trans_amount"`
-	Description *string    `db:"comment"      json:"comment"`
-	MsgID       *string    `db:"tg_msg_id"`
-	ClientID    *string    `db:"client_id"`
-	Direction   *int       `db:"direction"    json:"direction"`
-}
+// type DBDocument struct {
+// 	ID          *int64     `db:"id"`
+// 	Time        *time.Time `db:"trans_date"   json:"trans_date"`
+// 	Category    *string    `db:"trans_cat"    json:"trans_cat"`
+// 	Amount      *int       `db:"trans_amount" json:"trans_amount"`
+// 	Description *string    `db:"comment"      json:"comment"`
+// 	MsgID       *string    `db:"tg_msg_id"`
+// 	ClientID    *string    `db:"client_id"`
+// 	Direction   *int       `db:"direction"    json:"direction"`
+// }
 
 // type TransCat struct {
 // 	ID        sql.NullInt64  `db:"id"`
@@ -69,33 +69,33 @@ func (s *Repo) GetCategories(ctx context.Context, username, limit string) (cat [
 }
 
 func (s *Repo) GetCats(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error) {
-	var sql string
-	switch limit {
-	case "setting":
-		sql = `
-		select tc.trans_cat, tc.direction, tc.trans_limit
-		  from public.trans_category tc
-		  left join public.document d on (tc.trans_cat = d.trans_cat
-									  and tc.client_id = d.client_id)
-		 where tc.active = true
-		   and tc.client_id = $1
-		 group by tc.trans_cat, tc.direction, tc.trans_limit
-		 order by count(*) desc`
-	case "balance":
-		sql = `
-		select tc.trans_cat, tc.direction
-		      ,tc.trans_limit - sum(case when d.trans_date >= date_trunc('month', current_date) then d.trans_amount else 0 end) as trans_limit
-	      from public.trans_category tc
-	      left join public.document d on (d.trans_cat = tc.trans_cat
-								      and d.client_id = tc.client_id
-								      and d.trans_date between date_trunc('month', current_date - interval '3' month)
-									                       and date_trunc('day', current_date + interval '1' day) - interval '1' second)
-         where tc.active = true
-	       and tc.client_id = $1
-         group by tc.trans_cat, tc.direction, tc.trans_limit
-         order by count(d.*) desc`
-	}
-	err = s.Select(&cat, sql, username)
+	// var sql string
+	// switch limit {
+	// case "setting":
+	// 	sql = `
+	// 	select tc.trans_cat, tc.direction, tc.trans_limit
+	// 	  from public.trans_category tc
+	// 	  left join public.document d on (tc.trans_cat = d.trans_cat
+	// 								  and tc.client_id = d.client_id)
+	// 	 where tc.active = true
+	// 	   and tc.client_id = $1
+	// 	 group by tc.trans_cat, tc.direction, tc.trans_limit
+	// 	 order by count(*) desc`
+	// case "balance":
+	// 	sql = `
+	// 	select tc.trans_cat, tc.direction
+	// 	      ,tc.trans_limit - sum(case when d.trans_date >= date_trunc('month', current_date) then d.trans_amount else 0 end) as trans_limit
+	//       from public.trans_category tc
+	//       left join public.document d on (d.trans_cat = tc.trans_cat
+	// 							      and d.client_id = tc.client_id
+	// 							      and d.trans_date between date_trunc('month', current_date - interval '3' month)
+	// 								                       and date_trunc('day', current_date + interval '1' day) - interval '1' second)
+	//      where tc.active = true
+	//        and tc.client_id = $1
+	//      group by tc.trans_cat, tc.direction, tc.trans_limit
+	//      order by count(d.*) desc`
+	// }
+	// err = s.Select(&cat, sql, username)
 	return
 }
 
@@ -118,21 +118,22 @@ func (s *Repo) EditCategory(ctx context.Context, tc entity.TransCatLimit, client
 }
 
 func (s *Repo) ClearUserHistory(username string) (err error) {
-	tx := s.MustBegin()
+	// tx := s.MustBegin()
 
-	tx.MustExec("DELETE FROM public.document WHERE client_id = $1;", username)
-	tx.MustExec("UPDATE public.trans_category SET active = false WHERE client_id = $1;", username)
+	// tx.MustExec("DELETE FROM public.document WHERE client_id = $1;", username)
+	// tx.MustExec("UPDATE public.trans_category SET active = false WHERE client_id = $1;", username)
 
-	return tx.Commit()
+	// return tx.Commit()
+	return
 }
 
 func (s *Repo) ImportDocs(data []byte, client string) (err error) {
-	var docs []DBDocument
+	// var docs []DBDocument
 
-	err = json.Unmarshal(data, &docs)
-	if err != nil {
-		return err
-	}
+	// err = json.Unmarshal(data, &docs)
+	// if err != nil {
+	// 	return err
+	// }
 
 	// for _, v := range docs {
 	// 	s.postDocument(&DBDocument{
@@ -145,44 +146,46 @@ func (s *Repo) ImportDocs(data []byte, client string) (err error) {
 	// 	})
 	// }
 
-	tx := s.MustBegin()
-	sql := "INSERT INTO trans_category(trans_cat, direction, client_id)" +
-		" SELECT distinct trans_cat, direction, client_id FROM document WHERE client_id = $1"
-	tx.MustExec(sql, client)
+	// tx := s.MustBegin()
+	// sql := "INSERT INTO trans_category(trans_cat, direction, client_id)" +
+	// 	" SELECT distinct trans_cat, direction, client_id FROM document WHERE client_id = $1"
+	// tx.MustExec(sql, client)
 
-	return tx.Commit()
+	// return tx.Commit()
+	return errors.New("not working")
 }
 
 func (s *Repo) Export(client string) (rslt []byte, err error) {
-	data, err := s.Postgres.Query(`
-	SELECT trans_date,
-	trans_cat,
-	trans_amount,
-	comment,
-	case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction,
-	tg_msg_id
-	  FROM base.public.document WHERE client_id = $1 ORDER BY 1 DESC`, client)
-	if err != nil {
-		return rslt, err
-	}
+	// data, err := s.Postgres.Query(`
+	// SELECT trans_date,
+	// trans_cat,
+	// trans_amount,
+	// comment,
+	// case direction when -1 then 'debit' when 1 then 'credit' else 'other' end as direction,
+	// tg_msg_id
+	//   FROM base.public.document WHERE client_id = $1 ORDER BY 1 DESC`, client)
+	// if err != nil {
+	// 	return rslt, err
+	// }
 
-	expDoc := entity.DocumentExport{}
-	var (
-		expDocs     []entity.DocumentExport
-		description sql.NullString
-		msgId       sql.NullString
-	)
+	// expDoc := entity.DocumentExport{}
+	// var (
+	// 	expDocs     []entity.DocumentExport
+	// 	description sql.NullString
+	// 	msgId       sql.NullString
+	// )
 
-	for data.Next() {
-		err = data.Scan(&expDoc.Time, &expDoc.Category, &expDoc.Amount, &description, &expDoc.Direction, &msgId)
-		if err != nil {
-			return rslt, err
-		}
-		expDoc.Description = description.String
-		expDoc.MsgID = msgId.String
-		expDoc.ClientID = client
-		expDocs = append(expDocs, expDoc)
-	}
-	return json.Marshal(expDocs)
+	// for data.Next() {
+	// 	err = data.Scan(&expDoc.Time, &expDoc.Category, &expDoc.Amount, &description, &expDoc.Direction, &msgId)
+	// 	if err != nil {
+	// 		return rslt, err
+	// 	}
+	// 	expDoc.Description = description.String
+	// 	expDoc.MsgID = msgId.String
+	// 	expDoc.ClientID = client
+	// 	expDocs = append(expDocs, expDoc)
+	// }
+	// return json.Marshal(expDocs)
 
+	return rslt, errors.New("not working")
 }
