@@ -8,8 +8,6 @@ require (
 	github.com/cristalhq/aconfig/aconfighcl v0.17.1
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang/mock v1.6.0
-	github.com/jmoiron/sqlx v1.3.5
-	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.9.0
 	github.com/xuri/excelize/v2 v2.8.1
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.57.4
