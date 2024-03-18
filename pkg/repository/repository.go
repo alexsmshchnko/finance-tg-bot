@@ -151,22 +151,14 @@ func DeleteDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error
 func GetDocumentCategories(db ydb.Ydb, ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
 	query := `DECLARE $client_id      AS String;
 	          DECLARE $month_interval AS Datetime;
-			  DECLARE $date_interval  AS Datetime;`
-	if limit == "setting" {
-		query = query + `
-SELECT trans_cat, direction, trans_limit
-  FROM doc_category
- WHERE client_id = $client_id
-   AND active
- ORDER BY trans_limit DESC, trans_cat ASC;`
-	} else {
-		query = query + `
+			  DECLARE $date_interval  AS Datetime;
 SELECT dc.trans_cat        AS trans_cat
      , dc.direction        AS direction
 	 , count(d.trans_date) AS cnt
+	 , dc.trans_limit	   AS trans_limit
      , dc.trans_limit
 	 - sum(case when d.trans_date >= $month_interval then d.trans_amount
-				  else 0 end) AS trans_limit
+				  else 0 end) AS trans_balance
   FROM doc_category dc
  INNER JOIN client c on (c.username = dc.client_id)
   LEFT JOIN doc d on (d.trans_cat = dc.trans_cat
@@ -177,7 +169,6 @@ SELECT dc.trans_cat        AS trans_cat
    AND c.username = $client_id
  GROUP BY dc.trans_cat, dc.direction, dc.trans_limit
  ORDER BY cnt desc;`
-	}
 
 	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
 		t := time.Now()
@@ -205,6 +196,7 @@ SELECT dc.trans_cat        AS trans_cat
 				named.Optional("trans_cat", &tcl.Category),
 				named.Optional("direction", &tcl.Direction),
 				named.Optional("trans_limit", &tcl.Limit),
+				named.Optional("trans_balance", &tcl.Balance),
 			)
 			if err != nil {
 				return err

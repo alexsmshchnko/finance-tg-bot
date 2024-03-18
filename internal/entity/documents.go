@@ -32,6 +32,7 @@ type TransCatLimit struct {
 	ClientID  sql.NullString `db:"client_id"`
 	Active    sql.NullBool   `db:"active"`
 	Limit     sql.NullInt64  `db:"trans_limit"`
+	Balance   sql.NullInt64  `db:"trans_balance"`
 }
 
 type Document struct {

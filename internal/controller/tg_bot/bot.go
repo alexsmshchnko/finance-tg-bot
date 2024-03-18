@@ -92,7 +92,7 @@ func (b *Bot) requestCats(ctx context.Context, page int, query *tgbotapi.Callbac
 			direction = EMOJI_CREDIT
 		}
 		if v.Limit.Valid {
-			limit = fmt.Sprintf(" (%d)", v.Limit.Int64)
+			limit = fmt.Sprintf(" (%d)", v.Balance.Int64)
 		} else {
 			limit = ""
 		}
