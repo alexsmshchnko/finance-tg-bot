@@ -7,7 +7,6 @@ package mock_repository
 import (
 	context "context"
 	entity "finance-tg-bot/internal/entity"
-	slog "log/slog"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -49,19 +48,4 @@ func (m *MockReporter) GetStatementCatTotals(ctx context.Context, p map[string]s
 func (mr *MockReporterMockRecorder) GetStatementCatTotals(ctx, p interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatementCatTotals", reflect.TypeOf((*MockReporter)(nil).GetStatementCatTotals), ctx, p)
-}
-
-// GetStatementTotals mocks base method.
-func (m *MockReporter) GetStatementTotals(ctx context.Context, log *slog.Logger, p map[string]string) ([]entity.ReportResult, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetStatementTotals", ctx, log, p)
-	ret0, _ := ret[0].([]entity.ReportResult)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetStatementTotals indicates an expected call of GetStatementTotals.
-func (mr *MockReporterMockRecorder) GetStatementTotals(ctx, log, p interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatementTotals", reflect.TypeOf((*MockReporter)(nil).GetStatementTotals), ctx, log, p)
 }

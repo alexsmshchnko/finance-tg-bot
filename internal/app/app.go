@@ -12,9 +12,9 @@ import (
 	tg_bot "finance-tg-bot/internal/controller/tg_bot"
 	accountant "finance-tg-bot/internal/usecase"
 	cloud "finance-tg-bot/internal/usecase/cloud"
-	repo "finance-tg-bot/internal/usecase/repo"
-	reports "finance-tg-bot/internal/usecase/repo/reports"
-	users "finance-tg-bot/internal/usecase/repo/users"
+	doc "finance-tg-bot/internal/usecase/repo"
+	report "finance-tg-bot/internal/usecase/repo/reports"
+	user "finance-tg-bot/internal/usecase/repo/users"
 	"finance-tg-bot/pkg/repository"
 	"finance-tg-bot/pkg/ydb"
 
@@ -35,6 +35,8 @@ func Run(config config.Config) (err error) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	log.Info("sa key usage", "config.SAKeyFileCredPath", config.SAKeyFileCredPath)
+
 	ydb, err := ydb.NewNative(ctx, config.YdbDSN, config.SAKeyFileCredPath)
 	if err != nil {
 		log.Error("app - Run - ydb.NewNative", "err", err)
@@ -42,10 +44,12 @@ func Run(config config.Config) (err error) {
 	}
 	defer ydb.Close(ctx)
 
+	r := &repository.Repository{Ydb: ydb}
+
 	acnt := accountant.New(
-		repo.New(ydb),
-		users.New(*ydb),
-		reports.New(&repository.Repository{Ydb: ydb}),
+		doc.New(ydb),
+		user.New(r),
+		report.New(r),
 		cloud.New(),
 		log,
 	)

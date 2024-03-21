@@ -3,12 +3,15 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"finance-tg-bot/pkg/ydb"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
+
+type UserProvider interface {
+	GetUserInfo(ctx context.Context, username string) (*DBClient, error)
+}
 
 type DBClient struct {
 	ID         sql.NullInt64  `db:"id"`
@@ -19,13 +22,13 @@ type DBClient struct {
 	CloudToken sql.NullString `db:"external_system_token"`
 }
 
-func GetUserInfo(db ydb.Ydb, ctx context.Context, username string) (*DBClient, error) {
+func (r *Repository) GetUserInfo(ctx context.Context, username string) (*DBClient, error) {
 	var (
 		client DBClient
 		qError error = sql.ErrNoRows
 	)
 
-	err := db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+	err := r.Ydb.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
 		_, res, err := s.Execute(
 			ctx,
 			table.DefaultTxControl(),
