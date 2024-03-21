@@ -53,6 +53,15 @@ func TestUser_GetStatus(t *testing.T) {
 			wantStatus: false,
 			wantErr:    false,
 		},
+		{
+			name:       "no user",
+			fields:     fields{repo: ucaseRepo.repo},
+			args:       args{ctx: ctx, username: "petya"},
+			mockResult: &repPkg.DBClient{},
+			mockError:  sql.ErrNoRows,
+			wantStatus: false,
+			wantErr:    false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
