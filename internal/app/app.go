@@ -35,18 +35,9 @@ func Run(config config.Config) (err error) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	// postgres, err := postgres.New(ctx, config.DatabaseDSN)
-	// if err != nil {
-	// 	log.Error("app - Run - postgres.New", "err", err)
-	// 	return
-	// }
-	// defer postgres.Close()
-
-	ydb, err := ydb.NewNative(ctx,
-		config.YdbDSN,
-		"authorized_key.json")
+	ydb, err := ydb.NewNative(ctx, config.YdbDSN, config.SAKeyFileCredPath)
 	if err != nil {
-		log.Error("app - Run - ydb.New", "err", err)
+		log.Error("app - Run - ydb.NewNative", "err", err)
 		return
 	}
 	defer ydb.Close(ctx)

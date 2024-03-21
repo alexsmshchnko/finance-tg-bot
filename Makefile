@@ -1,3 +1,5 @@
+include .env
+
 .PHONY: dc run
 
 clean:
@@ -21,3 +23,9 @@ gen:
 	-destination=pkg/repository/mocks/mock_repository.go 
 	mockgen -source=pkg/repository/reports.go \
 	-destination=pkg/repository/mocks/mock_reports.go 
+
+build_yc_test:
+	docker build -f Dockerfile.yctest -t cr.yandex/$(YC_IMAGE_REGISTRY_ID)/$(SERVERLESS_CONTAINER_NAME) .
+
+push_yc_test: build_yc_test
+	docker push cr.yandex/$(YC_IMAGE_REGISTRY_ID)/$(SERVERLESS_CONTAINER_NAME)
