@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"finance-tg-bot/internal/entity"
-	"finance-tg-bot/pkg/ydb"
 	"strings"
 	"time"
 
@@ -13,6 +12,14 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
+
+type DocProcessor interface {
+	PostDocument(ctx context.Context, doc *DBDocument) (err error)
+	DeleteDocument(ctx context.Context, doc *DBDocument) (err error)
+	GetDocumentCategories(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error)
+	EditCategory(ctx context.Context, cat *TransCat) (err error)
+	GetDocumentSubCategories(ctx context.Context, username, trans_cat string) (subcats []string, err error)
+}
 
 type TransCat struct {
 	Category  sql.NullString `db:"trans_cat"`
@@ -34,7 +41,7 @@ type DBDocument struct {
 	Direction   sql.NullInt16  `db:"direction"    json:"direction"`
 }
 
-func PostDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error) {
+func (r *Repository) PostDocument(ctx context.Context, doc *DBDocument) (err error) {
 	//preformat
 	doc.Description.String = strings.ToLower(strings.TrimSpace(doc.Description.String))
 	//
@@ -83,7 +90,7 @@ SELECT $rec_time     as rec_time
 		doc.RecDate.Valid = true
 	}
 
-	err = db.Table().DoTx( // Do retry operation on errors with best effort
+	err = r.Ydb.Table().DoTx( // Do retry operation on errors with best effort
 		ctx, // context manages exiting from Do
 		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
 			res, err := tx.Execute(
@@ -114,12 +121,12 @@ SELECT $rec_time     as rec_time
 	return err
 }
 
-func DeleteDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error) {
+func (r *Repository) DeleteDocument(ctx context.Context, doc *DBDocument) (err error) {
 	if !doc.MsgID.Valid || !doc.ClientID.Valid {
 		return errors.New("not enough input params to delete document")
 	}
 
-	err = db.Table().DoTx( // Do retry operation on errors with best effort
+	err = r.Ydb.Table().DoTx( // Do retry operation on errors with best effort
 		ctx, // context manages exiting from Do
 		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
 			res, err := tx.Execute(
@@ -148,7 +155,7 @@ func DeleteDocument(db ydb.Ydb, ctx context.Context, doc *DBDocument) (err error
 	return err
 }
 
-func GetDocumentCategories(db ydb.Ydb, ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
+func (r *Repository) GetDocumentCategories(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
 	query := `DECLARE $client_id      AS String;
 	          DECLARE $month_interval AS Datetime;
 			  DECLARE $date_interval  AS Datetime;
@@ -170,7 +177,7 @@ SELECT dc.trans_cat        AS trans_cat
  GROUP BY dc.trans_cat, dc.direction, dc.trans_limit
  ORDER BY cnt desc;`
 
-	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+	err = r.Ydb.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
 		t := time.Now()
 		tcl := &entity.TransCatLimit{}
 		_, res, err := s.Execute(
@@ -209,7 +216,7 @@ SELECT dc.trans_cat        AS trans_cat
 	return cats, err
 }
 
-func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
+func (r *Repository) EditCategory(ctx context.Context, cat *TransCat) (err error) {
 	//preformat
 	cat.Category.String = strings.ToLower(strings.TrimSpace(cat.Category.String))
 	//
@@ -252,7 +259,7 @@ func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
 		VALUES ( $trans_cat, $direction, $client_id, $date_to_max, $active );`
 	}
 
-	err = db.Table().DoTx( // Do retry operation on errors with best effort
+	err = r.Ydb.Table().DoTx( // Do retry operation on errors with best effort
 		ctx, // context manages exiting from Do
 		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
 			t, _ := time.Parse("2006-01-02", "2100-01-01")
@@ -282,7 +289,7 @@ func EditCategory(db ydb.Ydb, ctx context.Context, cat *TransCat) (err error) {
 	return err
 }
 
-func GetDocumentSubCategories(db ydb.Ydb, ctx context.Context, username, trans_cat string) (subcats []string, err error) {
+func (r *Repository) GetDocumentSubCategories(ctx context.Context, username, trans_cat string) (subcats []string, err error) {
 	query := `DECLARE $client_id      AS String;
 			  DECLARE $trans_cat 	  AS String;
 			  DECLARE $date_interval  AS Timestamp;
@@ -298,7 +305,7 @@ SELECT d.comment as comment
  GROUP BY d.comment
  ORDER BY cnt DESC
  LIMIT 20;`
-	err = db.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+	err = r.Ydb.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
 		t := time.Now()
 		_, res, err := s.Execute(
 			ctx,

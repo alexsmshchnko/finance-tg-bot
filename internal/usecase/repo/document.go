@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"finance-tg-bot/internal/entity"
-	"finance-tg-bot/pkg/repository"
-	"finance-tg-bot/pkg/ydb"
+	repPkg "finance-tg-bot/pkg/repository"
 )
 
 type categories []struct {
@@ -18,24 +17,23 @@ type categories []struct {
 }
 
 type Repo struct {
-	// *postgres.Postgres
-	*ydb.Ydb
+	repo  repPkg.DocProcessor
 	cache map[string]categories
 }
 
-func (s *Repo) clearCache(username string) {
-	delete(s.cache, username)
-}
-
-func New(ydb *ydb.Ydb) *Repo {
+func New(repPkg repPkg.DocProcessor) *Repo {
 	return &Repo{
-		Ydb:   ydb,
+		repo:  repPkg,
 		cache: make(map[string]categories),
 	}
 }
 
-func (s *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err error) {
-	dbdoc := &repository.DBDocument{
+func (r *Repo) clearCache(username string) {
+	delete(r.cache, username)
+}
+
+func (r *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err error) {
+	dbdoc := &repPkg.DBDocument{
 		TransDate:   sql.NullTime{Time: time.Time{}, Valid: false},
 		Category:    sql.NullString{String: doc.Category, Valid: true},
 		Amount:      sql.NullInt64{Int64: doc.Amount, Valid: true},
@@ -45,30 +43,30 @@ func (s *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err erro
 		ClientID:    sql.NullString{String: doc.ClientID, Valid: true},
 		Direction:   sql.NullInt16{Int16: 0, Valid: false},
 	}
-	s.clearCache(doc.ClientID)
-	err = repository.PostDocument(*s.Ydb, ctx, dbdoc)
-	go s.GetCategories(ctx, doc.ClientID, "")
+	r.clearCache(doc.ClientID)
+	err = r.repo.PostDocument(ctx, dbdoc)
+	go r.GetCategories(ctx, doc.ClientID, "")
 	return
 }
 
-func (s *Repo) DeleteDocument(ctx context.Context, doc *entity.Document) (err error) {
-	dbdoc := &repository.DBDocument{
+func (r *Repo) DeleteDocument(ctx context.Context, doc *entity.Document) (err error) {
+	dbdoc := &repPkg.DBDocument{
 		MsgID:    sql.NullString{String: doc.MsgID, Valid: true},
 		ChatID:   sql.NullString{String: doc.ChatID, Valid: true},
 		ClientID: sql.NullString{String: doc.ClientID, Valid: true},
 	}
-	return repository.DeleteDocument(*s.Ydb, ctx, dbdoc)
+	return r.repo.DeleteDocument(ctx, dbdoc)
 }
 
-func (s *Repo) GetCategories(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error) {
-	if _, ok := s.cache[username]; !ok {
-		res, err := repository.GetDocumentCategories(*s.Ydb, ctx, username, limit)
+func (r *Repo) GetCategories(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error) {
+	if _, ok := r.cache[username]; !ok {
+		res, err := r.repo.GetDocumentCategories(ctx, username, limit)
 		if err != nil {
 			return cat, err
 		}
-		s.cache[username] = make(categories, len(res))
+		r.cache[username] = make(categories, len(res))
 		for i, v := range res {
-			s.cache[username][i] = struct {
+			r.cache[username][i] = struct {
 				category    string
 				tcl         entity.TransCatLimit
 				subcategory []string
@@ -76,53 +74,22 @@ func (s *Repo) GetCategories(ctx context.Context, username, limit string) (cat [
 		}
 	}
 
-	cat = make([]entity.TransCatLimit, len(s.cache[username]))
-	for i, v := range s.cache[username] {
+	cat = make([]entity.TransCatLimit, len(r.cache[username]))
+	for i, v := range r.cache[username] {
 		cat[i] = v.tcl
 	}
 	return cat, err
 }
 
-func (s *Repo) GetCats(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error) {
-	// var sql string
-	// switch limit {
-	// case "setting":
-	// 	sql = `
-	// 	select tc.trans_cat, tc.direction, tc.trans_limit
-	// 	  from public.trans_category tc
-	// 	  left join public.document d on (tc.trans_cat = d.trans_cat
-	// 								  and tc.client_id = d.client_id)
-	// 	 where tc.active = true
-	// 	   and tc.client_id = $1
-	// 	 group by tc.trans_cat, tc.direction, tc.trans_limit
-	// 	 order by count(*) desc`
-	// case "balance":
-	// 	sql = `
-	// 	select tc.trans_cat, tc.direction
-	// 	      ,tc.trans_limit - sum(case when d.trans_date >= date_trunc('month', current_date) then d.trans_amount else 0 end) as trans_limit
-	//       from public.trans_category tc
-	//       left join public.document d on (d.trans_cat = tc.trans_cat
-	// 							      and d.client_id = tc.client_id
-	// 							      and d.trans_date between date_trunc('month', current_date - interval '3' month)
-	// 								                       and date_trunc('day', current_date + interval '1' day) - interval '1' second)
-	//      where tc.active = true
-	//        and tc.client_id = $1
-	//      group by tc.trans_cat, tc.direction, tc.trans_limit
-	//      order by count(d.*) desc`
-	// }
-	// err = s.Select(&cat, sql, username)
-	return
-}
-
-func (s *Repo) GetSubCategories(ctx context.Context, username, trans_cat string) (cat []string, err error) {
-	if _, ok := s.cache[username]; !ok { //cache should present after GetCategories request
-		s.GetCategories(ctx, username, "") //in case we missed smth
+func (r *Repo) GetSubCategories(ctx context.Context, username, trans_cat string) (cat []string, err error) {
+	if _, ok := r.cache[username]; !ok { //cache should present after GetCategories request
+		r.GetCategories(ctx, username, "") //in case we missed smth
 	}
 
 	var j int
-	for i, v := range s.cache[username] { //search cache
+	for i, v := range r.cache[username] { //search cache
 		if v.category == trans_cat && len(v.subcategory) > 0 {
-			return s.cache[username][i].subcategory, err //return if found
+			return r.cache[username][i].subcategory, err //return if found
 		}
 		if v.category == trans_cat {
 			j = i
@@ -130,19 +97,19 @@ func (s *Repo) GetSubCategories(ctx context.Context, username, trans_cat string)
 		}
 	}
 
-	res, err := repository.GetDocumentSubCategories(*s.Ydb, ctx, username, trans_cat)
+	res, err := r.repo.GetDocumentSubCategories(ctx, username, trans_cat)
 	if err != nil {
 		return cat, err
 	}
 
 	//create cache
-	s.cache[username][j].subcategory = res
+	r.cache[username][j].subcategory = res
 
-	return s.cache[username][j].subcategory, err
+	return r.cache[username][j].subcategory, err
 }
 
-func (s *Repo) EditCategory(ctx context.Context, tc entity.TransCatLimit, client string) (err error) {
-	dbTCL := &repository.TransCat{
+func (r *Repo) EditCategory(ctx context.Context, tc entity.TransCatLimit, client string) (err error) {
+	dbTCL := &repPkg.TransCat{
 		Category:  tc.Category,
 		Direction: tc.Direction,
 		ClientID:  sql.NullString{String: client, Valid: true},
@@ -152,9 +119,9 @@ func (s *Repo) EditCategory(ctx context.Context, tc entity.TransCatLimit, client
 		dbTCL.Limit = tc.Limit
 	}
 
-	s.clearCache(client)
-	err = repository.EditCategory(*s.Ydb, ctx, dbTCL)
-	go s.GetCategories(ctx, client, "")
+	r.clearCache(client)
+	err = r.repo.EditCategory(ctx, dbTCL)
+	go r.GetCategories(ctx, client, "")
 	return
 }
 

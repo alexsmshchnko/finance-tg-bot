@@ -47,12 +47,8 @@ func Run(config config.Config) (err error) {
 	r := &repository.Repository{Ydb: ydb}
 
 	acnt := accountant.New(
-		doc.New(ydb),
-		user.New(r),
-		report.New(r),
-		cloud.New(),
-		log,
-	)
+		doc.New(r), user.New(r), report.New(r),
+		cloud.New(), log)
 	bot := tg_bot.New(gBot, acnt)
 
 	return bot.Run(ctx)

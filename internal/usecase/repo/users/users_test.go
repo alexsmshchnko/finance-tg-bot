@@ -11,13 +11,11 @@ import (
 )
 
 func TestUser_GetStatus(t *testing.T) {
-	ctx := context.Background()
-
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	repo := repoMock.NewMockUserProvider(ctrl)
-	ucaseRepo := New(repo)
+	rpMck := repoMock.NewMockUserProvider(ctrl)
+	ucaseRepo := New(rpMck)
 
 	type fields struct {
 		repo repPkg.UserProvider
@@ -38,7 +36,7 @@ func TestUser_GetStatus(t *testing.T) {
 		{
 			name:       "active user",
 			fields:     fields{repo: ucaseRepo.repo},
-			args:       args{ctx: ctx, username: "vasya"},
+			args:       args{ctx: context.Background(), username: "vasya"},
 			mockResult: &repPkg.DBClient{IsActive: sql.NullBool{Bool: true, Valid: true}},
 			mockError:  nil,
 			wantStatus: true,
@@ -47,7 +45,7 @@ func TestUser_GetStatus(t *testing.T) {
 		{
 			name:       "inactive user",
 			fields:     fields{repo: ucaseRepo.repo},
-			args:       args{ctx: ctx, username: "vasya_old"},
+			args:       args{ctx: context.Background(), username: "vasya_old"},
 			mockResult: &repPkg.DBClient{IsActive: sql.NullBool{Bool: false, Valid: true}},
 			mockError:  nil,
 			wantStatus: false,
@@ -56,7 +54,7 @@ func TestUser_GetStatus(t *testing.T) {
 		{
 			name:       "no user",
 			fields:     fields{repo: ucaseRepo.repo},
-			args:       args{ctx: ctx, username: "petya"},
+			args:       args{ctx: context.Background(), username: "petya"},
 			mockResult: &repPkg.DBClient{},
 			mockError:  sql.ErrNoRows,
 			wantStatus: false,
@@ -65,11 +63,9 @@ func TestUser_GetStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo.EXPECT().GetUserInfo(tt.args.ctx, tt.args.username).Return(tt.mockResult, tt.mockError).Times(1)
-			u := &User{
-				repo: tt.fields.repo,
-			}
-			gotStatus, err := u.GetStatus(tt.args.ctx, tt.args.username)
+			rpMck.EXPECT().GetUserInfo(tt.args.ctx, tt.args.username).Return(tt.mockResult, tt.mockError).Times(1)
+
+			gotStatus, err := New(tt.fields.repo).GetStatus(tt.args.ctx, tt.args.username)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("User.GetStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -3,3 +3,107 @@
 
 // Package mock_repository is a generated GoMock package.
 package mock_repository
+
+import (
+	context "context"
+	entity "finance-tg-bot/internal/entity"
+	repository "finance-tg-bot/pkg/repository"
+	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
+)
+
+// MockDocProcessor is a mock of DocProcessor interface.
+type MockDocProcessor struct {
+	ctrl     *gomock.Controller
+	recorder *MockDocProcessorMockRecorder
+}
+
+// MockDocProcessorMockRecorder is the mock recorder for MockDocProcessor.
+type MockDocProcessorMockRecorder struct {
+	mock *MockDocProcessor
+}
+
+// NewMockDocProcessor creates a new mock instance.
+func NewMockDocProcessor(ctrl *gomock.Controller) *MockDocProcessor {
+	mock := &MockDocProcessor{ctrl: ctrl}
+	mock.recorder = &MockDocProcessorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDocProcessor) EXPECT() *MockDocProcessorMockRecorder {
+	return m.recorder
+}
+
+// DeleteDocument mocks base method.
+func (m *MockDocProcessor) DeleteDocument(ctx context.Context, doc *repository.DBDocument) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteDocument", ctx, doc)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteDocument indicates an expected call of DeleteDocument.
+func (mr *MockDocProcessorMockRecorder) DeleteDocument(ctx, doc interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteDocument", reflect.TypeOf((*MockDocProcessor)(nil).DeleteDocument), ctx, doc)
+}
+
+// EditCategory mocks base method.
+func (m *MockDocProcessor) EditCategory(ctx context.Context, cat *repository.TransCat) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EditCategory", ctx, cat)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EditCategory indicates an expected call of EditCategory.
+func (mr *MockDocProcessorMockRecorder) EditCategory(ctx, cat interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditCategory", reflect.TypeOf((*MockDocProcessor)(nil).EditCategory), ctx, cat)
+}
+
+// GetDocumentCategories mocks base method.
+func (m *MockDocProcessor) GetDocumentCategories(ctx context.Context, username, limit string) ([]entity.TransCatLimit, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDocumentCategories", ctx, username, limit)
+	ret0, _ := ret[0].([]entity.TransCatLimit)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDocumentCategories indicates an expected call of GetDocumentCategories.
+func (mr *MockDocProcessorMockRecorder) GetDocumentCategories(ctx, username, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentCategories", reflect.TypeOf((*MockDocProcessor)(nil).GetDocumentCategories), ctx, username, limit)
+}
+
+// GetDocumentSubCategories mocks base method.
+func (m *MockDocProcessor) GetDocumentSubCategories(ctx context.Context, username, trans_cat string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDocumentSubCategories", ctx, username, trans_cat)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDocumentSubCategories indicates an expected call of GetDocumentSubCategories.
+func (mr *MockDocProcessorMockRecorder) GetDocumentSubCategories(ctx, username, trans_cat interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentSubCategories", reflect.TypeOf((*MockDocProcessor)(nil).GetDocumentSubCategories), ctx, username, trans_cat)
+}
+
+// PostDocument mocks base method.
+func (m *MockDocProcessor) PostDocument(ctx context.Context, doc *repository.DBDocument) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PostDocument", ctx, doc)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PostDocument indicates an expected call of PostDocument.
+func (mr *MockDocProcessorMockRecorder) PostDocument(ctx, doc interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostDocument", reflect.TypeOf((*MockDocProcessor)(nil).PostDocument), ctx, doc)
+}
