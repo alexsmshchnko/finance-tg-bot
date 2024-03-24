@@ -11,8 +11,7 @@ import (
 type Config struct {
 	TelegramBotToken  string `hcl:"tg_bot_token" env:"TG_BOT_TOKEN" required:"true"`
 	YdbDSN            string `hcl:"ydb_dsn" env:"YDB_DSN" required:"true"`
-	SAKeyFileCredPath string `hcl:"sa_path" env:"SA_PATH" default:"authorized_key.json"`
-	// DatabaseDSN      string `hcl:"database_dsn" env:"DATABASE_DSN" default:"postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"`
+	SAKeyFileCredPath string `hcl:"sa_path" env:"SA_PATH"`
 }
 
 var (

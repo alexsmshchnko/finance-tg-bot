@@ -21,6 +21,15 @@ cover: gen
 	go tool cover -html=coverage.out
 	rm coverage.out
 
+webhook_info:
+	curl --request POST --url "https://api.telegram.org/bot$(TELEGRAM_APITOKEN)/getWebhookInfo"
+
+webhook_delete:
+	curl --request POST --url "https://api.telegram.org/bot$(TELEGRAM_APITOKEN)/deleteWebhook"
+
+webhook_create: webhook_delete
+	curl --request POST --url "https://api.telegram.org/bot$(TELEGRAM_APITOKEN)/setWebhook" --header 'content-type: application/json' --data "{\"url\": \"$(SERVERLESS_APIGW_URL)\"}"
+
 build_yc_test:
 	docker build -f Dockerfile.yctest -t cr.yandex/$(YC_IMAGE_REGISTRY_ID)/$(SERVERLESS_CONTAINER_NAME) .
 

@@ -4,11 +4,13 @@ import (
 	"context"
 	"finance-tg-bot/internal/entity"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/labstack/echo/v4"
 )
 
 type accountant interface {
@@ -223,7 +225,6 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, query *tgbotapi.Call
 // }
 
 func (b *Bot) handleUpdate(ctx context.Context, update *tgbotapi.Update) {
-
 	if !b.checkUser(ctx, update.SentFrom().UserName) {
 		return
 	}
@@ -258,22 +259,65 @@ func (b *Bot) handleUpdate(ctx context.Context, update *tgbotapi.Update) {
 }
 
 func (b *Bot) Run(ctx context.Context) (err error) {
-	updateConfig := tgbotapi.NewUpdate(0)
-	updateConfig.Timeout = 60
-
-	updates := b.api.GetUpdatesChan(updateConfig)
-
-	b.api.Send(initCommands())
-
-	for {
-		select {
-		case update := <-updates:
-			ctxU, cancelU := context.WithTimeout(ctx, 3*time.Second)
-			b.handleUpdate(ctxU, &update)
-			cancelU()
-		case <-ctx.Done():
-			b.api.StopReceivingUpdates()
-			return ctx.Err()
-		}
+	wh, err := b.api.GetWebhookInfo()
+	if err != nil {
+		fmt.Println(err)
+		return err
 	}
+	if wh.URL == "" {
+		updateConfig := tgbotapi.NewUpdate(0)
+		updateConfig.Timeout = 60
+
+		updates := b.api.GetUpdatesChan(updateConfig)
+
+		b.api.Send(initCommands())
+
+		for {
+			select {
+			case update := <-updates:
+				ctxU, cancelU := context.WithTimeout(ctx, 3*time.Second)
+				b.handleUpdate(ctxU, &update)
+				cancelU()
+			case <-ctx.Done():
+				b.api.StopReceivingUpdates()
+				return ctx.Err()
+			}
+		}
+	} else {
+		if wh.LastErrorDate != 0 {
+			fmt.Printf("Telegram callback failed: %s\n", wh.LastErrorMessage)
+		}
+
+		fmt.Printf("whInfo: %#v\n", wh)
+
+		b.api.Send(initCommands())
+
+		e := echo.New()
+		e.POST("/", b.requestHandler)
+		e.Start(":" + os.Getenv("PORT"))
+	}
+
+	return
+}
+
+func updateValid(u *tgbotapi.Update) bool {
+	if u.Message != nil ||
+		u.CallbackQuery != nil {
+		return true
+	}
+	return false
+}
+
+func (b *Bot) requestHandler(c echo.Context) error {
+	var update tgbotapi.Update
+	if err := c.Bind(&update); err != nil {
+		fmt.Println("Cannot bind update", err)
+		return c.JSON(204, nil)
+	}
+
+	if updateValid(&update) {
+		b.handleUpdate(context.Background(), &update)
+	}
+
+	return c.JSON(200, nil)
 }
