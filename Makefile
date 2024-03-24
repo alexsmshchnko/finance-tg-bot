@@ -35,3 +35,9 @@ build_yc_test:
 
 push_yc_test: build_yc_test
 	docker push cr.yandex/$(YC_IMAGE_REGISTRY_ID)/$(SERVERLESS_CONTAINER_NAME)
+
+build_yc_prod:
+	docker build -f Dockerfile.yctest -t cr.yandex/$(YC_IMAGE_REGISTRY_ID_PROD)/$(SERVERLESS_CONTAINER_NAME_PROD) .
+
+push_yc_prod: build_yc_prod
+	docker push cr.yandex/$(YC_IMAGE_REGISTRY_ID_PROD)/$(SERVERLESS_CONTAINER_NAME_PROD)
