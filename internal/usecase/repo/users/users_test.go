@@ -60,6 +60,15 @@ func TestUser_GetStatus(t *testing.T) {
 			wantStatus: false,
 			wantErr:    false,
 		},
+		{
+			name:       "some error",
+			fields:     fields{repo: ucaseRepo.repo},
+			args:       args{ctx: context.Background(), username: "petya"},
+			mockResult: nil,
+			mockError:  sql.ErrTxDone,
+			wantStatus: false,
+			wantErr:    false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -24,6 +24,9 @@ import (
 func Run(config config.Config) (err error) {
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
+	log.Info("configuration", "config.SAKeyFileCredPath", config.SAKeyFileCredPath)
+	log.Info("configuration", "config.ServerPort", config.ServerPort)
+
 	gBot, err := tgbotapi.NewBotAPI(config.TelegramBotToken)
 	if err != nil {
 		log.Error("app - Run - tgbotapi.NewBotAPI", "err", err)
@@ -35,14 +38,13 @@ func Run(config config.Config) (err error) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	log.Info("sa key usage", "config.SAKeyFileCredPath", config.SAKeyFileCredPath)
-
 	ydb, err := ydb.NewNative(ctx, config.YdbDSN, config.SAKeyFileCredPath)
 	if err != nil {
 		log.Error("app - Run - ydb.NewNative", "err", err)
 		return
 	}
 	defer ydb.Close(ctx)
+	log.Info("db connected", "ydb.Name", ydb.Name())
 
 	r := &repository.Repository{Ydb: ydb}
 
@@ -51,5 +53,5 @@ func Run(config config.Config) (err error) {
 		cloud.New(), log)
 	bot := tg_bot.New(gBot, acnt)
 
-	return bot.Run(ctx)
+	return bot.Run(ctx, config.ServerPort)
 }

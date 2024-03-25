@@ -4,7 +4,6 @@ import (
 	"context"
 	"finance-tg-bot/internal/entity"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -258,7 +257,7 @@ func (b *Bot) handleUpdate(ctx context.Context, update *tgbotapi.Update) {
 	}
 }
 
-func (b *Bot) Run(ctx context.Context) (err error) {
+func (b *Bot) Run(ctx context.Context, port string) (err error) {
 	wh, err := b.api.GetWebhookInfo()
 	if err != nil {
 		fmt.Println(err)
@@ -294,30 +293,26 @@ func (b *Bot) Run(ctx context.Context) (err error) {
 
 		e := echo.New()
 		e.POST("/", b.requestHandler)
-		e.Start(":" + os.Getenv("PORT"))
+		e.Start(":" + port)
 	}
 
 	return
 }
 
-func updateValid(u *tgbotapi.Update) bool {
-	if u.Message != nil ||
-		u.CallbackQuery != nil {
-		return true
-	}
-	return false
-}
-
 func (b *Bot) requestHandler(c echo.Context) error {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recovered panic", r)
+		}
+	}()
+
 	var update tgbotapi.Update
 	if err := c.Bind(&update); err != nil {
 		fmt.Println("Cannot bind update", err)
 		return c.JSON(204, nil)
 	}
 
-	if updateValid(&update) {
-		b.handleUpdate(context.Background(), &update)
-	}
+	b.handleUpdate(context.Background(), &update)
 
 	return c.JSON(200, nil)
 }

@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"database/sql"
 	repPkg "finance-tg-bot/pkg/repository"
 )
 
@@ -25,10 +24,8 @@ func (u *User) GetToken(ctx context.Context, username string) (string, error) {
 
 func (u *User) GetStatus(ctx context.Context, username string) (status bool, err error) {
 	client, err := u.repo.GetUserInfo(ctx, username)
-	if err == sql.ErrNoRows || !client.IsActive.Bool {
-		return false, nil
+	if err == nil && client != nil {
+		status = client.IsActive.Bool
 	}
-	status = client.IsActive.Bool
-
-	return
+	return status, nil
 }
