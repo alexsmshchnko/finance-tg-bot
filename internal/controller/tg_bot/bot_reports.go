@@ -30,6 +30,7 @@ func getReportKeyboard() *tgbotapi.InlineKeyboardMarkup {
 		{"День", PREFIX_REPORT + ":monthReport:day"},
 		// {"Неделя", PREFIX_REPORT + ":monthReport:week"},
 		{"Текущий месяц", PREFIX_REPORT + ":monthReport:current"},
+		{"Текущий месяц с детализацией", PREFIX_REPORT + ":monthReport:curDet"},
 		{"Предыдущий месяц", PREFIX_REPORT + ":monthReport:previous"},
 	})
 	mrkp.setControl([][][]string{
@@ -58,6 +59,10 @@ func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 		t2 = t.AddDate(0, 0, 1).Add(-time.Second)
 		t = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
 		header = t.Format("January 2006")
+	case "curDet":
+		t2 = t.AddDate(0, 0, 1).Add(-time.Second)
+		t = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+		header = t.Format("January 2006")
 	case "previous":
 		t = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location()).AddDate(0, -1, 0)
 		t2 = t.AddDate(0, 1, 0).Add(-time.Second)
@@ -65,12 +70,17 @@ func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 	}
 	header = "*" + header + "*\n"
 
-	text, err = b.accountant.GetStatement(
-		map[string]string{
-			"username": q.From.UserName,
-			"datefrom": t.Format("02.01.2006"),
-			"dateto":   t2.Format("02.01.2006"),
-		})
+	p := map[string]string{
+		"username": q.From.UserName,
+		"datefrom": t.Format("02.01.2006"),
+		"dateto":   t2.Format("02.01.2006")}
+
+	if strings.Split(q.Data, ":")[2] == "curDet" {
+		p["subcat"] = ""
+	}
+
+	text, err = b.accountant.GetStatement(p)
+
 	if err != nil {
 		return
 	}
