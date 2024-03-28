@@ -52,11 +52,12 @@ func (a *Accountant) GetSubCats(ctx context.Context, username, trans_cat string)
 }
 
 func (a *Accountant) GetUserStatus(ctx context.Context, username string) (status bool, err error) {
-	a.log.Debug("GetUserStatus", "username", username)
+	a.log.Debug("GetUserStatus request", "username", username)
 	status, err = a.user.GetStatus(ctx, username)
 	if err != nil {
 		a.log.Error("user.GetStatus", "err", err)
 	}
+	a.log.Debug("GetUserStatus response", "username", username, "status", status)
 	return
 }
 

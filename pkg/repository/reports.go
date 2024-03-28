@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"finance-tg-bot/internal/entity"
 	"finance-tg-bot/pkg/ydb"
+	"log/slog"
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -14,6 +15,7 @@ import (
 
 type Repository struct {
 	*ydb.Ydb
+	*slog.Logger
 }
 
 type Reporter interface {

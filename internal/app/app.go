@@ -46,7 +46,7 @@ func Run(config config.Config) (err error) {
 	defer ydb.Close(ctx)
 	log.Info("db connected", "ydb.Name", ydb.Name())
 
-	r := &repository.Repository{Ydb: ydb}
+	r := &repository.Repository{Ydb: ydb, Logger: log}
 
 	acnt := accountant.New(
 		doc.New(r), user.New(r), report.New(r),

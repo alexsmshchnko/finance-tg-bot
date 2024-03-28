@@ -65,6 +65,7 @@ func (r *Repository) GetUserInfo(ctx context.Context, username string) (*DBClien
 	})
 
 	if err != nil {
+		r.Logger.Error("Repository.GetUserInfo r.Ydb.Table().Do", "err", err)
 		return nil, err
 	}
 
