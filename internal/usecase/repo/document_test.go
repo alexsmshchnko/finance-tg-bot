@@ -64,6 +64,7 @@ func TestRepo_PostDocument(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rpMck.EXPECT().PostDocument(tt.args.ctx, tt.mockDoc).Return(nil).Times(1)
 			rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.doc.ClientID, "").Times(1)
+			rpMck.EXPECT().GetDocumentSubCategories(tt.args.ctx, tt.args.doc.ClientID, tt.args.doc.Category).Times(1)
 
 			if err := New(tt.fields.repo).PostDocument(tt.args.ctx, tt.args.doc); (err != nil) != tt.wantErr {
 				t.Errorf("Repo.PostDocument() error = %v, wantErr %v", err, tt.wantErr)
@@ -208,7 +209,6 @@ func TestRepo_GetSubCategories(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.username, "").Return(tt.repoCat, nil).Times(1)
 			rpMck.EXPECT().GetDocumentSubCategories(tt.args.ctx, tt.args.username, tt.args.trans_cat).Return(tt.wantCat, nil).Times(1)
 
 			r := New(tt.fields.repo)
