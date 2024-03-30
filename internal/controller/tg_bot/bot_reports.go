@@ -46,6 +46,7 @@ func getReportKeyboard() *tgbotapi.InlineKeyboardMarkup {
 func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 	var (
 		t, t2        time.Time
+		i0           int
 		header, text string
 		err          error
 	)
@@ -70,8 +71,10 @@ func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 	}
 	header = "*" + header + "*\n"
 
+	i0 = BotUsers[q.From.UserName].UserId
+
 	p := map[string]string{
-		"username": q.From.UserName,
+		"user_id":  fmt.Sprint(i0),
 		"datefrom": t.Format("02.01.2006"),
 		"dateto":   t2.Format("02.01.2006")}
 

@@ -22,10 +22,11 @@ func (u *User) GetToken(ctx context.Context, username string) (string, error) {
 	return "", err
 }
 
-func (u *User) GetStatus(ctx context.Context, username string) (status bool, err error) {
+func (u *User) GetStatus(ctx context.Context, username string) (id int, status bool, err error) {
 	client, err := u.repo.GetUserInfo(ctx, username)
 	if err == nil && client != nil {
+		id = int(client.ID.Int64)
 		status = client.IsActive.Bool
 	}
-	return status, nil
+	return id, status, nil
 }

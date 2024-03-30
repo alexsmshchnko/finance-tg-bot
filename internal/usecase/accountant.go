@@ -51,9 +51,9 @@ func (a *Accountant) GetSubCats(ctx context.Context, username, trans_cat string)
 	return
 }
 
-func (a *Accountant) GetUserStatus(ctx context.Context, username string) (status bool, err error) {
+func (a *Accountant) GetUserStatus(ctx context.Context, username string) (id int, status bool, err error) {
 	a.log.Debug("GetUserStatus request", "username", username)
-	status, err = a.user.GetStatus(ctx, username)
+	id, status, err = a.user.GetStatus(ctx, username)
 	if err != nil {
 		a.log.Error("user.GetStatus", "err", err)
 	}

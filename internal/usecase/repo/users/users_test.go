@@ -30,24 +30,33 @@ func TestUser_GetStatus(t *testing.T) {
 		args       args
 		mockResult *repPkg.DBClient
 		mockError  error
+		wantId     int
 		wantStatus bool
 		wantErr    bool
 	}{
 		{
-			name:       "active user",
-			fields:     fields{repo: ucaseRepo.repo},
-			args:       args{ctx: context.Background(), username: "vasya"},
-			mockResult: &repPkg.DBClient{IsActive: sql.NullBool{Bool: true, Valid: true}},
+			name:   "active user",
+			fields: fields{repo: ucaseRepo.repo},
+			args:   args{ctx: context.Background(), username: "vasya"},
+			mockResult: &repPkg.DBClient{
+				ID:       sql.NullInt64{Int64: 1, Valid: true},
+				IsActive: sql.NullBool{Bool: true, Valid: true},
+			},
 			mockError:  nil,
+			wantId:     1,
 			wantStatus: true,
 			wantErr:    false,
 		},
 		{
-			name:       "inactive user",
-			fields:     fields{repo: ucaseRepo.repo},
-			args:       args{ctx: context.Background(), username: "vasya_old"},
-			mockResult: &repPkg.DBClient{IsActive: sql.NullBool{Bool: false, Valid: true}},
+			name:   "inactive user",
+			fields: fields{repo: ucaseRepo.repo},
+			args:   args{ctx: context.Background(), username: "vasya_old"},
+			mockResult: &repPkg.DBClient{
+				ID:       sql.NullInt64{Int64: 1, Valid: true},
+				IsActive: sql.NullBool{Bool: false, Valid: true},
+			},
 			mockError:  nil,
+			wantId:     1,
 			wantStatus: false,
 			wantErr:    false,
 		},
@@ -57,6 +66,7 @@ func TestUser_GetStatus(t *testing.T) {
 			args:       args{ctx: context.Background(), username: "petya"},
 			mockResult: &repPkg.DBClient{},
 			mockError:  sql.ErrNoRows,
+			wantId:     0,
 			wantStatus: false,
 			wantErr:    false,
 		},
@@ -66,6 +76,7 @@ func TestUser_GetStatus(t *testing.T) {
 			args:       args{ctx: context.Background(), username: "petya"},
 			mockResult: nil,
 			mockError:  sql.ErrTxDone,
+			wantId:     0,
 			wantStatus: false,
 			wantErr:    false,
 		},
@@ -74,10 +85,13 @@ func TestUser_GetStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rpMck.EXPECT().GetUserInfo(tt.args.ctx, tt.args.username).Return(tt.mockResult, tt.mockError).Times(1)
 
-			gotStatus, err := New(tt.fields.repo).GetStatus(tt.args.ctx, tt.args.username)
+			gotId, gotStatus, err := New(tt.fields.repo).GetStatus(tt.args.ctx, tt.args.username)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("User.GetStatus() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			if gotId != tt.wantId {
+				t.Errorf("User.GetStatus() = %v, want %v", gotId, tt.wantId)
 			}
 			if gotStatus != tt.wantStatus {
 				t.Errorf("User.GetStatus() = %v, want %v", gotStatus, tt.wantStatus)

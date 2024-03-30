@@ -6,6 +6,7 @@ import (
 	"finance-tg-bot/internal/entity"
 	"finance-tg-bot/pkg/ydb"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -23,7 +24,7 @@ type Reporter interface {
 }
 
 func (r *Repository) GetStatementCatTotals(ctx context.Context, p map[string]string) (rres []entity.ReportResult, err error) {
-	query := `DECLARE $client_id   AS String;
+	query := `DECLARE $client_id   AS Uint64;
 	          DECLARE $datefrom    AS Datetime;
 			  DECLARE $dateto      AS Datetime;`
 	if _, ok := p["subcat"]; ok {
@@ -36,11 +37,9 @@ select d.trans_cat as trans_cat
        end as t_sum
       ,sum(d.trans_amount) as ta, 1 as tp
   from doc d
- inner join client c on (c.id = d.client_id)
  where d.trans_date between $datefrom and $dateto
    and d.trans_amount != 0
-   and c.username = $client_id
-   and c.is_active
+   and d.client_id = $client_id
  group by d.trans_cat, d.direction
  union all
 select d.trans_cat as trans_cat
@@ -51,11 +50,9 @@ select d.trans_cat as trans_cat
 		 end as t_sum
 	  ,sum(d.trans_amount) as ta, 2 as tp
   from doc d
- inner join client c on (c.id = d.client_id)
  where d.trans_date between $datefrom and $dateto
    and d.trans_amount != 0
-   and c.username = $client_id
-   and c.is_active
+   and d.client_id = $client_id
  group by d.trans_cat, d.comment, d.direction
  order by trans_cat, tp ASC, ta DESC`
 	} else {
@@ -68,11 +65,9 @@ select d.trans_cat as trans_cat
        end as t_sum
       ,sum(d.trans_amount) as ta, 1 as tp
   from doc d
- inner join client c on (c.id = d.client_id)
  where d.trans_date between $datefrom and $dateto
    and d.trans_amount != 0
-   and c.username = $client_id
-   and c.is_active
+   and d.client_id = $client_id
  group by d.trans_cat, d.direction
 union all
 select case d.direction
@@ -87,16 +82,15 @@ select case d.direction
        end as t_sum
       ,sum(d.trans_amount) as ta, 2 as tp
   from doc d
- inner join client c on (c.id = d.client_id)
  where d.trans_date between $datefrom and $dateto
    and d.trans_amount != 0
-   and c.username = $client_id
-   and c.is_active
+   and d.client_id = $client_id
  group by d.direction
  order by tp ASC, ta DESC;`
 	}
 
 	err = r.Ydb.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+		i0, _ := strconv.Atoi(p["user_id"])
 		t1, _ := time.Parse("02.01.2006", p["datefrom"])
 		t2, _ := time.Parse("02.01.2006", p["dateto"])
 		_, res, err := s.Execute(
@@ -104,7 +98,7 @@ select case d.direction
 			table.DefaultTxControl(),
 			query,
 			table.NewQueryParameters(
-				table.ValueParam("$client_id", types.BytesValueFromString(p["username"])),
+				table.ValueParam("$client_id", types.Uint64Value(uint64(i0))),
 				table.ValueParam("$datefrom", types.DatetimeValueFromTime(t1)),
 				table.ValueParam("$dateto", types.DatetimeValueFromTime(t2)),
 			),

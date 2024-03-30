@@ -17,7 +17,7 @@ type (
 		DeleteDocument(ctx context.Context, doc *entity.Document) (err error)
 	}
 	User interface {
-		GetStatus(ctx context.Context, username string) (status bool, err error)
+		GetStatus(ctx context.Context, username string) (id int, status bool, err error)
 		GetToken(ctx context.Context, username string) (token string, err error)
 	}
 	Reporter interface {

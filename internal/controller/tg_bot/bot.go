@@ -15,7 +15,7 @@ import (
 type accountant interface {
 	GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error)
 	GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error)
-	GetUserStatus(ctx context.Context, username string) (status bool, err error)
+	GetUserStatus(ctx context.Context, username string) (id int, status bool, err error)
 	PostDoc(ctx context.Context, category string, amount int, description string, msg_id string, direction int, client string) (err error)
 	DeleteDoc(msg_id string, client string) (err error)
 	MigrateFromCloud(ctx context.Context, username string) (err error)

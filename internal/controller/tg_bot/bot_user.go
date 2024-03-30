@@ -8,16 +8,19 @@ import (
 )
 
 type BotUser struct {
-	ResponseWait  bool
-	ResponseMsg   tgbotapi.Message
-	ResponseCode  string
-	FinCategories []string
+	UserId       int
+	ResponseWait bool
+	ResponseMsg  tgbotapi.Message
+	ResponseCode string
 }
 
 var BotUsers map[string]BotUser
 
-func NewBotUser(userName string) {
-	BotUsers = map[string]BotUser{userName: {}}
+func NewBotUser(userName string, id int) {
+	if BotUsers == nil {
+		BotUsers = make(map[string]BotUser)
+	}
+	BotUsers[userName] = BotUser{UserId: id}
 	log.Printf("added BotUsers: %v\n", BotUsers)
 }
 
@@ -50,14 +53,14 @@ func (b *Bot) checkUser(ctx context.Context, userName string) bool {
 	log.Printf("Bot.checkUser cache found: %v\n", f)
 	if !f {
 		log.Printf("b.accountant.GetUserStatus request: %s\n", userName)
-		active, err := b.accountant.GetUserStatus(ctx, userName)
+		id, active, err := b.accountant.GetUserStatus(ctx, userName)
 		if err != nil {
 			log.Println(err)
 		}
 		log.Printf("b.accountant.GetUserStatus response: %s : %v\n", userName, active)
 
 		if active {
-			NewBotUser(userName)
+			NewBotUser(userName, id)
 		}
 		return active
 	}
