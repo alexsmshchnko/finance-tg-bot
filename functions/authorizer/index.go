@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 )
 
 type APIGatewayRequest struct {
@@ -38,7 +39,7 @@ func Handler(ctx context.Context, event *APIGatewayRequest) (r *Response, err er
 		IsAuthorized: false,
 		Context:      nil,
 	}
-	if event.Headers["Authorization"] == "Basic secretToken" {
+	if event.Headers["Authorization"] == "Basic "+os.Getenv("AUTHTOKEN") {
 		r.IsAuthorized = true
 	}
 

@@ -39,18 +39,12 @@ type APIGatewayResponse struct {
 	IsBase64Encoded   bool                `json:"isBase64Encoded,omitempty"`
 }
 
-type Request struct {
-	Name     string `json:"name"`
-	UserId   string `json:"user_id"`
-	DateFrom string `json:"datefrom"`
-	DateTo   string `json:"dateto"`
-}
-
 func Handler(ctx context.Context, event *APIGatewayRequest) (resp *APIGatewayResponse, err error) {
-	req := &Request{}
-	if err = json.Unmarshal([]byte(event.Body), &req); err != nil {
+	p := make(map[string]string)
+	if err = json.Unmarshal([]byte(event.Body), &p); err != nil {
 		return nil, fmt.Errorf("an error has occurred when parsing body: %v", err)
 	}
+	fmt.Println(p)
 
 	if db == nil {
 		fmt.Println("connectDB: new connection")
@@ -63,11 +57,6 @@ func Handler(ctx context.Context, event *APIGatewayRequest) (resp *APIGatewayRes
 	} else {
 		fmt.Println("connectDB: already connected")
 	}
-
-	p := make(map[string]string)
-	p["user_id"] = req.UserId
-	p["datefrom"] = req.DateFrom
-	p["dateto"] = req.DateTo
 
 	res, err := db.GetStatementCatTotals(context.Background(), p)
 	if err != nil {

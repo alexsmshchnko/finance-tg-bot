@@ -13,6 +13,8 @@ type Config struct {
 	YdbDSN            string `hcl:"ydb_dsn" env:"YDB_DSN" required:"true"`
 	SAKeyFileCredPath string `hcl:"sa_path" env:"SA_PATH"`
 	ServerPort        string `env:"PORT"`
+	RepoServiceDomain string `env:"REPOURL"`
+	RepoAuthToken     string `env:"REPOTOKEN"`
 }
 
 var (

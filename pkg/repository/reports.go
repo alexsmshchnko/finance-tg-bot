@@ -1,20 +1,19 @@
 package repository
 
 import (
+	"bytes"
 	"context"
-	"database/sql"
+	"encoding/json"
 	"finance-tg-bot/internal/entity"
 	"finance-tg-bot/pkg/ydb"
+	"io"
 	"log/slog"
-	"strconv"
-	"time"
-
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
+	"net/http"
 )
 
 type Repository struct {
+	ServiceDomain string
+	AuthToken     string
 	*ydb.Ydb
 	*slog.Logger
 }
@@ -24,126 +23,35 @@ type Reporter interface {
 }
 
 func (r *Repository) GetStatementCatTotals(ctx context.Context, p map[string]string) (rres []entity.ReportResult, err error) {
-	query := `DECLARE $client_id   AS Uint64;
-	          DECLARE $datefrom    AS Datetime;
-			  DECLARE $dateto      AS Datetime;`
-	if _, ok := p["subcat"]; ok {
-		query = query + `
-select d.trans_cat as trans_cat
-      ,"" as comment
-      ,case d.direction
-         when 0 then sum(d.trans_amount)
-         else d.direction * sum(d.trans_amount) 
-       end as t_sum
-      ,sum(d.trans_amount) as ta, 1 as tp
-  from doc d
- where d.trans_date between $datefrom and $dateto
-   and d.trans_amount != 0
-   and d.client_id = $client_id
- group by d.trans_cat, d.direction
- union all
-select d.trans_cat as trans_cat
-	  ,d.comment as comment
-	  ,case d.direction
-		 when 0 then sum(d.trans_amount)
-		 else d.direction * sum(d.trans_amount) 
-		 end as t_sum
-	  ,sum(d.trans_amount) as ta, 2 as tp
-  from doc d
- where d.trans_date between $datefrom and $dateto
-   and d.trans_amount != 0
-   and d.client_id = $client_id
- group by d.trans_cat, d.comment, d.direction
- order by trans_cat, tp ASC, ta DESC`
-	} else {
-		query = query + `
-select d.trans_cat as trans_cat
-      ,"" as comment
-      ,case d.direction
-         when 0 then sum(d.trans_amount)
-         else d.direction * sum(d.trans_amount) 
-       end as t_sum
-      ,sum(d.trans_amount) as ta, 1 as tp
-  from doc d
- where d.trans_date between $datefrom and $dateto
-   and d.trans_amount != 0
-   and d.client_id = $client_id
- group by d.trans_cat, d.direction
-union all
-select case d.direction
-         when -1 then 'Total debit'
-         when 0  then 'Total deposit'
-         else         'Total credit'
-       end as trans_cat
-	  ,"" as comment
-      ,case d.direction
-         when 0 then sum(d.trans_amount)
-         else d.direction * sum(d.trans_amount) 
-       end as t_sum
-      ,sum(d.trans_amount) as ta, 2 as tp
-  from doc d
- where d.trans_date between $datefrom and $dateto
-   and d.trans_amount != 0
-   and d.client_id = $client_id
- group by d.direction
- order by tp ASC, ta DESC;`
+	jsonStr, err := json.Marshal(p)
+	if err != nil {
+		r.Logger.Error("Repository.GetStatementCatTotals json.Marshal(p)", "err", err)
+		return
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", r.ServiceDomain+"/report", bytes.NewBuffer(jsonStr))
+	if err != nil {
+		r.Logger.Error("Repository.GetStatementCatTotals http.NewRequest", "err", err)
+		return
+	}
+	req.Header.Add("Authorization", "Basic "+r.AuthToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		r.Logger.Error("Repository.GetStatementCatTotals client.Do", "err", err)
+		return
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		r.Logger.Error("Repository.GetStatementCatTotals io.ReadAll", "err", err)
+		return
+	}
+	err = json.Unmarshal(body, &rres)
+	if err != nil {
+		r.Logger.Error("Repository.GetStatementCatTotals json.Unmarshal", "err", err)
 	}
 
-	err = r.Ydb.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
-		i0, _ := strconv.Atoi(p["user_id"])
-		t1, _ := time.Parse("02.01.2006", p["datefrom"])
-		t2, _ := time.Parse("02.01.2006", p["dateto"])
-		_, res, err := s.Execute(
-			ctx,
-			table.DefaultTxControl(),
-			query,
-			table.NewQueryParameters(
-				table.ValueParam("$client_id", types.Uint64Value(uint64(i0))),
-				table.ValueParam("$datefrom", types.DatetimeValueFromTime(t1)),
-				table.ValueParam("$dateto", types.DatetimeValueFromTime(t2)),
-			),
-		)
-		if err != nil {
-			return err
-		}
-		defer res.Close()
-		if err = res.NextResultSetErr(ctx); err != nil {
-			return err
-		}
-		var (
-			rn   sql.NullString
-			rc   sql.NullString
-			rv   sql.NullInt64
-			name string
-		)
-		for res.NextRow() {
-			err = res.ScanNamed(
-				named.Optional("trans_cat", &rn),
-				named.Optional("comment", &rc),
-				named.Optional("t_sum", &rv),
-			)
-			if err != nil {
-				return err
-			}
-			if _, ok := p["subcat"]; ok {
-				if rc.String == "" {
-					name = rn.String + ":"
-				} else {
-					name = rc.String
-				}
-				rres = append(rres, entity.ReportResult{
-					Name: name,
-					Val:  int(rv.Int64),
-				})
-			} else {
-				rres = append(rres, entity.ReportResult{
-					Name: rn.String,
-					Val:  int(rv.Int64),
-				})
-			}
-
-		}
-		return res.Err() // for driver retry if not nil
-	})
-	return rres, err
+	return
 }
