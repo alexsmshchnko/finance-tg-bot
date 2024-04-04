@@ -1,0 +1,62 @@
+openapi: 3.0.0
+info:
+  title: Sample API
+  version: 1.0.0
+servers:
+- url: https://d5dbulef8kq699s1audu.apigw.yandexcloud.net
+x-yc-apigateway:
+  variables:
+    func_acc:
+      default: ""
+      description: "Functions invoker account"
+
+paths:
+  /dummy:
+    get:
+      summary: Authorized operation with http basic security scheme
+      operationId: httpBasicAuthorize
+      security:
+        - httpBasicAuth: [ ]
+      x-yc-apigateway-integration:
+        type: dummy
+        content:
+          '*': "Authorized!"
+        http_code: 200
+        http_headers:
+          'Content-Type': "text/plain"
+  /report:
+    get:
+      summary: Request finance report
+      operationId: finance-reporter
+      security:
+        - httpBasicAuth: [ ]
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4epm33gkbcvdb6bipoh
+        service_account_id: ${var.func_acc}
+  /users/{username}:
+    get:
+      summary: Get user data by username
+      operationId: finance-user
+      parameters:
+        - in: path
+          name: username
+          required: true
+      security:
+        - httpBasicAuth: [ ]
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4egnln0bt9r1a3t39kl
+        service_account_id: ${var.func_acc}
+
+components:
+  securitySchemes:
+    httpBasicAuth:
+      type: http
+      scheme: basic
+      x-yc-apigateway-authorizer:
+        type: function
+        function_id: d4e3pc15jturd4oj5ibl
+        tag: "$latest"
+        service_account_id: ${var.func_acc}
+        authorizer_result_ttl_in_seconds: 300
