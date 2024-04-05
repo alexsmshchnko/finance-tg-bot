@@ -1,26 +1,37 @@
-package repository
+package main
 
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
-	"finance-tg-bot/internal/entity"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
+	yc "github.com/ydb-platform/ydb-go-yc"
 )
 
-type DocProcessor interface {
-	PostDocument(ctx context.Context, doc *DBDocument) (err error)
-	DeleteDocument(ctx context.Context, doc *DBDocument) (err error)
-	GetDocumentCategories(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error)
-	EditCategory(ctx context.Context, cat *TransCat) (err error)
-	GetDocumentSubCategories(ctx context.Context, username, trans_cat string) (subcats []string, err error)
+type Ydb struct {
+	*ydb.Driver
+}
+
+var db *Ydb
+
+func connectDB(ctx context.Context, dsn, saPath string) (*Ydb, error) {
+	var opt ydb.Option
+	if saPath == "" {
+		// auth inside cloud (virual machine or yandex function)
+		opt = yc.WithMetadataCredentials()
+	} else {
+		// auth from service account key file
+		opt = yc.WithServiceAccountKeyFileCredentials(saPath)
+	}
+	nativeDriver, err := ydb.Open(ctx, dsn, yc.WithInternalCA(), opt)
+
+	return &Ydb{Driver: nativeDriver}, err
 }
 
 type TransCat struct {
@@ -29,6 +40,15 @@ type TransCat struct {
 	ClientID  sql.NullString `db:"client_id"`
 	Active    sql.NullBool   `db:"active"`
 	Limit     sql.NullInt64  `db:"trans_limit"`
+}
+
+type TransCatLimit struct {
+	Category  sql.NullString `db:"trans_cat"`
+	Direction sql.NullInt16  `db:"direction"`
+	ClientID  sql.NullString `db:"client_id"`
+	Active    sql.NullBool   `db:"active"`
+	Limit     sql.NullInt64  `db:"trans_limit"`
+	Balance   sql.NullInt64  `db:"trans_balance"`
 }
 
 type DBDocument struct {
@@ -43,7 +63,7 @@ type DBDocument struct {
 	Direction   sql.NullInt16  `db:"direction"    json:"direction"`
 }
 
-func (r *Repository) PostDocument(ctx context.Context, doc *DBDocument) (err error) {
+func (r *Ydb) PostDocument(ctx context.Context, doc *DBDocument) (err error) {
 	//preformat
 	doc.Description.String = strings.ToLower(strings.TrimSpace(doc.Description.String))
 	//
@@ -92,7 +112,7 @@ SELECT $rec_time     as rec_time
 		doc.RecDate.Valid = true
 	}
 
-	err = r.Ydb.Table().DoTx( // Do retry operation on errors with best effort
+	err = r.Table().DoTx( // Do retry operation on errors with best effort
 		ctx, // context manages exiting from Do
 		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
 			res, err := tx.Execute(
@@ -123,12 +143,12 @@ SELECT $rec_time     as rec_time
 	return err
 }
 
-func (r *Repository) DeleteDocument(ctx context.Context, doc *DBDocument) (err error) {
+func (r *Ydb) DeleteDocument(ctx context.Context, doc *DBDocument) (err error) {
 	if !doc.MsgID.Valid || !doc.ClientID.Valid {
 		return errors.New("not enough input params to delete document")
 	}
 
-	err = r.Ydb.Table().DoTx( // Do retry operation on errors with best effort
+	err = r.Table().DoTx( // Do retry operation on errors with best effort
 		ctx, // context manages exiting from Do
 		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
 			res, err := tx.Execute(
@@ -157,47 +177,68 @@ func (r *Repository) DeleteDocument(ctx context.Context, doc *DBDocument) (err e
 	return err
 }
 
-func (r *Repository) GetDocumentCategories(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"GET",
-		r.ServiceDomain+"/category/"+username,
-		nil,
-	)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentCategories http.NewRequestWithContext", "err", err)
-		return
-	}
+func (r *Ydb) GetDocumentCategories(ctx context.Context, username, limit string) (cats []TransCatLimit, err error) {
+	query := `DECLARE $client_id      AS String;
+	          DECLARE $month_interval AS Datetime;
+			  DECLARE $date_interval  AS Datetime;
+SELECT dc.trans_cat        AS trans_cat
+     , dc.direction        AS direction
+	 , count(d.trans_date) AS cnt
+	 , dc.trans_limit	   AS trans_limit
+     , dc.trans_limit
+	 - sum(case when d.trans_date >= $month_interval then d.trans_amount
+				  else 0 end) AS trans_balance
+  FROM doc_category dc
+ INNER JOIN client c on (c.username = dc.client_id)
+  LEFT JOIN doc d on (d.trans_cat = dc.trans_cat
+				  and d.client_id = c.id)
+ WHERE dc.active
+   AND (d.trans_date is null
+	 OR d.trans_date > $date_interval)
+   AND c.username = $client_id
+ GROUP BY dc.trans_cat, dc.direction, dc.trans_limit
+ ORDER BY cnt desc;`
 
-	req.Header.Add("Authorization", "Basic "+r.AuthToken)
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentCategories client.Do", "err", err)
-		return
-	}
-	defer resp.Body.Close()
+	err = r.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+		t := time.Now()
+		tcl := &TransCatLimit{}
+		_, res, err := s.Execute(
+			ctx,
+			table.DefaultTxControl(),
+			query,
+			table.NewQueryParameters(
+				table.ValueParam("$client_id", types.BytesValueFromString(username)),
+				table.ValueParam("$month_interval",
+					types.DatetimeValueFromTime(time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location()))),
+				table.ValueParam("$date_interval", types.DatetimeValueFromTime(t.AddDate(0, -3, 0))),
+			),
+		)
+		if err != nil {
+			return err
+		}
+		defer res.Close()
+		if err = res.NextResultSetErr(ctx); err != nil {
+			return err
+		}
+		for res.NextRow() {
+			err = res.ScanNamed(
+				named.Optional("trans_cat", &tcl.Category),
+				named.Optional("direction", &tcl.Direction),
+				named.Optional("trans_limit", &tcl.Limit),
+				named.Optional("trans_balance", &tcl.Balance),
+			)
+			if err != nil {
+				return err
+			}
+			cats = append(cats, *tcl)
+		}
+		return res.Err() // for driver retry if not nil
+	})
 
-	if resp.StatusCode != 200 {
-		err = errors.New(http.StatusText(resp.StatusCode))
-		r.Logger.Error("Repository.GetDocumentCategories response", "StatusCode", resp.StatusCode)
-		return
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentCategories io.ReadAll", "err", err)
-		return
-	}
-	err = json.Unmarshal(body, &cats)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentCategories json.Unmarshal", "err", err)
-	}
-
-	return
+	return cats, err
 }
 
-func (r *Repository) EditCategory(ctx context.Context, cat *TransCat) (err error) {
+func (r *Ydb) EditCategory(ctx context.Context, cat *TransCat) (err error) {
 	//preformat
 	cat.Category.String = strings.ToLower(strings.TrimSpace(cat.Category.String))
 	//
@@ -240,7 +281,7 @@ func (r *Repository) EditCategory(ctx context.Context, cat *TransCat) (err error
 		VALUES ( $trans_cat, $direction, $client_id, $date_to_max, $active );`
 	}
 
-	err = r.Ydb.Table().DoTx( // Do retry operation on errors with best effort
+	err = r.Table().DoTx( // Do retry operation on errors with best effort
 		ctx, // context manages exiting from Do
 		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
 			t, _ := time.Parse("2006-01-02", "2100-01-01")
@@ -270,42 +311,52 @@ func (r *Repository) EditCategory(ctx context.Context, cat *TransCat) (err error
 	return err
 }
 
-func (r *Repository) GetDocumentSubCategories(ctx context.Context, username, trans_cat string) (subcats []string, err error) {
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"OPTIONS",
-		r.ServiceDomain+"/category/"+username+"/"+trans_cat,
-		nil,
-	)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentSubCategories http.NewRequestWithContext", "err", err)
-		return
-	}
+func (r *Ydb) GetDocumentSubCategories(ctx context.Context, username, trans_cat string) (subcats []string, err error) {
+	query := `DECLARE $client_id      AS String;
+			  DECLARE $trans_cat 	  AS String;
+			  DECLARE $date_interval  AS Timestamp;
+SELECT d.comment as comment
+     , count(*) AS cnt
+  FROM doc d
+ INNER JOIN client c ON (c.id = d.client_id)
+ WHERE d.comment != ''
+   AND d.trans_cat = $trans_cat
+   AND d.rec_time > $date_interval
+   AND c.username = $client_id
+   AND c.is_active
+ GROUP BY d.comment
+ ORDER BY cnt DESC
+ LIMIT 20;`
+	err = r.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+		t := time.Now()
+		_, res, err := s.Execute(
+			ctx,
+			table.DefaultTxControl(),
+			query,
+			table.NewQueryParameters(
+				table.ValueParam("$client_id", types.BytesValueFromString(username)),
+				table.ValueParam("$trans_cat", types.BytesValueFromString(trans_cat)),
+				table.ValueParam("$date_interval", types.TimestampValueFromTime(t.AddDate(0, -3, 0))),
+			),
+		)
+		if err != nil {
+			return err
+		}
+		defer res.Close()
+		if err = res.NextResultSetErr(ctx); err != nil {
+			return err
+		}
+		var subcat sql.NullString
+		for res.NextRow() {
+			err = res.ScanNamed(named.Optional("comment", &subcat))
 
-	req.Header.Add("Authorization", "Basic "+r.AuthToken)
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentSubCategories client.Do", "err", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		err = errors.New(http.StatusText(resp.StatusCode))
-		r.Logger.Error("Repository.GetDocumentSubCategories response", "StatusCode", resp.StatusCode)
-		return
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentSubCategories io.ReadAll", "err", err)
-		return
-	}
-	err = json.Unmarshal(body, &subcats)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentSubCategories json.Unmarshal", "err", err)
-	}
+			if err != nil {
+				return err
+			}
+			subcats = append(subcats, subcat.String)
+		}
+		return res.Err() // for driver retry if not nil
+	})
 
 	return
 }

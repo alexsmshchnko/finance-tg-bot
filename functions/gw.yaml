@@ -24,6 +24,65 @@ paths:
         http_code: 200
         http_headers:
           'Content-Type': "text/plain"
+  /document:
+    post:
+      summary: Post new document record
+      operationId: finance-document-post
+      security:
+        - httpBasicAuth: [ ]
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4e18d83plvbhgh05ae9
+        service_account_id: ${var.func_acc}
+    delete:
+      summary: Delete document record
+      operationId: finance-document-delete
+      security:
+        - httpBasicAuth: [ ]
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4e18d83plvbhgh05ae9
+        service_account_id: ${var.func_acc}
+  /category/{username+}:
+    get:
+      summary: Get categories list
+      operationId: finance-document-category-get
+      parameters:
+        - in: path
+          name: username
+          required: true
+      security:
+        - httpBasicAuth: [ ]
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4e18d83plvbhgh05ae9
+        service_account_id: ${var.func_acc}
+    post:
+      summary: Edit category
+      operationId: finance-document-category-edit
+      parameters:
+        - in: path
+          name: username
+          required: false
+      security:
+        - httpBasicAuth: [ ]
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4e18d83plvbhgh05ae9
+        service_account_id: ${var.func_acc}
+    options:
+      summary: Get subcategory list
+      operationId: finance-document-subcategory-get
+      parameters:
+        - in: path
+          name: username
+          required: false
+      security:
+        - httpBasicAuth: [ ]
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4e18d83plvbhgh05ae9
+        service_account_id: ${var.func_acc}
   /report:
     get:
       summary: Request finance report
