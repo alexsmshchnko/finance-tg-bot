@@ -26,7 +26,7 @@ func (r *Repository) GetUserInfo(ctx context.Context, username string) (res *DBC
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"GET",
-		r.ServiceDomain+"/users/"+username,
+		r.serviceDomain+"/users/"+username,
 		nil,
 	)
 	if err != nil {
@@ -34,9 +34,8 @@ func (r *Repository) GetUserInfo(ctx context.Context, username string) (res *DBC
 		return
 	}
 
-	req.Header.Add("Authorization", "Basic "+r.AuthToken)
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	req.Header = r.authHeader.Clone()
+	resp, err := r.Client.Do(req)
 	if err != nil {
 		r.Logger.Error("Repository.GetUserInfo client.Do", "err", err)
 		return

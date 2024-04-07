@@ -16,7 +16,6 @@ import (
 	report "finance-tg-bot/internal/usecase/repo/reports"
 	user "finance-tg-bot/internal/usecase/repo/users"
 	"finance-tg-bot/pkg/repository"
-	"finance-tg-bot/pkg/ydb"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -38,20 +37,11 @@ func Run(config config.Config) (err error) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	ydb, err := ydb.NewNative(ctx, config.YdbDSN, config.SAKeyFileCredPath)
-	if err != nil {
-		log.Error("app - Run - ydb.NewNative", "err", err)
-		return
-	}
-	defer ydb.Close(ctx)
-	log.Info("db connected", "ydb.Name", ydb.Name())
-
-	r := &repository.Repository{
-		ServiceDomain: config.RepoServiceDomain,
-		AuthToken:     config.RepoAuthToken,
-		Ydb:           ydb,
-		Logger:        log,
-	}
+	r := repository.NewRepository(
+		config.RepoServiceDomain,
+		config.RepoAuthToken,
+		log,
+	)
 
 	acnt := accountant.New(
 		doc.New(r), user.New(r), report.New(r),

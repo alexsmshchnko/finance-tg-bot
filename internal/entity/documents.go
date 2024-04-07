@@ -27,12 +27,12 @@ type DBDocument struct {
 }
 
 type TransCatLimit struct {
-	Category  sql.NullString `db:"trans_cat"`
-	Direction sql.NullInt16  `db:"direction"`
-	ClientID  sql.NullString `db:"client_id"`
-	Active    sql.NullBool   `db:"active"`
-	Limit     sql.NullInt64  `db:"trans_limit"`
-	Balance   sql.NullInt64  `db:"trans_balance"`
+	Category  sql.NullString `json:"trans_cat"`
+	Direction sql.NullInt16  `json:"direction"`
+	ClientID  sql.NullString `json:"client_id"`
+	Active    sql.NullBool   `json:"active"`
+	Limit     sql.NullInt64  `json:"trans_limit"`
+	Balance   sql.NullInt64  `json:"trans_balance"`
 }
 
 type Document struct {

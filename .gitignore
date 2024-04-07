@@ -6,6 +6,7 @@ store
 budget-bot
 config/config.local.hcl
 pkg/ydb/*_test.go
+functions/documents/*_test.go
 pkg/repository/*_test.go
 internal/controller/tg_bot/*_test.go
 internal/local_storage/*_test.go

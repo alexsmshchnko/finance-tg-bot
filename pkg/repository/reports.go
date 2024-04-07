@@ -5,17 +5,29 @@ import (
 	"context"
 	"encoding/json"
 	"finance-tg-bot/internal/entity"
-	"finance-tg-bot/pkg/ydb"
 	"io"
 	"log/slog"
 	"net/http"
 )
 
 type Repository struct {
-	ServiceDomain string
-	AuthToken     string
-	*ydb.Ydb
+	serviceDomain string
+	authHeader    *http.Header
+	*http.Client
 	*slog.Logger
+}
+
+func NewRepository(ServiceDomain, AuthToken string, log *slog.Logger) (rep *Repository) {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
+	rep = &Repository{
+		serviceDomain: ServiceDomain,
+		authHeader:    &http.Header{},
+		Client:        &http.Client{Transport: transport},
+		Logger:        log,
+	}
+	rep.authHeader.Add("Authorization", "Basic "+AuthToken)
+	return
 }
 
 type Reporter interface {
@@ -28,16 +40,15 @@ func (r *Repository) GetStatementCatTotals(ctx context.Context, p map[string]str
 		r.Logger.Error("Repository.GetStatementCatTotals json.Marshal(p)", "err", err)
 		return
 	}
-	req, err := http.NewRequestWithContext(ctx, "GET", r.ServiceDomain+"/report", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequestWithContext(ctx, "GET", r.serviceDomain+"/report", bytes.NewBuffer(jsonStr))
 	if err != nil {
 		r.Logger.Error("Repository.GetStatementCatTotals http.NewRequest", "err", err)
 		return
 	}
-	req.Header.Add("Authorization", "Basic "+r.AuthToken)
+	req.Header = r.authHeader.Clone()
 	req.Header.Add("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := r.Client.Do(req)
 	if err != nil {
 		r.Logger.Error("Repository.GetStatementCatTotals client.Do", "err", err)
 		return

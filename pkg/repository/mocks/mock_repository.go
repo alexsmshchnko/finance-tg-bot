@@ -51,7 +51,7 @@ func (mr *MockDocProcessorMockRecorder) DeleteDocument(ctx, doc interface{}) *go
 }
 
 // EditCategory mocks base method.
-func (m *MockDocProcessor) EditCategory(ctx context.Context, cat *repository.TransCat) error {
+func (m *MockDocProcessor) EditCategory(ctx context.Context, cat *entity.TransCatLimit) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "EditCategory", ctx, cat)
 	ret0, _ := ret[0].(error)

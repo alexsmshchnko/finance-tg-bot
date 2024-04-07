@@ -11,11 +11,10 @@ import (
 )
 
 func Handler(rw http.ResponseWriter, req *http.Request) {
-	var (
-		err    error
-		resVal []byte
-	)
+	var err error
+	var resVal []byte
 	ctx := context.Background()
+	splitPath := strings.Split(req.URL.Path, "/")
 
 	if db == nil {
 		fmt.Println("connectDB: new connection")
@@ -28,8 +27,6 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 	} else {
 		fmt.Println("connectDB: already connected")
 	}
-
-	splitPath := strings.Split(req.URL.Path, "/")
 
 	switch splitPath[1] {
 	case "document":
@@ -84,7 +81,7 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 				rw.Write([]byte(fmt.Sprintf("io.ReadAll(req.Body) error, %v", err)))
 				return
 			}
-			cat := &TransCat{}
+			cat := &TransCatLimit{}
 			err = json.Unmarshal(d, cat)
 			if err != nil {
 				rw.WriteHeader(http.StatusBadGateway)

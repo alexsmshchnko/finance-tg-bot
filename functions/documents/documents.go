@@ -34,32 +34,24 @@ func connectDB(ctx context.Context, dsn, saPath string) (*Ydb, error) {
 	return &Ydb{Driver: nativeDriver}, err
 }
 
-type TransCat struct {
-	Category  sql.NullString `db:"trans_cat"`
-	Direction sql.NullInt16  `db:"direction"`
-	ClientID  sql.NullString `db:"client_id"`
-	Active    sql.NullBool   `db:"active"`
-	Limit     sql.NullInt64  `db:"trans_limit"`
-}
-
 type TransCatLimit struct {
-	Category  sql.NullString `db:"trans_cat"`
-	Direction sql.NullInt16  `db:"direction"`
-	ClientID  sql.NullString `db:"client_id"`
-	Active    sql.NullBool   `db:"active"`
-	Limit     sql.NullInt64  `db:"trans_limit"`
-	Balance   sql.NullInt64  `db:"trans_balance"`
+	Category  sql.NullString `db:"trans_cat"     json:"trans_cat"`
+	Direction sql.NullInt16  `db:"direction"     json:"direction"`
+	ClientID  sql.NullString `db:"client_id"     json:"client_id"`
+	Active    sql.NullBool   `db:"active"        json:"active"`
+	Limit     sql.NullInt64  `db:"trans_limit"   json:"trans_limit"`
+	Balance   sql.NullInt64  `db:"trans_balance" json:"trans_balance"`
 }
 
 type DBDocument struct {
-	RecDate     sql.NullTime   `db:"rec_time"`
+	RecDate     sql.NullTime   `db:"rec_time"     json:"rec_time"`
 	TransDate   sql.NullTime   `db:"trans_date"   json:"trans_date"`
 	Category    sql.NullString `db:"trans_cat"    json:"trans_cat"`
 	Amount      sql.NullInt64  `db:"trans_amount" json:"trans_amount"`
 	Description sql.NullString `db:"comment"      json:"comment"`
-	MsgID       sql.NullString `db:"msg_id"`
-	ChatID      sql.NullString `db:"chat_id"`
-	ClientID    sql.NullString `db:"client_id"`
+	MsgID       sql.NullString `db:"msg_id"       json:"msg_id"`
+	ChatID      sql.NullString `db:"chat_id"      json:"chat_id"`
+	ClientID    sql.NullString `db:"client_id"    json:"client_id"`
 	Direction   sql.NullInt16  `db:"direction"    json:"direction"`
 }
 
@@ -227,6 +219,7 @@ SELECT dc.trans_cat        AS trans_cat
 				named.Optional("trans_limit", &tcl.Limit),
 				named.Optional("trans_balance", &tcl.Balance),
 			)
+			tcl.Active = sql.NullBool{Bool: true, Valid: true}
 			if err != nil {
 				return err
 			}
@@ -238,7 +231,7 @@ SELECT dc.trans_cat        AS trans_cat
 	return cats, err
 }
 
-func (r *Ydb) EditCategory(ctx context.Context, cat *TransCat) (err error) {
+func (r *Ydb) EditCategory(ctx context.Context, cat *TransCatLimit) (err error) {
 	//preformat
 	cat.Category.String = strings.ToLower(strings.TrimSpace(cat.Category.String))
 	//

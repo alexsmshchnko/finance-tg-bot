@@ -90,7 +90,7 @@ func (r *Repo) GetSubCategories(ctx context.Context, username, trans_cat string)
 }
 
 func (r *Repo) EditCategory(ctx context.Context, tc entity.TransCatLimit, client string) (err error) {
-	dbTCL := &repPkg.TransCat{
+	dbTCL := &entity.TransCatLimit{
 		Category:  tc.Category,
 		Direction: tc.Direction,
 		ClientID:  sql.NullString{String: client, Valid: true},
