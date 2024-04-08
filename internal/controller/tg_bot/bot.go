@@ -136,7 +136,11 @@ func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
 		amnt, direction int
 		cat, descr      string
 	)
-	amnt, _ = strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
+	amnt, err := strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
+	if err != nil {
+		b.api.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "error: something went wrong with confirmRecord:strconv.Atoi "+err.Error()))
+		return
+	}
 	direction = 0
 	scntSplit := strings.Split(query.Message.Text, "\n")
 	cat = strings.Split(scntSplit[0], " на ")[1]
@@ -144,7 +148,10 @@ func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
 		descr, _ = strings.CutPrefix(scntSplit[1], EMOJI_COMMENT)
 	}
 
-	b.accountant.PostDoc(context.Background(), cat, amnt, descr, fmt.Sprint(query.Message.MessageID), direction, query.From.UserName)
+	err = b.accountant.PostDoc(context.Background(), cat, amnt, descr, fmt.Sprint(query.Message.MessageID), direction, query.From.UserName)
+	if err != nil {
+		b.api.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "error: something went wrong with confirmRecord:b.accountant.PostDoc "+err.Error()))
+	}
 }
 
 func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {

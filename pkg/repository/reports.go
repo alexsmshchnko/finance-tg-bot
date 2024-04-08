@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 type Repository struct {
@@ -23,7 +24,7 @@ func NewRepository(ServiceDomain, AuthToken string, log *slog.Logger) (rep *Repo
 	rep = &Repository{
 		serviceDomain: ServiceDomain,
 		authHeader:    &http.Header{},
-		Client:        &http.Client{Transport: transport},
+		Client:        &http.Client{Transport: transport, Timeout: 5 * time.Second},
 		Logger:        log,
 	}
 	rep.authHeader.Add("Authorization", "Basic "+AuthToken)
