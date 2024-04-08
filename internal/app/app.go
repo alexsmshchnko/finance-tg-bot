@@ -23,7 +23,6 @@ import (
 func Run(config config.Config) (err error) {
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	log.Info("configuration", "config.SAKeyFileCredPath", config.SAKeyFileCredPath)
 	log.Info("configuration", "config.ServerPort", config.ServerPort)
 
 	gBot, err := tgbotapi.NewBotAPI(config.TelegramBotToken)

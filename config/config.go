@@ -10,8 +10,6 @@ import (
 
 type Config struct {
 	TelegramBotToken  string `hcl:"tg_bot_token" env:"TG_BOT_TOKEN" required:"true"`
-	YdbDSN            string `hcl:"ydb_dsn" env:"YDB_DSN" required:"true"`
-	SAKeyFileCredPath string `hcl:"sa_path" env:"SA_PATH"`
 	ServerPort        string `env:"PORT"`
 	RepoServiceDomain string `env:"REPOURL"`
 	RepoAuthToken     string `env:"REPOTOKEN"`
