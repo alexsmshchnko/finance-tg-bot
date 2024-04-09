@@ -29,21 +29,21 @@ func responseIsAwaited(userName string) bool {
 }
 
 func waitUserResponeStart(userName, respCode string, message tgbotapi.Message) {
-	if _, ok := BotUsers[userName]; ok {
-		BotUsers[userName] = BotUser{
-			ResponseWait: true,
-			ResponseMsg:  message,
-			ResponseCode: respCode,
-		}
+	if v, ok := BotUsers[userName]; ok {
+		v.ResponseWait = true
+		v.ResponseMsg = message
+		v.ResponseCode = respCode
+
+		BotUsers[userName] = v
 	}
 	log.Printf("ResponseWaitStart: %v\n", BotUsers[userName])
 }
 
 func waitUserResponseComplete(userName string) {
-	if _, ok := BotUsers[userName]; ok {
-		BotUsers[userName] = BotUser{
-			ResponseWait: false,
-		}
+	if v, ok := BotUsers[userName]; ok {
+		v.ResponseWait = false
+
+		BotUsers[userName] = v
 	}
 	log.Printf("ResponseWaitStop: %v\n", BotUsers[userName])
 }
