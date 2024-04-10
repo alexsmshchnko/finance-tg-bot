@@ -61,23 +61,12 @@ func (a *Accountant) GetUserStatus(ctx context.Context, username string) (id int
 	return
 }
 
-func (a *Accountant) PostDoc(ctx context.Context, category string, amount int, description string, msg_id string, direction int, client string) (err error) {
-	a.log.Debug("PostDoc", "client", client, "category", category, "msg_id", msg_id)
-	err = a.repo.PostDocument(ctx,
-		&entity.Document{
-			Category:    category,
-			Amount:      int64(amount),
-			Description: description,
-			MsgID:       msg_id,
-			ChatID:      "",
-			ClientID:    client,
-			Direction:   int16(direction),
-		},
-	)
+func (a *Accountant) PostDoc(ctx context.Context, doc *entity.Document) (err error) {
+	a.log.Debug("PostDoc", "client", doc.ClientID, "category", doc.Category, "msg_id", doc.MsgID)
+	err = a.repo.PostDocument(ctx, doc)
 	if err != nil {
 		a.log.Error("nrepo.PostDocument", "err", err)
 	}
-
 	return
 }
 
@@ -93,7 +82,6 @@ func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {
 	if err != nil {
 		a.log.Error("nrepo.DeleteDocument", "err", err)
 	}
-
 	return
 }
 

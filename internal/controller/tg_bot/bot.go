@@ -16,7 +16,7 @@ type accountant interface {
 	GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error)
 	GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error)
 	GetUserStatus(ctx context.Context, username string) (id int, status bool, err error)
-	PostDoc(ctx context.Context, category string, amount int, description string, msg_id string, direction int, client string) (err error)
+	PostDoc(ctx context.Context, doc *entity.Document) (err error)
 	DeleteDoc(msg_id string, client string) (err error)
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
@@ -59,7 +59,7 @@ func (b *Bot) updateMsgText(chatID int64, messageID int, text string) {
 	b.api.Send(tgbotapi.NewEditMessageText(chatID, messageID, text))
 }
 
-func (b *Bot) requestCats(ctx context.Context, page int, query *tgbotapi.CallbackQuery, update *tgbotapi.Update) {
+func (b *Bot) requestCats(ctx context.Context, page int, q *tgbotapi.CallbackQuery, u *tgbotapi.Update) {
 	var (
 		userName  string
 		chatID    int64
@@ -68,14 +68,14 @@ func (b *Bot) requestCats(ctx context.Context, page int, query *tgbotapi.Callbac
 		direction string
 	)
 
-	if update == nil {
-		userName = query.From.UserName
-		chatID = query.Message.Chat.ID
-		messageID = query.Message.MessageID
+	if u == nil {
+		userName = q.From.UserName
+		chatID = q.Message.Chat.ID
+		messageID = q.Message.MessageID
 	} else {
-		userName = update.SentFrom().UserName
-		chatID = update.Message.Chat.ID
-		messageID = update.Message.MessageID
+		userName = u.SentFrom().UserName
+		chatID = u.Message.Chat.ID
+		messageID = u.Message.MessageID
 	}
 
 	cats, err := b.accountant.GetCatsLimit(ctx, userName, "balance")
@@ -112,11 +112,11 @@ func (b *Bot) requestCats(ctx context.Context, page int, query *tgbotapi.Callbac
 		return
 	}
 
-	if update == nil {
+	if u == nil {
 		msg := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, *resMrkp)
 		b.api.Send(msg)
 	} else {
-		msg := tgbotapi.NewMessage(chatID, update.Message.Text+"₽")
+		msg := tgbotapi.NewMessage(chatID, u.Message.Text+"₽")
 		msg.ReplyMarkup = resMrkp
 		b.api.Send(msg)
 	}
@@ -129,34 +129,43 @@ func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error)
 	return err
 }
 
-func (b *Bot) confirmRecord(query *tgbotapi.CallbackQuery) {
-	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
-
+func (b *Bot) confirmRecord(q *tgbotapi.CallbackQuery) {
+	b.clearMsgReplyMarkup(q.Message.Chat.ID, q.Message.MessageID)
 	var (
-		amnt, direction int
-		cat, descr      string
+		err        error
+		amnt       int
+		cat, descr string
 	)
-	amnt, err := strconv.Atoi(strings.Split(query.Message.Text, "₽")[0])
+	amnt, err = strconv.Atoi(strings.Split(q.Message.Text, "₽")[0])
 	if err != nil {
-		b.api.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "error: something went wrong with confirmRecord:strconv.Atoi "+err.Error()))
+		b.api.Send(tgbotapi.NewMessage(q.Message.Chat.ID, "error: something went wrong with confirmRecord:strconv.Atoi "+err.Error()))
 		return
 	}
-	direction = 0
-	scntSplit := strings.Split(query.Message.Text, "\n")
+	scntSplit := strings.Split(q.Message.Text, "\n")
 	cat = strings.Split(scntSplit[0], " на ")[1]
 	if len(scntSplit) > 1 {
 		descr, _ = strings.CutPrefix(scntSplit[1], EMOJI_COMMENT)
 	}
 
-	err = b.accountant.PostDoc(context.Background(), cat, amnt, descr, fmt.Sprint(query.Message.MessageID), direction, query.From.UserName)
+	doc := &entity.Document{
+		RecTime:     time.Unix(int64(q.Message.Date), 0),
+		Category:    cat,
+		Amount:      int64(amnt),
+		Description: descr,
+		MsgID:       fmt.Sprint(q.Message.MessageID),
+		ChatID:      fmt.Sprint(q.Message.Chat.ID),
+		ClientID:    q.From.UserName,
+	}
+
+	err = b.accountant.PostDoc(context.Background(), doc)
 	if err != nil {
-		b.api.Send(tgbotapi.NewMessage(query.Message.Chat.ID, "error: something went wrong with confirmRecord:b.accountant.PostDoc "+err.Error()))
+		b.api.Send(tgbotapi.NewMessage(q.Message.Chat.ID, "error: something went wrong with confirmRecord:b.accountant.PostDoc "+err.Error()))
 	}
 }
 
-func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {
-	b.accountant.DeleteDoc(fmt.Sprint(query.Message.MessageID), query.From.UserName)
-	b.deleteMsg(query.Message.Chat.ID, query.Message.MessageID)
+func (b *Bot) deleteRecord(q *tgbotapi.CallbackQuery) {
+	b.accountant.DeleteDoc(fmt.Sprint(q.Message.MessageID), q.From.UserName)
+	b.deleteMsg(q.Message.Chat.ID, q.Message.MessageID)
 }
 
 // func addDescription(u *tgbotapi.Update) (err error) {
@@ -179,23 +188,23 @@ func (b *Bot) deleteRecord(query *tgbotapi.CallbackQuery) {
 // 	b.api.Send(msg)
 // }
 
-func (b *Bot) requestReply(query *tgbotapi.CallbackQuery, respCode string) {
-	b.clearMsgReplyMarkup(query.Message.Chat.ID, query.Message.MessageID)
-	msg := tgbotapi.NewMessage(query.Message.Chat.ID, EMOJI_COMMENT+"...")
+func (b *Bot) requestReply(q *tgbotapi.CallbackQuery, respCode string) {
+	b.clearMsgReplyMarkup(q.Message.Chat.ID, q.Message.MessageID)
+	msg := tgbotapi.NewMessage(q.Message.Chat.ID, EMOJI_COMMENT+"...")
 	msg.ReplyMarkup = getReply()
 	b.api.Send(msg)
-	waitUserResponeStart(query.From.UserName, respCode, *query.Message)
+	waitUserResponeStart(q.From.UserName, respCode, *q.Message)
 }
 
-func (b *Bot) requestSubCats(ctx context.Context, page int, query *tgbotapi.CallbackQuery) {
+func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.CallbackQuery) {
 	var cat string
-	if len(strings.Split(query.Message.Text, " ")) < 3 {
-		cat, _ = strings.CutPrefix(query.Data, PREFIX_CATEGORY+":")
+	if len(strings.Split(q.Message.Text, " ")) < 3 {
+		cat, _ = strings.CutPrefix(q.Data, PREFIX_CATEGORY+":")
 	} else {
-		cat = strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
+		cat = strings.Join(strings.Split(q.Message.Text, " ")[2:], " ")
 	}
 
-	subCats, err := b.accountant.GetSubCats(ctx, query.From.UserName, cat)
+	subCats, err := b.accountant.GetSubCats(ctx, q.From.UserName, cat)
 	fmt.Printf("%#v %d\n %v", subCats, len(subCats), err)
 	if len(subCats) == 0 {
 		subCats = []string{" "}
@@ -217,7 +226,7 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, query *tgbotapi.Call
 		return
 	}
 
-	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *resMrkp)
+	msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *resMrkp)
 	b.api.Send(msg)
 }
 
@@ -230,19 +239,19 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, query *tgbotapi.Call
 // 	return
 // }
 
-func (b *Bot) handleUpdate(ctx context.Context, update *tgbotapi.Update) {
-	if !b.checkUser(ctx, update.SentFrom().UserName) {
+func (b *Bot) handleUpdate(ctx context.Context, u *tgbotapi.Update) {
+	if !b.checkUser(ctx, u.SentFrom().UserName) {
 		return
 	}
 
-	if update.CallbackQuery != nil {
-		b.callbackQueryHandler(ctx, update.CallbackQuery)
+	if u.CallbackQuery != nil {
+		b.callbackQueryHandler(ctx, u.CallbackQuery)
 		return
 	}
 
-	if update.Message != nil {
-		if responseIsAwaited(update.SentFrom().UserName) {
-			b.responseHandler(update)
+	if u.Message != nil {
+		if responseIsAwaited(u.SentFrom().UserName) {
+			b.responseHandler(u)
 			return
 		}
 
@@ -250,14 +259,14 @@ func (b *Bot) handleUpdate(ctx context.Context, update *tgbotapi.Update) {
 		// 	processReply(&update)
 		// }
 
-		if update.Message.IsCommand() {
-			b.processCommand(ctx, update)
+		if u.Message.IsCommand() {
+			b.processCommand(ctx, u)
 			return
 		}
 
-		if len(update.Message.Text) > 0 {
-			if _, err := strconv.Atoi(update.Message.Text); err == nil {
-				b.processNumber(ctx, update)
+		if len(u.Message.Text) > 0 {
+			if _, err := strconv.Atoi(u.Message.Text); err == nil {
+				b.processNumber(ctx, u)
 				return
 			}
 		}

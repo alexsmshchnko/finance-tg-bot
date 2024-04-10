@@ -37,6 +37,7 @@ func (r *Repo) clearCache(username, tranc_cat string) {
 
 func (r *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err error) {
 	dbdoc := &repPkg.DBDocument{
+		RecDate:     sql.NullTime{Time: doc.RecTime, Valid: true},
 		TransDate:   sql.NullTime{Time: time.Time{}, Valid: false},
 		Category:    sql.NullString{String: doc.Category, Valid: true},
 		Amount:      sql.NullInt64{Int64: doc.Amount, Valid: true},
