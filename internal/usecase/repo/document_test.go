@@ -38,6 +38,7 @@ func TestRepo_PostDocument(t *testing.T) {
 			name:   "demo posting",
 			fields: fields{repo: rpMck},
 			args: args{ctx: context.Background(), doc: &entity.Document{
+				RecTime:     time.Unix(int64(1405544146), 0),
 				Category:    "test",
 				Amount:      int64(24234),
 				Description: "testim",
@@ -47,6 +48,7 @@ func TestRepo_PostDocument(t *testing.T) {
 				Direction:   int16(-1),
 			}},
 			mockDoc: &repPkg.DBDocument{
+				RecDate:     sql.NullTime{Time: time.Unix(int64(1405544146), 0), Valid: true},
 				TransDate:   sql.NullTime{Time: time.Time{}, Valid: false},
 				Category:    sql.NullString{String: "test", Valid: true},
 				Amount:      sql.NullInt64{Int64: 24234, Valid: true},

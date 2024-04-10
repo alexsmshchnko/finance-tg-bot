@@ -17,7 +17,7 @@ type accountant interface {
 	GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error)
 	GetUserStatus(ctx context.Context, username string) (id int, status bool, err error)
 	PostDoc(ctx context.Context, doc *entity.Document) (err error)
-	DeleteDoc(msg_id string, client string) (err error)
+	DeleteDoc(chat_id, msg_id, client string) (err error)
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
 	GetStatement(p map[string]string) (res string, err error)
@@ -164,7 +164,7 @@ func (b *Bot) confirmRecord(q *tgbotapi.CallbackQuery) {
 }
 
 func (b *Bot) deleteRecord(q *tgbotapi.CallbackQuery) {
-	b.accountant.DeleteDoc(fmt.Sprint(q.Message.MessageID), q.From.UserName)
+	b.accountant.DeleteDoc(fmt.Sprint(q.Message.Chat.ID), fmt.Sprint(q.Message.MessageID), q.From.UserName)
 	b.deleteMsg(q.Message.Chat.ID, q.Message.MessageID)
 }
 

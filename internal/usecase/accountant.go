@@ -70,17 +70,17 @@ func (a *Accountant) PostDoc(ctx context.Context, doc *entity.Document) (err err
 	return
 }
 
-func (a *Accountant) DeleteDoc(msg_id string, client string) (err error) {
-	a.log.Debug("DeleteDoc", "client", client, "msg_id", msg_id)
+func (a *Accountant) DeleteDoc(chat_id, msg_id, client string) (err error) {
+	a.log.Debug("DeleteDoc", "chat_id", chat_id, "msg_id", msg_id, "client", client)
 	err = a.repo.DeleteDocument(context.Background(),
 		&entity.Document{
 			MsgID:    msg_id,
-			ChatID:   "",
+			ChatID:   chat_id,
 			ClientID: client,
 		},
 	)
 	if err != nil {
-		a.log.Error("nrepo.DeleteDocument", "err", err)
+		a.log.Error("repo.DeleteDocument", "err", err)
 	}
 	return
 }
