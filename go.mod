@@ -8,7 +8,8 @@ require (
 	github.com/cristalhq/aconfig/aconfighcl v0.17.1
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang/mock v1.6.0
-	github.com/labstack/echo/v4 v4.11.4
+	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
+	github.com/labstack/echo/v4 v4.12.0
 	github.com/stretchr/testify v1.9.0
 	github.com/xuri/excelize/v2 v2.8.1
 	golang.org/x/text v0.14.0

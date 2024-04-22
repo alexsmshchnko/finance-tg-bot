@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -12,12 +11,9 @@ import (
 
 func Handler(rw http.ResponseWriter, req *http.Request) {
 	var (
-		err      error
-		username string
-		resVal   []byte
-		userInfo *DBClient
+		err    error
+		resVal []byte
 	)
-	username = strings.TrimPrefix(req.URL.Path, "/users/")
 
 	if db == nil {
 		fmt.Println("connectDB: new connection")
@@ -31,7 +27,7 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 		fmt.Println("connectDB: already connected")
 	}
 
-	userInfo, err = db.GetUserInfo(context.Background(), username)
+	userInfo, err := db.GetUserInfo(context.Background(), strings.TrimPrefix(req.URL.Path, "/users/"))
 	if err != nil {
 		rw.WriteHeader(http.StatusNotFound)
 		rw.Write([]byte(fmt.Sprintf("db.GetUserInfo error, %v", err)))
@@ -43,5 +39,5 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 		rw.Write([]byte(fmt.Sprintf("json.Marshal(userInfo) error, %v", err)))
 		return
 	}
-	io.WriteString(rw, string(resVal))
+	rw.Write(resVal)
 }

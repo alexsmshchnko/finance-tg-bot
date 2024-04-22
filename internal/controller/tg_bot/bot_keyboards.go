@@ -170,6 +170,24 @@ func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	return res
 }
 
+func getMsgExpOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
+	mrkp := newKeyboardForm()
+	mrkp.setOptions([][]string{
+		{"Деньги -> время", PREFIX_OPTION + ":money2Time"},
+	})
+	mrkp.setControl([][][]string{
+		{
+			{EMOJI_CROSS, PREFIX_OPTION + ":deleteRecord"},
+			{EMOJI_SAVE, PREFIX_OPTION + ":saveRecord"},
+		},
+	})
+	res, err := mrkp.getMarkup()
+	if err != nil {
+		return nil
+	}
+	return res
+}
+
 func getSettingsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	mrkp := newKeyboardForm()
 	mrkp.setOptions([][]string{

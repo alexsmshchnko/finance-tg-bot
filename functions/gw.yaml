@@ -93,6 +93,20 @@ paths:
         type: cloud_functions
         function_id: d4epm33gkbcvdb6bipoh
         service_account_id: ${var.func_acc}
+  /userstats/{userid}:
+    get:
+      summary: Get user statistics
+      operationId: finance-reporter-stats
+      parameters:
+        - in: path
+          name: userid
+          required: true
+      security:
+        - httpBasicAuth: [ ]
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4epm33gkbcvdb6bipoh
+        service_account_id: ${var.func_acc}
   /users/{username}:
     get:
       summary: Get user data by username

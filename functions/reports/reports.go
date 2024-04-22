@@ -38,6 +38,14 @@ type ReportResult struct {
 	Val  int    `json:"val"`
 }
 
+type UserStats struct {
+	ClientID      int   `json:"client_id"`
+	AvgIncome     int64 `json:"income"`
+	MonthWrkHours int64 `json:"month_work_hours"`
+	AvgExpenses   int64 `json:"avg_expenses"`
+	LowExpenses   int64 `json:"low_expenses"`
+}
+
 func (r *Ydb) GetStatementCatTotals(ctx context.Context, p map[string]string) (rres []ReportResult, err error) {
 	query := `DECLARE $client_id   AS Uint64;
 	          DECLARE $datefrom    AS Datetime;
@@ -106,8 +114,14 @@ select case d.direction
 
 	err = r.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
 		i0, _ := strconv.Atoi(p["user_id"])
+		loc, err := time.LoadLocation("Europe/Moscow")
+		if err != nil {
+			panic(err)
+		}
 		t1, _ := time.Parse("02.01.2006", p["datefrom"])
+		t1.In(loc)
 		t2, _ := time.Parse("02.01.2006", p["dateto"])
+		t2.In(loc)
 		_, res, err := s.Execute(
 			ctx,
 			table.DefaultTxControl(),
@@ -161,4 +175,48 @@ select case d.direction
 		return res.Err() // for driver retry if not nil
 	})
 	return rres, err
+}
+
+func (r *Ydb) GetUserStats(ctx context.Context, user_id int) (*UserStats, error) {
+	stats := &UserStats{ClientID: user_id}
+	err := r.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
+		_, res, err := s.Execute(
+			ctx,
+			table.DefaultTxControl(),
+			`DECLARE $client_id AS Uint64;
+  SELECT JSON_VALUE(data, "$.avg_expenses"     RETURNING Int64) as avg_expenses,
+         JSON_VALUE(data, "$.income"           RETURNING Int64) as income,
+         JSON_VALUE(data, "$.low_expenses"     RETURNING Int64) as low_expenses,
+         JSON_VALUE(data, "$.month_work_hours" RETURNING Int64) as month_work_hours
+    FROM user_statistic
+   WHERE client_id = $client_id;`,
+			table.NewQueryParameters(table.ValueParam("$client_id", types.Uint64Value(uint64(user_id)))),
+		)
+		if err != nil {
+			return err
+		}
+		defer res.Close()
+		if err = res.NextResultSetErr(ctx); err != nil {
+			return err
+		}
+
+		for res.NextRow() {
+			err = res.ScanNamed(
+				named.OptionalWithDefault("avg_expenses", &stats.AvgExpenses),
+				named.OptionalWithDefault("income", &stats.AvgIncome),
+				named.OptionalWithDefault("low_expenses", &stats.LowExpenses),
+				named.OptionalWithDefault("month_work_hours", &stats.MonthWrkHours),
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return res.Err() // for driver retry if not nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return stats, nil
 }

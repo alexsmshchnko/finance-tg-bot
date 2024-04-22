@@ -49,3 +49,18 @@ func (mr *MockReporterMockRecorder) GetStatementCatTotals(ctx, p interface{}) *g
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatementCatTotals", reflect.TypeOf((*MockReporter)(nil).GetStatementCatTotals), ctx, p)
 }
+
+// GetUserStats mocks base method.
+func (m *MockReporter) GetUserStats(ctx context.Context, user_id int) (entity.UserStats, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserStats", ctx, user_id)
+	ret0, _ := ret[0].(entity.UserStats)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserStats indicates an expected call of GetUserStats.
+func (mr *MockReporterMockRecorder) GetUserStats(ctx, user_id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserStats", reflect.TypeOf((*MockReporter)(nil).GetUserStats), ctx, user_id)
+}

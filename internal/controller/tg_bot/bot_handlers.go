@@ -11,64 +11,76 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func (b *Bot) callbackQueryHandler(ctx context.Context, query *tgbotapi.CallbackQuery) {
-	split := strings.Split(query.Data, ":")
+func (b *Bot) callbackQueryHandler(ctx context.Context, q *tgbotapi.CallbackQuery) {
+	split := strings.Split(q.Data, ":")
 	switch split[0] {
 	case PREFIX_CATEGORY:
-		b.handleCategoryCallbackQuery(query)
+		b.handleCategoryCallbackQuery(q)
 	case PREFIX_SUBCATEGORY:
-		b.handleSubCategoryCallbackQuery(query)
+		b.handleSubCategoryCallbackQuery(q)
 	case PREFIX_OPTION:
-		b.handleOptionCallbackQuery(query)
+		b.handleOptionCallbackQuery(q)
 	case PREFIX_PAGE:
-		b.handleNavigationCallbackQuery(ctx, query)
+		b.handleNavigationCallbackQuery(ctx, q)
 	case PREFIX_REPORT:
-		b.handleReportCallbackQuery(ctx, query)
+		b.handleReportCallbackQuery(ctx, q)
 	case PREFIX_SETTING:
-		b.handleSettingCallbackQuery(ctx, query)
+		b.handleSettingCallbackQuery(ctx, q)
 	case PREFIX_SETCATEGORY:
-		b.handleCategoryKeyboardEditor(ctx, query)
+		b.handleCategoryKeyboardEditor(ctx, q)
 	}
 }
 
-func (b *Bot) handleCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
-	cat, _ := strings.CutPrefix(query.Data, PREFIX_CATEGORY+":")
+func (b *Bot) handleCategoryCallbackQuery(q *tgbotapi.CallbackQuery) {
+	cat, _ := strings.CutPrefix(q.Data, PREFIX_CATEGORY+":")
 
-	query.Message.Text, _ = strings.CutSuffix(query.Message.Text, "₽")
+	q.Message.Text, _ = strings.CutSuffix(q.Message.Text, "₽")
 
 	//update text
-	b.updateMsgText(query.Message.Chat.ID, query.Message.MessageID, query.Message.Text+"₽ на "+cat)
+	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, q.Message.Text+"₽ на "+cat)
 
 	//query description
-	b.requestSubCats(context.Background(), 0, query)
+	b.requestSubCats(context.Background(), 0, q)
 }
 
-func (b *Bot) handleSubCategoryCallbackQuery(query *tgbotapi.CallbackQuery) {
+func (b *Bot) handleSubCategoryCallbackQuery(q *tgbotapi.CallbackQuery) {
 	//update text
-	subCat, _ := strings.CutPrefix(query.Data, PREFIX_SUBCATEGORY+":")
+	subCat, _ := strings.CutPrefix(q.Data, PREFIX_SUBCATEGORY+":")
 
 	if subCat == "writeCustom" {
-		b.requestReply(query, "REC_DESC")
+		b.requestReply(q, "REC_DESC")
 		return
 	}
 
-	b.updateMsgText(query.Message.Chat.ID, query.Message.MessageID, query.Message.Text+"\n"+EMOJI_COMMENT+subCat)
+	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, q.Message.Text+"\n"+EMOJI_COMMENT+subCat)
 
 	//update keyboard
 	mrkp := getMsgOptionsKeyboard()
-	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
+	msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *mrkp)
 	b.api.Send(msg)
 }
 
-func (b *Bot) handleOptionCallbackQuery(query *tgbotapi.CallbackQuery) {
-	split := strings.Split(query.Data, ":")
+func (b *Bot) handleOptionCallbackQuery(q *tgbotapi.CallbackQuery) {
+	split := strings.Split(q.Data, ":")
 	switch split[1] {
 	case "saveRecord":
-		b.confirmRecord(query)
-	// case "addDescription":
-	// 	b.requestDescription(query)
+		b.confirmRecord(q)
+	case "expandOptions":
+		msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *getMsgExpOptionsKeyboard())
+		b.api.Send(msg)
 	case "deleteRecord":
-		b.deleteRecord(query)
+		b.deleteRecord(q)
+	case "money2Time":
+		amnt, err := strconv.Atoi(strings.Split(q.Message.Text, "₽")[0])
+		if err != nil {
+			return
+		}
+		stat, err := b.accountant.Money2Time(amnt, BotUsers[q.From.UserName].UserId)
+		if err != nil {
+			return
+		}
+		msg := tgbotapi.NewMessage(q.Message.Chat.ID, fmt.Sprintf("%s\n\n%s", q.Message.Text, stat))
+		b.api.Send(msg)
 	}
 }
 

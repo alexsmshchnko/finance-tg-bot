@@ -57,3 +57,7 @@ func (r *Reports) GetStatementTotals(ctx context.Context, log *slog.Logger, p ma
 
 	return str.String(), err
 }
+
+func (r *Reports) GetUserStats(ctx context.Context, user_id int) (stats entity.UserStats, err error) {
+	return r.repo.GetUserStats(ctx, user_id)
+}

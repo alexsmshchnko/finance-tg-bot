@@ -5,6 +5,14 @@ import (
 	"time"
 )
 
+type UserStats struct {
+	ClientID      int `json:"client_id"`
+	AvgIncome     int `json:"income"`
+	MonthWrkHours int `json:"month_work_hours"`
+	AvgExpenses   int `json:"avg_expenses"`
+	LowExpenses   int `json:"low_expenses"`
+}
+
 type DocumentExport struct {
 	Time        time.Time `json:"trans_date"`
 	Category    string    `json:"trans_cat"`

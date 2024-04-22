@@ -22,6 +22,7 @@ type (
 	}
 	Reporter interface {
 		GetStatementTotals(ctx context.Context, log *slog.Logger, p map[string]string) (res string, err error)
+		GetUserStats(ctx context.Context, user_id int) (stats entity.UserStats, err error)
 	}
 	Cloud interface {
 		UploadFile(ctx context.Context, oAuth, filePath string) (err error)

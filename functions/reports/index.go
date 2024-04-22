@@ -4,75 +4,77 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"strconv"
+	"strings"
 )
 
-type APIGatewayRequest struct {
-	OperationID string `json:"operationId"`
-	Resource    string `json:"resource"`
-
-	HTTPMethod string `json:"httpMethod"`
-
-	Path           string            `json:"path"`
-	PathParameters map[string]string `json:"pathParameters"`
-
-	Headers           map[string]string   `json:"headers"`
-	MultiValueHeaders map[string][]string `json:"multiValueHeaders"`
-
-	QueryStringParameters           map[string]string   `json:"queryStringParameters"`
-	MultiValueQueryStringParameters map[string][]string `json:"multiValueQueryStringParameters"`
-
-	Parameters           map[string]string   `json:"parameters"`
-	MultiValueParameters map[string][]string `json:"multiValueParameters"`
-
-	Body            string `json:"body"`
-	IsBase64Encoded bool   `json:"isBase64Encoded,omitempty"`
-
-	RequestContext interface{} `json:"requestContext"`
-}
-
-type APIGatewayResponse struct {
-	StatusCode        int                 `json:"statusCode"`
-	Headers           map[string]string   `json:"headers"`
-	MultiValueHeaders map[string][]string `json:"multiValueHeaders"`
-	Body              string              `json:"body"`
-	IsBase64Encoded   bool                `json:"isBase64Encoded,omitempty"`
-}
-
-func Handler(ctx context.Context, event *APIGatewayRequest) (resp *APIGatewayResponse, err error) {
-	p := make(map[string]string)
-	if err = json.Unmarshal([]byte(event.Body), &p); err != nil {
-		return nil, fmt.Errorf("an error has occurred when parsing body: %v", err)
-	}
-	fmt.Println(p)
+func Handler(rw http.ResponseWriter, req *http.Request) {
+	var (
+		resVal []byte
+		err    error
+	)
 
 	if db == nil {
 		fmt.Println("connectDB: new connection")
 		db, err = connectDB(context.Background(), os.Getenv("YDB_DSN"), "")
 		if err != nil {
-			return &APIGatewayResponse{
-				StatusCode: 500,
-			}, err
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(fmt.Sprintf("connectDB error, %v", err)))
+			return
 		}
 	} else {
 		fmt.Println("connectDB: already connected")
 	}
 
-	res, err := db.GetStatementCatTotals(context.Background(), p)
-	if err != nil {
-		return &APIGatewayResponse{
-			StatusCode: 500,
-		}, err
+	switch strings.Split(req.URL.Path, "/")[1] {
+	case "report":
+		r, err := io.ReadAll(req.Body)
+		if err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			rw.Write([]byte(fmt.Sprintf("io.ReadAll(req.Body) error, %v", err)))
+			return
+		}
+		p := make(map[string]string)
+		if err = json.Unmarshal(r, &p); err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			rw.Write([]byte(fmt.Sprintf("json.Unmarshal(r, &p) error, %v", err)))
+			return
+		}
+		res, err := db.GetStatementCatTotals(context.Background(), p)
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(fmt.Sprintf("GetStatementCatTotals error, %v", err)))
+			return
+		}
+		resVal, err = json.Marshal(res)
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(fmt.Sprintf("json.Marshal(res) error, %v", err)))
+			return
+		}
+		rw.Write(resVal)
+	case "userstats":
+		user_id, err := strconv.Atoi(strings.TrimPrefix(req.URL.Path, "/userstats/"))
+		if err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			rw.Write([]byte(fmt.Sprintf("strconv.Atoi error, %v", err)))
+			return
+		}
+		res, err := db.GetUserStats(context.Background(), user_id)
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(fmt.Sprintf("GetUserStats error, %v", err)))
+			return
+		}
+		resVal, err = json.Marshal(res)
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(fmt.Sprintf("json.Marshal(res) error, %v", err)))
+			return
+		}
+		rw.Write(resVal)
 	}
-	resVal, err := json.Marshal(res)
-	if err != nil {
-		return &APIGatewayResponse{
-			StatusCode: 500,
-		}, err
-	}
-
-	return &APIGatewayResponse{
-		StatusCode: 200,
-		Body:       string(resVal),
-	}, nil
 }

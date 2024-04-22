@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"finance-tg-bot/internal/entity"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -24,7 +26,7 @@ func NewRepository(ServiceDomain, AuthToken string, log *slog.Logger) (rep *Repo
 	rep = &Repository{
 		serviceDomain: ServiceDomain,
 		authHeader:    &http.Header{},
-		Client:        &http.Client{Transport: transport, Timeout: 5 * time.Second},
+		Client:        &http.Client{Transport: transport, Timeout: 12 * time.Second},
 		Logger:        log,
 	}
 	rep.authHeader.Add("Authorization", "Basic "+AuthToken)
@@ -33,6 +35,7 @@ func NewRepository(ServiceDomain, AuthToken string, log *slog.Logger) (rep *Repo
 
 type Reporter interface {
 	GetStatementCatTotals(ctx context.Context, p map[string]string) (rres []entity.ReportResult, err error)
+	GetUserStats(ctx context.Context, user_id int) (stats entity.UserStats, err error)
 }
 
 func (r *Repository) GetStatementCatTotals(ctx context.Context, p map[string]string) (rres []entity.ReportResult, err error) {
@@ -63,6 +66,45 @@ func (r *Repository) GetStatementCatTotals(ctx context.Context, p map[string]str
 	err = json.Unmarshal(body, &rres)
 	if err != nil {
 		r.Logger.Error("Repository.GetStatementCatTotals json.Unmarshal", "err", err)
+	}
+
+	return
+}
+
+func (r *Repository) GetUserStats(ctx context.Context, user_id int) (stats entity.UserStats, err error) {
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"GET",
+		fmt.Sprintf("%s/userstats/%d", r.serviceDomain, user_id),
+		nil,
+	)
+	if err != nil {
+		r.Logger.Error("Repository.GetUserStats http.NewRequestWithContext", "err", err)
+		return
+	}
+
+	req.Header = r.authHeader.Clone()
+	resp, err := r.Client.Do(req)
+	if err != nil {
+		r.Logger.Error("Repository.GetUserStats client.Do", "err", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		err = errors.New(http.StatusText(resp.StatusCode))
+		r.Logger.Error("Repository.GetUserStats response", "StatusCode", resp.StatusCode)
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		r.Logger.Error("Repository.GetUserStats io.ReadAll", "err", err)
+		return
+	}
+	err = json.Unmarshal(body, &stats)
+	if err != nil {
+		r.Logger.Error("Repository.GetUserStats json.Unmarshal", "err", err)
 	}
 
 	return
