@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"finance-tg-bot/internal/entity"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -15,9 +16,9 @@ import (
 type DocProcessor interface {
 	PostDocument(ctx context.Context, doc *DBDocument) (err error)
 	DeleteDocument(ctx context.Context, doc *DBDocument) (err error)
-	GetDocumentCategories(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error)
+	GetDocumentCategories(ctx context.Context, user_id int, limit string) (cats []entity.TransCatLimit, err error)
 	EditCategory(ctx context.Context, cat *entity.TransCatLimit) (err error)
-	GetDocumentSubCategories(ctx context.Context, username, trans_cat string) (subcats []string, err error)
+	GetDocumentSubCategories(ctx context.Context, user_id int, trans_cat string) (subcats []string, err error)
 }
 
 type DBDocument struct {
@@ -28,7 +29,7 @@ type DBDocument struct {
 	Description sql.NullString `json:"comment"`
 	MsgID       sql.NullString `json:"msg_id"`
 	ChatID      sql.NullString `json:"chat_id"`
-	ClientID    sql.NullString `json:"client_id"`
+	UserId      sql.NullInt64  `json:"client_id"`
 	Direction   sql.NullInt16  `json:"direction"`
 }
 
@@ -73,7 +74,7 @@ func (r *Repository) PostDocument(ctx context.Context, doc *DBDocument) (err err
 }
 
 func (r *Repository) DeleteDocument(ctx context.Context, doc *DBDocument) (err error) {
-	if !doc.MsgID.Valid || !doc.ClientID.Valid {
+	if !doc.MsgID.Valid || !doc.UserId.Valid {
 		r.Logger.Error("Repository.DeleteDocument not enough input params to delete document")
 		return
 	}
@@ -113,11 +114,11 @@ func (r *Repository) DeleteDocument(ctx context.Context, doc *DBDocument) (err e
 	return
 }
 
-func (r *Repository) GetDocumentCategories(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
+func (r *Repository) GetDocumentCategories(ctx context.Context, user_id int, limit string) (cats []entity.TransCatLimit, err error) {
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"GET",
-		r.serviceDomain+"/category/"+username,
+		fmt.Sprintf("%s/category/%d", r.serviceDomain, user_id),
 		nil,
 	)
 	if err != nil {
@@ -166,7 +167,7 @@ func (r *Repository) EditCategory(ctx context.Context, cat *entity.TransCatLimit
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"POST",
-		r.serviceDomain+"/category/"+cat.ClientID.String,
+		fmt.Sprintf("%s/category/%d", r.serviceDomain, cat.UserId.Int64),
 		bytes.NewBuffer(jsonStr),
 	)
 	if err != nil {
@@ -192,11 +193,11 @@ func (r *Repository) EditCategory(ctx context.Context, cat *entity.TransCatLimit
 	return
 }
 
-func (r *Repository) GetDocumentSubCategories(ctx context.Context, username, trans_cat string) (subcats []string, err error) {
+func (r *Repository) GetDocumentSubCategories(ctx context.Context, user_id int, trans_cat string) (subcats []string, err error) {
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"OPTIONS",
-		r.serviceDomain+"/category/"+username+"/"+trans_cat,
+		fmt.Sprintf("%s/category/%d/%s", r.serviceDomain, user_id, trans_cat),
 		nil,
 	)
 	if err != nil {

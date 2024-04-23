@@ -12,25 +12,25 @@ import (
 
 type Repo struct {
 	repo         repPkg.DocProcessor
-	cacheCats    map[string][]entity.TransCatLimit
-	cacheSubCats map[string]map[string][]string
+	cacheCats    map[int][]entity.TransCatLimit
+	cacheSubCats map[int]map[string][]string
 }
 
 func New(repPkg repPkg.DocProcessor) *Repo {
 	return &Repo{
 		repo:         repPkg,
-		cacheCats:    make(map[string][]entity.TransCatLimit),
-		cacheSubCats: make(map[string]map[string][]string),
+		cacheCats:    make(map[int][]entity.TransCatLimit),
+		cacheSubCats: make(map[int]map[string][]string),
 	}
 }
 
-func (r *Repo) clearCache(username, tranc_cat string) {
-	delete(r.cacheCats, username)
+func (r *Repo) clearCache(user_id int, tranc_cat string) {
+	delete(r.cacheCats, user_id)
 
 	if tranc_cat != "" {
-		delete(r.cacheSubCats[username], tranc_cat)
+		delete(r.cacheSubCats[user_id], tranc_cat)
 	} else {
-		delete(r.cacheSubCats, username)
+		delete(r.cacheSubCats, user_id)
 	}
 
 }
@@ -44,66 +44,66 @@ func (r *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err erro
 		Description: sql.NullString{String: doc.Description, Valid: true},
 		MsgID:       sql.NullString{String: doc.MsgID, Valid: true},
 		ChatID:      sql.NullString{String: doc.ChatID, Valid: true},
-		ClientID:    sql.NullString{String: doc.ClientID, Valid: true},
+		UserId:      sql.NullInt64{Int64: int64(doc.UserId), Valid: true},
 		Direction:   sql.NullInt16{Int16: 0, Valid: false},
 	}
-	r.clearCache(doc.ClientID, doc.Category)
+	r.clearCache(doc.UserId, doc.Category)
 	err = r.repo.PostDocument(ctx, dbdoc)
-	go r.GetCategories(ctx, doc.ClientID, "")
-	go r.GetSubCategories(ctx, doc.ClientID, doc.Category)
+	go r.GetCategories(ctx, doc.UserId, "")
+	go r.GetSubCategories(ctx, doc.UserId, doc.Category)
 	return
 }
 
 func (r *Repo) DeleteDocument(ctx context.Context, doc *entity.Document) (err error) {
 	dbdoc := &repPkg.DBDocument{
-		MsgID:    sql.NullString{String: doc.MsgID, Valid: true},
-		ChatID:   sql.NullString{String: doc.ChatID, Valid: true},
-		ClientID: sql.NullString{String: doc.ClientID, Valid: true},
+		MsgID:  sql.NullString{String: doc.MsgID, Valid: true},
+		ChatID: sql.NullString{String: doc.ChatID, Valid: true},
+		UserId: sql.NullInt64{Int64: int64(doc.UserId), Valid: true},
 	}
 	return r.repo.DeleteDocument(ctx, dbdoc)
 }
 
-func (r *Repo) GetCategories(ctx context.Context, username, limit string) (cat []entity.TransCatLimit, err error) {
-	if _, ok := r.cacheCats[username]; !ok {
-		res, err := r.repo.GetDocumentCategories(ctx, username, limit)
+func (r *Repo) GetCategories(ctx context.Context, user_id int, limit string) (cat []entity.TransCatLimit, err error) {
+	if _, ok := r.cacheCats[user_id]; !ok {
+		res, err := r.repo.GetDocumentCategories(ctx, user_id, limit)
 		if err != nil {
 			return cat, err
 		}
-		r.cacheCats[username] = res
+		r.cacheCats[user_id] = res
 	}
 
-	return r.cacheCats[username], err
+	return r.cacheCats[user_id], err
 }
 
-func (r *Repo) GetSubCategories(ctx context.Context, username, trans_cat string) (cat []string, err error) {
-	if _, ok := r.cacheSubCats[username]; !ok {
-		r.cacheSubCats[username] = make(map[string][]string)
+func (r *Repo) GetSubCategories(ctx context.Context, user_id int, trans_cat string) (cat []string, err error) {
+	if _, ok := r.cacheSubCats[user_id]; !ok {
+		r.cacheSubCats[user_id] = make(map[string][]string)
 	}
-	if _, ok := r.cacheSubCats[username][trans_cat]; !ok {
-		res, err := r.repo.GetDocumentSubCategories(ctx, username, trans_cat)
+	if _, ok := r.cacheSubCats[user_id][trans_cat]; !ok {
+		res, err := r.repo.GetDocumentSubCategories(ctx, user_id, trans_cat)
 		if err != nil {
 			return res, err
 		}
-		r.cacheSubCats[username][trans_cat] = res
+		r.cacheSubCats[user_id][trans_cat] = res
 	}
 
-	return r.cacheSubCats[username][trans_cat], err
+	return r.cacheSubCats[user_id][trans_cat], err
 }
 
-func (r *Repo) EditCategory(ctx context.Context, tc entity.TransCatLimit, client string) (err error) {
+func (r *Repo) EditCategory(ctx context.Context, tc entity.TransCatLimit, user_id int) (err error) {
 	dbTCL := &entity.TransCatLimit{
 		Category:  tc.Category,
 		Direction: tc.Direction,
-		ClientID:  sql.NullString{String: client, Valid: true},
+		UserId:    sql.NullInt64{Int64: int64(user_id), Valid: true},
 		Active:    tc.Active,
 	}
 	if tc.Limit.Valid {
 		dbTCL.Limit = tc.Limit
 	}
 
-	r.clearCache(client, tc.Category.String)
+	r.clearCache(user_id, tc.Category.String)
 	err = r.repo.EditCategory(ctx, dbTCL)
-	go r.GetCategories(ctx, client, "")
+	go r.GetCategories(ctx, user_id, "")
 	return
 }
 

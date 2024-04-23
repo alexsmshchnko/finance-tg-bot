@@ -44,8 +44,8 @@ func TestRepo_PostDocument(t *testing.T) {
 				Description: "testim",
 				MsgID:       "1600",
 				ChatID:      "1234",
-				ClientID:    "vasya",
-				Direction:   int16(-1),
+				UserId:      1,
+				Direction:   int8(-1),
 			}},
 			mockDoc: &repPkg.DBDocument{
 				RecDate:     sql.NullTime{Time: time.Unix(int64(1405544146), 0), Valid: true},
@@ -55,7 +55,7 @@ func TestRepo_PostDocument(t *testing.T) {
 				Description: sql.NullString{String: "testim", Valid: true},
 				MsgID:       sql.NullString{String: "1600", Valid: true},
 				ChatID:      sql.NullString{String: "1234", Valid: true},
-				ClientID:    sql.NullString{String: "vasya", Valid: true},
+				UserId:      sql.NullInt64{Int64: 1, Valid: true},
 				Direction:   sql.NullInt16{Int16: 0, Valid: false},
 			},
 			mockResult: nil,
@@ -65,8 +65,8 @@ func TestRepo_PostDocument(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rpMck.EXPECT().PostDocument(tt.args.ctx, tt.mockDoc).Return(nil).Times(1)
-			rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.doc.ClientID, "").Times(1)
-			rpMck.EXPECT().GetDocumentSubCategories(tt.args.ctx, tt.args.doc.ClientID, tt.args.doc.Category).Times(1)
+			rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.doc.UserId, "").Times(1)
+			rpMck.EXPECT().GetDocumentSubCategories(tt.args.ctx, tt.args.doc.UserId, tt.args.doc.Category).Times(1)
 
 			if err := New(tt.fields.repo).PostDocument(tt.args.ctx, tt.args.doc); (err != nil) != tt.wantErr {
 				t.Errorf("Repo.PostDocument() error = %v, wantErr %v", err, tt.wantErr)
@@ -117,9 +117,9 @@ func TestRepo_GetCategories(t *testing.T) {
 		// cache map[string]categories
 	}
 	type args struct {
-		ctx      context.Context
-		username string
-		limit    string
+		ctx     context.Context
+		user_id int
+		limit   string
 	}
 	tests := []struct {
 		name    string
@@ -131,18 +131,18 @@ func TestRepo_GetCategories(t *testing.T) {
 		{
 			name:   "3 cats",
 			fields: fields{repo: rpMck},
-			args:   args{ctx: context.Background(), username: "vasya", limit: "balance"},
+			args:   args{ctx: context.Background(), user_id: 1, limit: "balance"},
 			wantCat: []entity.TransCatLimit{
 				{Category: sql.NullString{String: "apple", Valid: true},
 					Direction: sql.NullInt16{Int16: -1, Valid: true},
-					ClientID:  sql.NullString{String: "vasya", Valid: true},
+					UserId:    sql.NullInt64{Int64: 1, Valid: true},
 					Active:    sql.NullBool{Bool: true, Valid: true},
 					Limit:     sql.NullInt64{Int64: 100, Valid: true},
 					Balance:   sql.NullInt64{Int64: 20, Valid: true},
 				},
 				{Category: sql.NullString{String: "banana", Valid: true},
 					Direction: sql.NullInt16{Int16: 1, Valid: true},
-					ClientID:  sql.NullString{String: "vasya", Valid: true},
+					UserId:    sql.NullInt64{Int64: 1, Valid: true},
 					Active:    sql.NullBool{Bool: true, Valid: true},
 					Limit:     sql.NullInt64{Int64: 0, Valid: false},
 					Balance:   sql.NullInt64{Int64: 250, Valid: true},
@@ -153,10 +153,10 @@ func TestRepo_GetCategories(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.username, tt.args.limit).Return(tt.wantCat, nil).Times(1)
+			rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.user_id, tt.args.limit).Return(tt.wantCat, nil).Times(1)
 			r := New(tt.fields.repo)
 
-			gotCat, err := r.GetCategories(tt.args.ctx, tt.args.username, tt.args.limit)
+			gotCat, err := r.GetCategories(tt.args.ctx, tt.args.user_id, tt.args.limit)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Repo.GetCategories() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -180,7 +180,7 @@ func TestRepo_GetSubCategories(t *testing.T) {
 	}
 	type args struct {
 		ctx       context.Context
-		username  string
+		user_id   int
 		trans_cat string
 	}
 	tests := []struct {
@@ -194,12 +194,12 @@ func TestRepo_GetSubCategories(t *testing.T) {
 		{
 			name:   "3 cats",
 			fields: fields{repo: rpMck},
-			args:   args{ctx: context.Background(), username: "vasya", trans_cat: "food"},
+			args:   args{ctx: context.Background(), user_id: 1, trans_cat: "food"},
 			repoCat: []entity.TransCatLimit{
 				{
 					Category:  sql.NullString{String: "food", Valid: true},
 					Direction: sql.NullInt16{Int16: -1, Valid: true},
-					ClientID:  sql.NullString{String: "vasya", Valid: true},
+					UserId:    sql.NullInt64{Int64: 1, Valid: true},
 					Active:    sql.NullBool{Bool: true, Valid: true},
 					Limit:     sql.NullInt64{Int64: 100, Valid: true},
 					Balance:   sql.NullInt64{Int64: 20, Valid: true},
@@ -211,10 +211,10 @@ func TestRepo_GetSubCategories(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rpMck.EXPECT().GetDocumentSubCategories(tt.args.ctx, tt.args.username, tt.args.trans_cat).Return(tt.wantCat, nil).Times(1)
+			rpMck.EXPECT().GetDocumentSubCategories(tt.args.ctx, tt.args.user_id, tt.args.trans_cat).Return(tt.wantCat, nil).Times(1)
 
 			r := New(tt.fields.repo)
-			gotCat, err := r.GetSubCategories(tt.args.ctx, tt.args.username, tt.args.trans_cat)
+			gotCat, err := r.GetSubCategories(tt.args.ctx, tt.args.user_id, tt.args.trans_cat)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Repo.GetSubCategories() error = %v, wantErr %v", err, tt.wantErr)
 				return

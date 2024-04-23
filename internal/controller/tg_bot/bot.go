@@ -13,15 +13,15 @@ import (
 )
 
 type accountant interface {
-	GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error)
-	GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error)
+	GetCatsLimit(ctx context.Context, user_id int, limit string) (cats []entity.TransCatLimit, err error)
+	GetSubCats(ctx context.Context, user_id int, trans_cat string) (cats []string, err error)
 	GetUserStatus(ctx context.Context, username string) (id int, status bool, err error)
 	PostDoc(ctx context.Context, doc *entity.Document) (err error)
-	DeleteDoc(chat_id, msg_id, client string) (err error)
+	DeleteDoc(chat_id, msg_id string, user_id int) (err error)
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
 	GetStatement(p map[string]string) (res string, err error)
-	EditCats(ctx context.Context, tc entity.TransCatLimit, client string) (err error)
+	EditCats(ctx context.Context, tc entity.TransCatLimit, user_id int) (err error)
 	Money2Time(transAmount int, user_id int) (res string, err error)
 }
 
@@ -79,7 +79,7 @@ func (b *Bot) requestCats(ctx context.Context, page int, q *tgbotapi.CallbackQue
 		messageID = u.Message.MessageID
 	}
 
-	cats, err := b.accountant.GetCatsLimit(ctx, userName, "balance")
+	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[userName].UserId, "balance")
 	if err != nil {
 		return
 	}
@@ -155,7 +155,7 @@ func (b *Bot) confirmRecord(q *tgbotapi.CallbackQuery) {
 		Description: descr,
 		MsgID:       fmt.Sprint(q.Message.MessageID),
 		ChatID:      fmt.Sprint(q.Message.Chat.ID),
-		ClientID:    q.From.UserName,
+		UserId:      BotUsers[q.From.UserName].UserId,
 	}
 
 	err = b.accountant.PostDoc(context.Background(), doc)
@@ -165,7 +165,7 @@ func (b *Bot) confirmRecord(q *tgbotapi.CallbackQuery) {
 }
 
 func (b *Bot) deleteRecord(q *tgbotapi.CallbackQuery) {
-	b.accountant.DeleteDoc(fmt.Sprint(q.Message.Chat.ID), fmt.Sprint(q.Message.MessageID), q.From.UserName)
+	b.accountant.DeleteDoc(fmt.Sprint(q.Message.Chat.ID), fmt.Sprint(q.Message.MessageID), BotUsers[q.From.UserName].UserId)
 	b.deleteMsg(q.Message.Chat.ID, q.Message.MessageID)
 }
 
@@ -205,7 +205,7 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.Callback
 		cat = strings.Join(strings.Split(q.Message.Text, " ")[2:], " ")
 	}
 
-	subCats, err := b.accountant.GetSubCats(ctx, q.From.UserName, cat)
+	subCats, err := b.accountant.GetSubCats(ctx, BotUsers[q.From.UserName].UserId, cat)
 	fmt.Printf("%#v %d\n %v", subCats, len(subCats), err)
 	if len(subCats) == 0 {
 		subCats = []string{" "}

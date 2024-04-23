@@ -30,27 +30,27 @@ func New(d Repo, u User, r Reporter, s Cloud, l *slog.Logger) *Accountant {
 	}
 }
 
-func (a *Accountant) GetCatsLimit(ctx context.Context, username, limit string) (cats []entity.TransCatLimit, err error) {
-	a.log.Debug("GetCatsLimit", "username", username, "limit", limit)
-	cats, err = a.repo.GetCategories(ctx, username, limit)
+func (a *Accountant) GetCatsLimit(ctx context.Context, user_id int, limit string) (cats []entity.TransCatLimit, err error) {
+	a.log.Debug("GetCatsLimit", "user_id", user_id, "limit", limit)
+	cats, err = a.repo.GetCategories(ctx, user_id, limit)
 	if err != nil {
 		a.log.Error("repo.GetCategories", "err", err)
 	}
 	return
 }
 
-func (a *Accountant) EditCats(ctx context.Context, tc entity.TransCatLimit, client string) (err error) {
-	a.log.Debug("EditCats", "client", client)
-	err = a.repo.EditCategory(ctx, tc, client)
+func (a *Accountant) EditCats(ctx context.Context, tc entity.TransCatLimit, user_id int) (err error) {
+	a.log.Debug("EditCats", "user_id", user_id)
+	err = a.repo.EditCategory(ctx, tc, user_id)
 	if err != nil {
 		a.log.Error("repo.EditCategory", "err", err)
 	}
 	return
 }
 
-func (a *Accountant) GetSubCats(ctx context.Context, username, trans_cat string) (cats []string, err error) {
-	a.log.Debug("GetSubCats", "username", username, "trans_cat", trans_cat)
-	cats, err = a.repo.GetSubCategories(ctx, username, trans_cat)
+func (a *Accountant) GetSubCats(ctx context.Context, user_id int, trans_cat string) (cats []string, err error) {
+	a.log.Debug("GetSubCats", "user_id", user_id, "trans_cat", trans_cat)
+	cats, err = a.repo.GetSubCategories(ctx, user_id, trans_cat)
 	if err != nil {
 		a.log.Error("repo.GetSubCategories", "err", err)
 	}
@@ -68,7 +68,7 @@ func (a *Accountant) GetUserStatus(ctx context.Context, username string) (id int
 }
 
 func (a *Accountant) PostDoc(ctx context.Context, doc *entity.Document) (err error) {
-	a.log.Debug("PostDoc", "client", doc.ClientID, "category", doc.Category, "msg_id", doc.MsgID)
+	a.log.Debug("PostDoc", "UserId", doc.UserId, "Category", doc.Category, "MsgID", doc.MsgID)
 	err = a.repo.PostDocument(ctx, doc)
 	if err != nil {
 		a.log.Error("nrepo.PostDocument", "err", err)
@@ -76,13 +76,13 @@ func (a *Accountant) PostDoc(ctx context.Context, doc *entity.Document) (err err
 	return
 }
 
-func (a *Accountant) DeleteDoc(chat_id, msg_id, client string) (err error) {
-	a.log.Debug("DeleteDoc", "chat_id", chat_id, "msg_id", msg_id, "client", client)
+func (a *Accountant) DeleteDoc(chat_id, msg_id string, user_id int) (err error) {
+	a.log.Debug("DeleteDoc", "chat_id", chat_id, "msg_id", msg_id, "user_id", user_id)
 	err = a.repo.DeleteDocument(context.Background(),
 		&entity.Document{
-			MsgID:    msg_id,
-			ChatID:   chat_id,
-			ClientID: client,
+			MsgID:  msg_id,
+			ChatID: chat_id,
+			UserId: user_id,
 		},
 	)
 	if err != nil {
@@ -101,7 +101,7 @@ func (a *Accountant) GetStatement(p map[string]string) (res string, err error) {
 }
 
 func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err error) {
-	a.log.Debug("GetUserStats", "client", user_id)
+	a.log.Debug("GetUserStats", "user_id", user_id)
 	userStat, err := a.reporter.GetUserStats(context.Background(), user_id)
 	if err != nil {
 		a.log.Error("reporter.GetUserStats", "err", err)

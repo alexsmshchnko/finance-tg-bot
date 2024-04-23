@@ -65,33 +65,33 @@ func (mr *MockDocProcessorMockRecorder) EditCategory(ctx, cat interface{}) *gomo
 }
 
 // GetDocumentCategories mocks base method.
-func (m *MockDocProcessor) GetDocumentCategories(ctx context.Context, username, limit string) ([]entity.TransCatLimit, error) {
+func (m *MockDocProcessor) GetDocumentCategories(ctx context.Context, user_id int, limit string) ([]entity.TransCatLimit, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDocumentCategories", ctx, username, limit)
+	ret := m.ctrl.Call(m, "GetDocumentCategories", ctx, user_id, limit)
 	ret0, _ := ret[0].([]entity.TransCatLimit)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetDocumentCategories indicates an expected call of GetDocumentCategories.
-func (mr *MockDocProcessorMockRecorder) GetDocumentCategories(ctx, username, limit interface{}) *gomock.Call {
+func (mr *MockDocProcessorMockRecorder) GetDocumentCategories(ctx, user_id, limit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentCategories", reflect.TypeOf((*MockDocProcessor)(nil).GetDocumentCategories), ctx, username, limit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentCategories", reflect.TypeOf((*MockDocProcessor)(nil).GetDocumentCategories), ctx, user_id, limit)
 }
 
 // GetDocumentSubCategories mocks base method.
-func (m *MockDocProcessor) GetDocumentSubCategories(ctx context.Context, username, trans_cat string) ([]string, error) {
+func (m *MockDocProcessor) GetDocumentSubCategories(ctx context.Context, user_id int, trans_cat string) ([]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDocumentSubCategories", ctx, username, trans_cat)
+	ret := m.ctrl.Call(m, "GetDocumentSubCategories", ctx, user_id, trans_cat)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetDocumentSubCategories indicates an expected call of GetDocumentSubCategories.
-func (mr *MockDocProcessorMockRecorder) GetDocumentSubCategories(ctx, username, trans_cat interface{}) *gomock.Call {
+func (mr *MockDocProcessorMockRecorder) GetDocumentSubCategories(ctx, user_id, trans_cat interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentSubCategories", reflect.TypeOf((*MockDocProcessor)(nil).GetDocumentSubCategories), ctx, username, trans_cat)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentSubCategories", reflect.TypeOf((*MockDocProcessor)(nil).GetDocumentSubCategories), ctx, user_id, trans_cat)
 }
 
 // PostDocument mocks base method.
