@@ -4,45 +4,49 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
+)
+
+var (
+	db   *Ydb
+	once sync.Once
 )
 
 func Handler(rw http.ResponseWriter, req *http.Request) {
-	var err error
-	var resVal []byte
+	var (
+		err    error
+		resVal []byte
+	)
 	ctx := context.Background()
-	splitPath := strings.Split(req.URL.Path, "/")
 
-	if db == nil {
-		fmt.Println("connectDB: new connection")
-		db, err = connectDB(ctx, os.Getenv("YDB_DSN"), "")
+	once.Do(func() {
+		db, err = connectDB(ctx, os.Getenv("YDB_DSN"), "", os.Getenv("PREFIX"))
 		if err != nil {
 			rw.WriteHeader(http.StatusBadGateway)
 			rw.Write([]byte(fmt.Sprintf("connectDB error, %v", err)))
+			once = sync.Once{}
 			return
 		}
-	} else {
-		fmt.Println("connectDB: already connected")
-	}
+	})
 
+	splitPath := strings.Split(req.URL.Path, "/")
+	if len(splitPath) < 2 {
+		return
+	}
 	switch splitPath[1] {
 	case "document":
-		d, err := io.ReadAll(req.Body)
-		if err != nil {
-			rw.WriteHeader(http.StatusBadGateway)
-			rw.Write([]byte(fmt.Sprintf("io.ReadAll(req.Body) error, %v", err)))
-			return
-		}
 		doc := &DBDocument{}
-		err = json.Unmarshal(d, doc)
+		err = json.NewDecoder(req.Body).Decode(doc)
 		if err != nil {
-			rw.WriteHeader(http.StatusBadGateway)
-			rw.Write([]byte(fmt.Sprintf("json.Unmarshal(d, cat) error, %v", err)))
+			rw.WriteHeader(http.StatusBadRequest)
+			rw.Write([]byte(fmt.Sprintf("json.NewDecoder(req.Body).Decode(doc) error, %v", err)))
 			return
 		}
+
 		switch req.Method {
 		case "POST":
 			err = db.PostDocument(ctx, doc)
@@ -62,7 +66,13 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 	case "category":
 		switch req.Method {
 		case "GET":
-			res, err := db.GetDocumentCategories(ctx, splitPath[2], "")
+			user_id, err := strconv.Atoi(splitPath[2])
+			if err != nil {
+				rw.WriteHeader(http.StatusBadRequest)
+				rw.Write([]byte(fmt.Sprintf("strconv.Atoi error, %v", err)))
+				return
+			}
+			res, err := db.GetDocumentCategories(ctx, user_id, "")
 			if err != nil {
 				rw.WriteHeader(http.StatusNotFound)
 				rw.Write([]byte(fmt.Sprintf("db.GetDocumentCategories error, %v", err)))
@@ -75,17 +85,11 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 				return
 			}
 		case "POST":
-			d, err := io.ReadAll(req.Body)
-			if err != nil {
-				rw.WriteHeader(http.StatusBadGateway)
-				rw.Write([]byte(fmt.Sprintf("io.ReadAll(req.Body) error, %v", err)))
-				return
-			}
 			cat := &TransCatLimit{}
-			err = json.Unmarshal(d, cat)
+			err = json.NewDecoder(req.Body).Decode(cat)
 			if err != nil {
-				rw.WriteHeader(http.StatusBadGateway)
-				rw.Write([]byte(fmt.Sprintf("json.Unmarshal(d, cat) error, %v", err)))
+				rw.WriteHeader(http.StatusBadRequest)
+				rw.Write([]byte(fmt.Sprintf("json.NewDecoder(req.Body).Decode(cat) error, %v", err)))
 				return
 			}
 			err = db.EditCategory(ctx, cat)
@@ -95,7 +99,13 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 				return
 			}
 		case "OPTIONS":
-			res, err := db.GetDocumentSubCategories(ctx, splitPath[2], splitPath[3])
+			user_id, err := strconv.Atoi(splitPath[2])
+			if err != nil {
+				rw.WriteHeader(http.StatusBadRequest)
+				rw.Write([]byte(fmt.Sprintf("strconv.Atoi error, %v", err)))
+				return
+			}
+			res, err := db.GetDocumentSubCategories(ctx, user_id, splitPath[3])
 			if err != nil {
 				rw.WriteHeader(http.StatusNotFound)
 				rw.Write([]byte(fmt.Sprintf("db.GetDocumentSubCategories error, %v", err)))
@@ -110,5 +120,5 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	io.WriteString(rw, string(resVal))
+	rw.Write(resVal)
 }

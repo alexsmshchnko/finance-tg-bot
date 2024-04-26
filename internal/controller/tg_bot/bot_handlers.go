@@ -2,7 +2,6 @@ package tg_bot
 
 import (
 	"context"
-	"database/sql"
 	"finance-tg-bot/internal/entity"
 	"fmt"
 	"strconv"
@@ -99,23 +98,24 @@ func (b *Bot) responseHandler(u *tgbotapi.Update) {
 		msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
 		b.api.Send(msg)
 	case "REC_NEWLIMIT":
+		ctx := context.Background()
 		limit, err := strconv.Atoi(u.Message.Text)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		cat := entity.TransCatLimit{
-			Category:  sql.NullString{String: respMsg.Text, Valid: true},
-			Direction: sql.NullInt16{Int16: 0, Valid: false},
-			Active:    sql.NullBool{Bool: true, Valid: true},
-			Limit:     sql.NullInt64{Int64: int64(limit), Valid: true},
+		cat := &entity.TransCatLimit{
+			UserId:   BotUsers[u.SentFrom().UserName].UserId,
+			Category: respMsg.Text,
+			Active:   true,
+			Limit:    limit,
 		}
-		err = b.accountant.EditCats(context.Background(), cat, BotUsers[u.SentFrom().UserName].UserId)
+		err = b.accountant.EditCats(ctx, cat)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		requestCategoriesKeyboardEditor(b, context.Background(), 0, &userChat{u.Message.Chat.ID, respMsg.MessageID, u.SentFrom().UserName})
+		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{u.Message.Chat.ID, respMsg.MessageID, u.SentFrom().UserName})
 	}
 
 	waitUserResponseComplete(u.SentFrom().UserName)

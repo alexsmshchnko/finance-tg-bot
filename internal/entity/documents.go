@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -24,12 +23,12 @@ type DocumentExport struct {
 }
 
 type TransCatLimit struct {
-	Category  sql.NullString `json:"trans_cat"`
-	Direction sql.NullInt16  `json:"direction"`
-	UserId    sql.NullInt64  `json:"client_id"`
-	Active    sql.NullBool   `json:"active"`
-	Limit     sql.NullInt64  `json:"trans_limit"`
-	Balance   sql.NullInt64  `json:"trans_balance"`
+	Category  string `json:"trans_cat"`
+	Direction int8   `json:"direction"`
+	UserId    int    `json:"client_id"`
+	Active    bool   `json:"active"`
+	Limit     int    `json:"trans_limit"`
+	Balance   int    `json:"trans_balance"`
 }
 
 type Document struct {

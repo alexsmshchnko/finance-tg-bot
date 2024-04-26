@@ -2,7 +2,6 @@ package tg_bot
 
 import (
 	"context"
-	"database/sql"
 	"finance-tg-bot/internal/entity"
 	"fmt"
 	"strings"
@@ -31,31 +30,30 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
 	case "new":
 		str, _ := strings.CutPrefix(q.Message.Text, "Тип траты для ")
-		cat := entity.TransCatLimit{
-			Category: sql.NullString{String: str, Valid: true},
-			Active:   sql.NullBool{Bool: true, Valid: true},
-			Limit:    sql.NullInt64{Int64: 0, Valid: false},
+		cat := &entity.TransCatLimit{
+			Category: str,
+			Active:   true,
+			UserId:   BotUsers[q.From.UserName].UserId,
 		}
 		switch split[2] {
 		case "debit":
-			cat.Direction = sql.NullInt16{Int16: -1, Valid: true}
+			cat.Direction = -1
 		case "deposit":
-			cat.Direction = sql.NullInt16{Int16: 0, Valid: true}
+			cat.Direction = 0
 		case "credit":
-			cat.Direction = sql.NullInt16{Int16: 1, Valid: true}
+			cat.Direction = 1
 		}
-		b.accountant.EditCats(ctx, cat, BotUsers[q.From.UserName].UserId)
+		b.accountant.EditCats(ctx, cat)
 		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
 	case "limit":
 		b.requestReply(q, "REC_NEWLIMIT")
 	case "disable":
-		cat := entity.TransCatLimit{
-			Category:  sql.NullString{String: q.Message.Text, Valid: true},
-			Direction: sql.NullInt16{Int16: 0, Valid: false},
-			Active:    sql.NullBool{Bool: false, Valid: true},
-			Limit:     sql.NullInt64{Int64: 0, Valid: false},
+		cat := &entity.TransCatLimit{
+			Category: q.Message.Text,
+			Active:   false,
+			UserId:   BotUsers[q.From.UserName].UserId,
 		}
-		b.accountant.EditCats(ctx, cat, BotUsers[q.From.UserName].UserId)
+		b.accountant.EditCats(ctx, cat)
 		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
 	default:
 		requestCategoryKeyboardEditor(b, ctx, q)
@@ -110,7 +108,7 @@ func requestCategoriesKeyboardEditor(b *Bot, ctx context.Context, page int, c *u
 	options := make([][]string, len(cats), len(cats)+1)
 	var catDirection, catLimit string
 	for i, v := range cats {
-		switch v.Direction.Int16 {
+		switch v.Direction {
 		case -1:
 			catDirection = EMOJI_DEBIT
 		case 0:
@@ -118,14 +116,14 @@ func requestCategoriesKeyboardEditor(b *Bot, ctx context.Context, page int, c *u
 		case 1:
 			catDirection = EMOJI_CREDIT
 		}
-		if v.Limit.Valid {
-			catLimit = fmt.Sprintf(" (%d₽)", v.Limit.Int64)
+		if v.Limit > 0 {
+			catLimit = fmt.Sprintf(" (%d₽)", v.Limit)
 		} else {
 			catLimit = ""
 		}
 		options[i] = []string{
-			v.Category.String + " " + catDirection + catLimit,
-			PREFIX_SETCATEGORY + ":" + v.Category.String,
+			v.Category + " " + catDirection + catLimit,
+			PREFIX_SETCATEGORY + ":" + v.Category,
 		}
 	}
 	options = append(options, []string{EMOJI_PLUS, PREFIX_SETCATEGORY + ":addNewCat"})

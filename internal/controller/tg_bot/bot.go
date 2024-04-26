@@ -21,7 +21,7 @@ type accountant interface {
 	MigrateFromCloud(ctx context.Context, username string) (err error)
 	PushToCloud(ctx context.Context, username string) (err error)
 	GetStatement(p map[string]string) (res string, err error)
-	EditCats(ctx context.Context, tc entity.TransCatLimit, user_id int) (err error)
+	EditCats(ctx context.Context, tc *entity.TransCatLimit) (err error)
 	Money2Time(transAmount int, user_id int) (res string, err error)
 }
 
@@ -79,13 +79,14 @@ func (b *Bot) requestCats(ctx context.Context, page int, q *tgbotapi.CallbackQue
 		messageID = u.Message.MessageID
 	}
 
+	// TODO move formatting to usecase (no only here)
 	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[userName].UserId, "balance")
 	if err != nil {
 		return
 	}
 	options := make([][]string, len(cats))
 	for i, v := range cats {
-		switch v.Direction.Int16 {
+		switch v.Direction {
 		case -1:
 			direction = EMOJI_DEBIT
 		case 0:
@@ -93,14 +94,14 @@ func (b *Bot) requestCats(ctx context.Context, page int, q *tgbotapi.CallbackQue
 		case 1:
 			direction = EMOJI_CREDIT
 		}
-		if v.Limit.Valid {
-			limit = fmt.Sprintf(" (%d)", v.Balance.Int64)
+		if v.Limit > 0 {
+			limit = fmt.Sprintf(" (%d)", v.Balance)
 		} else {
 			limit = ""
 		}
 		options[i] = []string{
-			v.Category.String + " " + direction + limit,
-			PREFIX_CATEGORY + ":" + v.Category.String,
+			v.Category + " " + direction + limit,
+			PREFIX_CATEGORY + ":" + v.Category,
 		}
 	}
 

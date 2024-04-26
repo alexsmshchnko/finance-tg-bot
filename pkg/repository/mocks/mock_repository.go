@@ -7,7 +7,6 @@ package mock_repository
 import (
 	context "context"
 	entity "finance-tg-bot/internal/entity"
-	repository "finance-tg-bot/pkg/repository"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -37,7 +36,7 @@ func (m *MockDocProcessor) EXPECT() *MockDocProcessorMockRecorder {
 }
 
 // DeleteDocument mocks base method.
-func (m *MockDocProcessor) DeleteDocument(ctx context.Context, doc *repository.DBDocument) error {
+func (m *MockDocProcessor) DeleteDocument(ctx context.Context, doc *entity.Document) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteDocument", ctx, doc)
 	ret0, _ := ret[0].(error)
@@ -95,7 +94,7 @@ func (mr *MockDocProcessorMockRecorder) GetDocumentSubCategories(ctx, user_id, t
 }
 
 // PostDocument mocks base method.
-func (m *MockDocProcessor) PostDocument(ctx context.Context, doc *repository.DBDocument) error {
+func (m *MockDocProcessor) PostDocument(ctx context.Context, doc *entity.Document) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PostDocument", ctx, doc)
 	ret0, _ := ret[0].(error)

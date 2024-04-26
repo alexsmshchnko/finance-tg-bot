@@ -3,7 +3,6 @@ package repository
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"finance-tg-bot/internal/entity"
@@ -14,30 +13,14 @@ import (
 )
 
 type DocProcessor interface {
-	PostDocument(ctx context.Context, doc *DBDocument) (err error)
-	DeleteDocument(ctx context.Context, doc *DBDocument) (err error)
+	PostDocument(ctx context.Context, doc *entity.Document) (err error)
+	DeleteDocument(ctx context.Context, doc *entity.Document) (err error)
 	GetDocumentCategories(ctx context.Context, user_id int, limit string) (cats []entity.TransCatLimit, err error)
 	EditCategory(ctx context.Context, cat *entity.TransCatLimit) (err error)
 	GetDocumentSubCategories(ctx context.Context, user_id int, trans_cat string) (subcats []string, err error)
 }
 
-type DBDocument struct {
-	RecDate     sql.NullTime   `json:"rec_time"`
-	TransDate   sql.NullTime   `json:"trans_date"`
-	Category    sql.NullString `json:"trans_cat"`
-	Amount      sql.NullInt64  `json:"trans_amount"`
-	Description sql.NullString `json:"comment"`
-	MsgID       sql.NullString `json:"msg_id"`
-	ChatID      sql.NullString `json:"chat_id"`
-	UserId      sql.NullInt64  `json:"client_id"`
-	Direction   sql.NullInt16  `json:"direction"`
-}
-
-func (r *Repository) PostDocument(ctx context.Context, doc *DBDocument) (err error) {
-	//preformat
-	doc.Description.String = strings.ToLower(strings.TrimSpace(doc.Description.String))
-	//
-
+func (r *Repository) PostDocument(ctx context.Context, doc *entity.Document) (err error) {
 	jsonStr, err := json.Marshal(doc)
 	if err != nil {
 		r.Logger.Error("Repository.PostDocument json.Marshal(doc)", "err", err)
@@ -73,8 +56,8 @@ func (r *Repository) PostDocument(ctx context.Context, doc *DBDocument) (err err
 	return
 }
 
-func (r *Repository) DeleteDocument(ctx context.Context, doc *DBDocument) (err error) {
-	if !doc.MsgID.Valid || !doc.UserId.Valid {
+func (r *Repository) DeleteDocument(ctx context.Context, doc *entity.Document) (err error) {
+	if doc.MsgID == "" || doc.UserId == 0 {
 		r.Logger.Error("Repository.DeleteDocument not enough input params to delete document")
 		return
 	}
@@ -155,7 +138,7 @@ func (r *Repository) GetDocumentCategories(ctx context.Context, user_id int, lim
 
 func (r *Repository) EditCategory(ctx context.Context, cat *entity.TransCatLimit) (err error) {
 	//preformat
-	cat.Category.String = strings.ToLower(strings.TrimSpace(cat.Category.String))
+	cat.Category = strings.ToLower(strings.TrimSpace(cat.Category))
 	//
 
 	jsonStr, err := json.Marshal(cat)
@@ -167,7 +150,7 @@ func (r *Repository) EditCategory(ctx context.Context, cat *entity.TransCatLimit
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"POST",
-		fmt.Sprintf("%s/category/%d", r.serviceDomain, cat.UserId.Int64),
+		fmt.Sprintf("%s/category/%d", r.serviceDomain, cat.UserId),
 		bytes.NewBuffer(jsonStr),
 	)
 	if err != nil {

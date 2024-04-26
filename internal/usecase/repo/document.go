@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
 
@@ -29,45 +28,36 @@ func (r *Repo) clearCache(user_id int, tranc_cat string) {
 
 	if tranc_cat != "" {
 		delete(r.cacheSubCats[user_id], tranc_cat)
-	} else {
-		delete(r.cacheSubCats, user_id)
 	}
-
 }
 
 func (r *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err error) {
-	dbdoc := &repPkg.DBDocument{
-		RecDate:     sql.NullTime{Time: doc.RecTime, Valid: true},
-		TransDate:   sql.NullTime{Time: time.Time{}, Valid: false},
-		Category:    sql.NullString{String: doc.Category, Valid: true},
-		Amount:      sql.NullInt64{Int64: doc.Amount, Valid: true},
-		Description: sql.NullString{String: doc.Description, Valid: true},
-		MsgID:       sql.NullString{String: doc.MsgID, Valid: true},
-		ChatID:      sql.NullString{String: doc.ChatID, Valid: true},
-		UserId:      sql.NullInt64{Int64: int64(doc.UserId), Valid: true},
-		Direction:   sql.NullInt16{Int16: 0, Valid: false},
+	for _, v := range r.cacheCats[doc.UserId] {
+		if v.Category == doc.Category {
+			doc.Direction = v.Direction
+			break
+		}
 	}
+	if doc.TransDate.IsZero() {
+		doc.TransDate = time.Now()
+	}
+
+	err = r.repo.PostDocument(ctx, doc)
 	r.clearCache(doc.UserId, doc.Category)
-	err = r.repo.PostDocument(ctx, dbdoc)
 	go r.GetCategories(ctx, doc.UserId, "")
 	go r.GetSubCategories(ctx, doc.UserId, doc.Category)
 	return
 }
 
 func (r *Repo) DeleteDocument(ctx context.Context, doc *entity.Document) (err error) {
-	dbdoc := &repPkg.DBDocument{
-		MsgID:  sql.NullString{String: doc.MsgID, Valid: true},
-		ChatID: sql.NullString{String: doc.ChatID, Valid: true},
-		UserId: sql.NullInt64{Int64: int64(doc.UserId), Valid: true},
-	}
-	return r.repo.DeleteDocument(ctx, dbdoc)
+	return r.repo.DeleteDocument(ctx, doc)
 }
 
 func (r *Repo) GetCategories(ctx context.Context, user_id int, limit string) (cat []entity.TransCatLimit, err error) {
 	if _, ok := r.cacheCats[user_id]; !ok {
 		res, err := r.repo.GetDocumentCategories(ctx, user_id, limit)
 		if err != nil {
-			return cat, err
+			return nil, err
 		}
 		r.cacheCats[user_id] = res
 	}
@@ -82,7 +72,7 @@ func (r *Repo) GetSubCategories(ctx context.Context, user_id int, trans_cat stri
 	if _, ok := r.cacheSubCats[user_id][trans_cat]; !ok {
 		res, err := r.repo.GetDocumentSubCategories(ctx, user_id, trans_cat)
 		if err != nil {
-			return res, err
+			return nil, err
 		}
 		r.cacheSubCats[user_id][trans_cat] = res
 	}
@@ -90,20 +80,10 @@ func (r *Repo) GetSubCategories(ctx context.Context, user_id int, trans_cat stri
 	return r.cacheSubCats[user_id][trans_cat], err
 }
 
-func (r *Repo) EditCategory(ctx context.Context, tc entity.TransCatLimit, user_id int) (err error) {
-	dbTCL := &entity.TransCatLimit{
-		Category:  tc.Category,
-		Direction: tc.Direction,
-		UserId:    sql.NullInt64{Int64: int64(user_id), Valid: true},
-		Active:    tc.Active,
-	}
-	if tc.Limit.Valid {
-		dbTCL.Limit = tc.Limit
-	}
-
-	r.clearCache(user_id, tc.Category.String)
-	err = r.repo.EditCategory(ctx, dbTCL)
-	go r.GetCategories(ctx, user_id, "")
+func (r *Repo) EditCategory(ctx context.Context, tc *entity.TransCatLimit) (err error) {
+	err = r.repo.EditCategory(ctx, tc)
+	r.clearCache(tc.UserId, "")
+	go r.GetCategories(ctx, tc.UserId, "")
 	return
 }
 

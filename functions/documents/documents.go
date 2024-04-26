@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -16,11 +18,10 @@ import (
 
 type Ydb struct {
 	*ydb.Driver
+	prefix string
 }
 
-var db *Ydb
-
-func connectDB(ctx context.Context, dsn, saPath string) (*Ydb, error) {
+func connectDB(ctx context.Context, dsn, saPath, prefix string) (*Ydb, error) {
 	var opt ydb.Option
 	if saPath == "" {
 		// auth inside cloud (virual machine or yandex function)
@@ -30,34 +31,37 @@ func connectDB(ctx context.Context, dsn, saPath string) (*Ydb, error) {
 		opt = yc.WithServiceAccountKeyFileCredentials(saPath)
 	}
 	nativeDriver, err := ydb.Open(ctx, dsn, yc.WithInternalCA(), opt)
+	if prefix != "" {
+		prefix = path.Join(nativeDriver.Name(), prefix)
+	}
 
-	return &Ydb{Driver: nativeDriver}, err
+	return &Ydb{Driver: nativeDriver, prefix: prefix}, err
 }
 
 type TransCatLimit struct {
-	Category  sql.NullString `db:"trans_cat"     json:"trans_cat"`
-	Direction sql.NullInt16  `db:"direction"     json:"direction"`
-	ClientID  sql.NullString `db:"client_id"     json:"client_id"`
-	Active    sql.NullBool   `db:"active"        json:"active"`
-	Limit     sql.NullInt64  `db:"trans_limit"   json:"trans_limit"`
-	Balance   sql.NullInt64  `db:"trans_balance" json:"trans_balance"`
+	Category  *string `json:"trans_cat"`
+	Direction *int8   `json:"direction"`
+	UserId    int     `json:"client_id"`
+	Active    bool    `json:"active"`
+	Limit     *int64  `json:"trans_limit"`
+	Balance   *int64  `json:"trans_balance"`
 }
 
 type DBDocument struct {
-	RecDate     sql.NullTime   `db:"rec_time"     json:"rec_time"`
-	TransDate   sql.NullTime   `db:"trans_date"   json:"trans_date"`
-	Category    sql.NullString `db:"trans_cat"    json:"trans_cat"`
-	Amount      sql.NullInt64  `db:"trans_amount" json:"trans_amount"`
-	Description sql.NullString `db:"comment"      json:"comment"`
-	MsgID       sql.NullString `db:"msg_id"       json:"msg_id"`
-	ChatID      sql.NullString `db:"chat_id"      json:"chat_id"`
-	ClientID    sql.NullString `db:"client_id"    json:"client_id"`
-	Direction   sql.NullInt16  `db:"direction"    json:"direction"`
+	RecDate     time.Time `json:"rec_time"`
+	TransDate   time.Time `json:"trans_date"`
+	Category    string    `json:"trans_cat"`
+	Amount      int64     `json:"trans_amount"`
+	Description string    `json:"comment"`
+	MsgID       string    `json:"msg_id"`
+	ChatID      string    `json:"chat_id"`
+	UserId      int       `json:"client_id"`
+	Direction   int8      `json:"direction"`
 }
 
 func (r *Ydb) PostDocument(ctx context.Context, doc *DBDocument) (err error) {
 	//preformat
-	doc.Description.String = strings.ToLower(strings.TrimSpace(doc.Description.String))
+	doc.Description = strings.ToLower(strings.TrimSpace(doc.Description))
 	//
 	query := `	DECLARE $rec_time     AS Timestamp;
 				DECLARE $trans_date   AS Datetime;
@@ -66,42 +70,13 @@ func (r *Ydb) PostDocument(ctx context.Context, doc *DBDocument) (err error) {
 				DECLARE $comment      AS String;
 				DECLARE $msg_id       AS String;
 				DECLARE $chat_id      AS String;
-				DECLARE $client_id    AS String;
-				DECLARE $direction    AS Int8;`
-	if doc.Direction.Valid {
-		query = query + `
+				DECLARE $client_id    AS Uint64;
+				DECLARE $direction    AS Int8;
  UPSERT INTO doc ( rec_time, trans_date, trans_cat, trans_amount, comment, msg_id, chat_id, client_id, direction )
- SELECT $rec_time, $trans_date, $trans_cat, $trans_amount, $comment, $msg_id, $chat_id, c.id as client_id, $direction
-   FROM client c
-  WHERE c.is_active
-    AND c.username = $client_id;`
-	} else {
-		query = query + `
-UPSERT INTO doc ( rec_time, trans_date, trans_cat, trans_amount, comment, msg_id, chat_id, client_id, direction )
-SELECT $rec_time     as rec_time
-     , $trans_date   as trans_date
-     , trans_cat     as trans_cat
-	 , $trans_amount as trans_amount
-	 , $comment      as comment
-	 , $msg_id       as msg_id
-	 , $chat_id      as chat_id
-	 , c.id          as client_id
-	 , direction     as direction
-  FROM client c
- INNER JOIN doc_category dc ON (dc.client_id = c.username)
- WHERE c.is_active
-   AND c.username = $client_id
-   AND dc.active
-   AND dc.trans_cat = $trans_cat;`
-	}
+ VALUES ( $rec_time, $trans_date, $trans_cat, $trans_amount, $comment, $msg_id, $chat_id, $client_id, $direction );`
 
-	if !doc.TransDate.Valid {
-		doc.TransDate.Time = time.Now()
-		doc.TransDate.Valid = true
-	}
-	if !doc.RecDate.Valid {
-		doc.RecDate.Time = time.Now()
-		doc.RecDate.Valid = true
+	if r.prefix != "" {
+		query = fmt.Sprintf(`PRAGMA TablePathPrefix("%s"); %s`, r.prefix, query)
 	}
 
 	err = r.Table().DoTx( // Do retry operation on errors with best effort
@@ -111,15 +86,15 @@ SELECT $rec_time     as rec_time
 				ctx,
 				query,
 				table.NewQueryParameters(
-					table.ValueParam("$rec_time", types.TimestampValueFromTime(doc.RecDate.Time)),
-					table.ValueParam("$trans_date", types.DatetimeValueFromTime(doc.TransDate.Time)),
-					table.ValueParam("$trans_cat", types.BytesValueFromString(doc.Category.String)),
-					table.ValueParam("$trans_amount", types.Int64Value(doc.Amount.Int64)),
-					table.ValueParam("$comment", types.BytesValueFromString(doc.Description.String)),
-					table.ValueParam("$msg_id", types.BytesValueFromString(doc.MsgID.String)),
-					table.ValueParam("$chat_id", types.BytesValueFromString(doc.ChatID.String)),
-					table.ValueParam("$client_id", types.BytesValueFromString(doc.ClientID.String)),
-					table.ValueParam("$direction", types.Int8Value(int8(doc.Direction.Int16))),
+					table.ValueParam("$rec_time", types.TimestampValueFromTime(doc.RecDate)),
+					table.ValueParam("$trans_date", types.DatetimeValueFromTime(doc.TransDate)),
+					table.ValueParam("$trans_cat", types.BytesValueFromString(doc.Category)),
+					table.ValueParam("$trans_amount", types.Int64Value(doc.Amount)),
+					table.ValueParam("$comment", types.BytesValueFromString(doc.Description)),
+					table.ValueParam("$msg_id", types.BytesValueFromString(doc.MsgID)),
+					table.ValueParam("$chat_id", types.BytesValueFromString(doc.ChatID)),
+					table.ValueParam("$client_id", types.Uint64Value(uint64(doc.UserId))),
+					table.ValueParam("$direction", types.Int8Value(doc.Direction)),
 				),
 			)
 			if err != nil {
@@ -136,24 +111,32 @@ SELECT $rec_time     as rec_time
 }
 
 func (r *Ydb) DeleteDocument(ctx context.Context, doc *DBDocument) (err error) {
-	if !doc.MsgID.Valid || !doc.ClientID.Valid {
+	if doc.MsgID == "" || doc.UserId == 0 {
 		return errors.New("not enough input params to delete document")
+	}
+
+	query := `DECLARE $msg_id      AS String;
+              DECLARE $chat_id     AS String;
+              DECLARE $client_id   AS Uint64;
+DELETE FROM doc
+ WHERE msg_id = $msg_id
+   AND chat_id = $chat_id
+   AND client_id = $client_id;`
+
+	if r.prefix != "" {
+		query = fmt.Sprintf(`PRAGMA TablePathPrefix("%s"); %s`, r.prefix, query)
 	}
 
 	err = r.Table().DoTx( // Do retry operation on errors with best effort
 		ctx, // context manages exiting from Do
 		func(ctx context.Context, tx table.TransactionActor) (err error) { // retry operation
 			res, err := tx.Execute(
-				ctx, `DECLARE $msg_id      AS String;
-				      DECLARE $chat_id     AS String;
-				      DECLARE $client_id   AS String;
- DELETE FROM doc
-  WHERE msg_id = $msg_id
-    AND client_id in (select c.id from client c where c.username = $client_id);`,
+				ctx,
+				query,
 				table.NewQueryParameters(
-					table.ValueParam("$msg_id", types.BytesValueFromString(doc.MsgID.String)),
-					table.ValueParam("$chat_id", types.BytesValueFromString(doc.ChatID.String)),
-					table.ValueParam("$client_id", types.BytesValueFromString(doc.ClientID.String)),
+					table.ValueParam("$msg_id", types.BytesValueFromString(doc.MsgID)),
+					table.ValueParam("$chat_id", types.BytesValueFromString(doc.ChatID)),
+					table.ValueParam("$client_id", types.Uint64Value(uint64(doc.UserId))),
 				),
 			)
 			if err != nil {
@@ -169,10 +152,12 @@ func (r *Ydb) DeleteDocument(ctx context.Context, doc *DBDocument) (err error) {
 	return err
 }
 
-func (r *Ydb) GetDocumentCategories(ctx context.Context, username, limit string) (cats []TransCatLimit, err error) {
-	query := `DECLARE $client_id      AS String;
-	          DECLARE $month_interval AS Datetime;
-			  DECLARE $date_interval  AS Datetime;
+func (r *Ydb) GetDocumentCategories(ctx context.Context, user_id int, limit string) (cats []TransCatLimit, err error) {
+	query := `
+DECLARE $client_id      AS Uint64;
+DECLARE $month_interval AS Datetime;
+DECLARE $date_interval  AS Datetime;
+
 SELECT dc.trans_cat        AS trans_cat
      , dc.direction        AS direction
 	 , count(d.trans_date) AS cnt
@@ -180,16 +165,19 @@ SELECT dc.trans_cat        AS trans_cat
      , dc.trans_limit
 	 - sum(case when d.trans_date >= $month_interval then d.trans_amount
 				  else 0 end) AS trans_balance
-  FROM doc_category dc
- INNER JOIN client c on (c.username = dc.client_id)
+  FROM doc_cat dc
   LEFT JOIN doc d on (d.trans_cat = dc.trans_cat
-				  and d.client_id = c.id)
+				  and d.client_id = dc.client_id)
  WHERE dc.active
+   AND dc.client_id = $client_id
    AND (d.trans_date is null
 	 OR d.trans_date > $date_interval)
-   AND c.username = $client_id
  GROUP BY dc.trans_cat, dc.direction, dc.trans_limit
  ORDER BY cnt desc;`
+
+	if r.prefix != "" {
+		query = fmt.Sprintf(`PRAGMA TablePathPrefix("%s"); %s`, r.prefix, query)
+	}
 
 	err = r.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
 		t := time.Now()
@@ -199,7 +187,7 @@ SELECT dc.trans_cat        AS trans_cat
 			table.DefaultTxControl(),
 			query,
 			table.NewQueryParameters(
-				table.ValueParam("$client_id", types.BytesValueFromString(username)),
+				table.ValueParam("$client_id", types.Uint64Value(uint64(user_id))),
 				table.ValueParam("$month_interval",
 					types.DatetimeValueFromTime(time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location()))),
 				table.ValueParam("$date_interval", types.DatetimeValueFromTime(t.AddDate(0, -3, 0))),
@@ -219,7 +207,7 @@ SELECT dc.trans_cat        AS trans_cat
 				named.Optional("trans_limit", &tcl.Limit),
 				named.Optional("trans_balance", &tcl.Balance),
 			)
-			tcl.Active = sql.NullBool{Bool: true, Valid: true}
+			tcl.Active = true
 			if err != nil {
 				return err
 			}
@@ -233,36 +221,36 @@ SELECT dc.trans_cat        AS trans_cat
 
 func (r *Ydb) EditCategory(ctx context.Context, cat *TransCatLimit) (err error) {
 	//preformat
-	cat.Category.String = strings.ToLower(strings.TrimSpace(cat.Category.String))
+	*cat.Category = strings.ToLower(strings.TrimSpace(*cat.Category))
 	//
 	query := `	DECLARE $trans_cat    AS String;
 				DECLARE $direction    AS Int8;
-				DECLARE $client_id    AS String;
+				DECLARE $client_id    AS Uint64;
 				DECLARE $active       AS Bool;
 				DECLARE $date_to      AS Datetime;
 				DECLARE $trans_limit  AS Int64;
 				DECLARE $date_to_max  AS Datetime;`
-	if !cat.Active.Bool && cat.Active.Valid {
+	if !cat.Active {
 		query = query + `
-		UPDATE doc_category
+		UPDATE doc_cat
 		   SET active = false
 		 WHERE active
 		   AND date_to = $date_to_max
 		   AND trans_cat = $trans_cat
 		   AND client_id = $client_id;`
-	} else if cat.Limit.Valid {
+	} else if *cat.Limit > 0 {
 		query = query + `
-		UPSERT INTO doc_category ( trans_cat, direction, client_id, active, date_to, trans_limit )
+		UPSERT INTO doc_cat ( trans_cat, direction, client_id, active, date_to, trans_limit )
 		SELECT trans_cat, direction, client_id
 			 , false as active, $date_to as date_to
 			 , trans_limit
-		  FROM doc_category
+		  FROM doc_cat
 		 WHERE active
 		   AND date_to = $date_to_max
 		   AND trans_cat = $trans_cat
 		   AND client_id = $client_id;
 
-		UPDATE doc_category
+		UPDATE doc_cat
 		   SET trans_limit = $trans_limit
 		 WHERE active
 		   AND date_to = $date_to_max
@@ -270,8 +258,12 @@ func (r *Ydb) EditCategory(ctx context.Context, cat *TransCatLimit) (err error) 
 		   AND client_id = $client_id;`
 	} else {
 		query = query + `
-		UPSERT INTO doc_category ( trans_cat, direction, client_id, date_to, active )
+		UPSERT INTO doc_cat ( trans_cat, direction, client_id, date_to, active )
 		VALUES ( $trans_cat, $direction, $client_id, $date_to_max, $active );`
+	}
+
+	if r.prefix != "" {
+		query = fmt.Sprintf(`PRAGMA TablePathPrefix("%s"); %s`, r.prefix, query)
 	}
 
 	err = r.Table().DoTx( // Do retry operation on errors with best effort
@@ -282,12 +274,12 @@ func (r *Ydb) EditCategory(ctx context.Context, cat *TransCatLimit) (err error) 
 				ctx,
 				query,
 				table.NewQueryParameters(
-					table.ValueParam("$trans_cat", types.BytesValueFromString(cat.Category.String)),
-					table.ValueParam("$direction", types.Int8Value(int8(cat.Direction.Int16))),
-					table.ValueParam("$client_id", types.BytesValueFromString(cat.ClientID.String)),
-					table.ValueParam("$active", types.BoolValue(cat.Active.Bool)),
+					table.ValueParam("$trans_cat", types.BytesValueFromString(*cat.Category)),
+					table.ValueParam("$direction", types.Int8Value(*cat.Direction)),
+					table.ValueParam("$client_id", types.Uint64Value(uint64(cat.UserId))),
+					table.ValueParam("$active", types.BoolValue(cat.Active)),
 					table.ValueParam("$date_to", types.DatetimeValueFromTime(time.Now())),
-					table.ValueParam("$trans_limit", types.Int64Value(cat.Limit.Int64)),
+					table.ValueParam("$trans_limit", types.Int64Value(int64(*cat.Limit))),
 					table.ValueParam("$date_to_max", types.DatetimeValueFromTime(t)),
 				),
 			)
@@ -304,22 +296,25 @@ func (r *Ydb) EditCategory(ctx context.Context, cat *TransCatLimit) (err error) 
 	return err
 }
 
-func (r *Ydb) GetDocumentSubCategories(ctx context.Context, username, trans_cat string) (subcats []string, err error) {
-	query := `DECLARE $client_id      AS String;
+func (r *Ydb) GetDocumentSubCategories(ctx context.Context, user_id int, trans_cat string) (subcats []string, err error) {
+	query := `DECLARE $client_id      AS Uint64;
 			  DECLARE $trans_cat 	  AS String;
 			  DECLARE $date_interval  AS Timestamp;
 SELECT d.comment as comment
      , count(*) AS cnt
   FROM doc d
- INNER JOIN client c ON (c.id = d.client_id)
  WHERE d.comment != ''
    AND d.trans_cat = $trans_cat
    AND d.rec_time > $date_interval
-   AND c.username = $client_id
-   AND c.is_active
+   AND d.client_id = $client_id
  GROUP BY d.comment
  ORDER BY cnt DESC
- LIMIT 20;`
+ LIMIT 25;`
+
+	if r.prefix != "" {
+		query = fmt.Sprintf(`PRAGMA TablePathPrefix("%s"); %s`, r.prefix, query)
+	}
+
 	err = r.Table().Do(ctx, func(ctx context.Context, s table.Session) (err error) {
 		t := time.Now()
 		_, res, err := s.Execute(
@@ -327,7 +322,7 @@ SELECT d.comment as comment
 			table.DefaultTxControl(),
 			query,
 			table.NewQueryParameters(
-				table.ValueParam("$client_id", types.BytesValueFromString(username)),
+				table.ValueParam("$client_id", types.Uint64Value(uint64(user_id))),
 				table.ValueParam("$trans_cat", types.BytesValueFromString(trans_cat)),
 				table.ValueParam("$date_interval", types.TimestampValueFromTime(t.AddDate(0, -3, 0))),
 			),

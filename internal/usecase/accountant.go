@@ -39,9 +39,9 @@ func (a *Accountant) GetCatsLimit(ctx context.Context, user_id int, limit string
 	return
 }
 
-func (a *Accountant) EditCats(ctx context.Context, tc entity.TransCatLimit, user_id int) (err error) {
-	a.log.Debug("EditCats", "user_id", user_id)
-	err = a.repo.EditCategory(ctx, tc, user_id)
+func (a *Accountant) EditCats(ctx context.Context, tc *entity.TransCatLimit) (err error) {
+	a.log.Debug("EditCats", "user_id", tc.UserId)
+	err = a.repo.EditCategory(ctx, tc)
 	if err != nil {
 		a.log.Error("repo.EditCategory", "err", err)
 	}
