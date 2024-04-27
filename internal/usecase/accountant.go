@@ -30,9 +30,9 @@ func New(d Repo, u User, r Reporter, s Cloud, l *slog.Logger) *Accountant {
 	}
 }
 
-func (a *Accountant) GetCatsLimit(ctx context.Context, user_id int, limit string) (cats []entity.TransCatLimit, err error) {
-	a.log.Debug("GetCatsLimit", "user_id", user_id, "limit", limit)
-	cats, err = a.repo.GetCategories(ctx, user_id, limit)
+func (a *Accountant) GetCatsLimit(ctx context.Context, user_id int) (cats []entity.TransCatLimit, err error) {
+	a.log.Debug("GetCatsLimit", "user_id", user_id)
+	cats, err = a.repo.GetCategories(ctx, user_id)
 	if err != nil {
 		a.log.Error("repo.GetCategories", "err", err)
 	}

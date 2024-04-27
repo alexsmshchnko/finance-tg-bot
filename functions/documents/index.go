@@ -72,7 +72,7 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 				rw.Write([]byte(fmt.Sprintf("strconv.Atoi error, %v", err)))
 				return
 			}
-			res, err := db.GetDocumentCategories(ctx, user_id, "")
+			res, err := db.GetDocumentCategories(ctx, user_id)
 			if err != nil {
 				rw.WriteHeader(http.StatusNotFound)
 				rw.Write([]byte(fmt.Sprintf("db.GetDocumentCategories error, %v", err)))

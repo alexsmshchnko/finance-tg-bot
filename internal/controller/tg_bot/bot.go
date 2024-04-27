@@ -13,7 +13,7 @@ import (
 )
 
 type accountant interface {
-	GetCatsLimit(ctx context.Context, user_id int, limit string) (cats []entity.TransCatLimit, err error)
+	GetCatsLimit(ctx context.Context, user_id int) (cats []entity.TransCatLimit, err error)
 	GetSubCats(ctx context.Context, user_id int, trans_cat string) (cats []string, err error)
 	GetUserStatus(ctx context.Context, username string) (id int, status bool, err error)
 	PostDoc(ctx context.Context, doc *entity.Document) (err error)
@@ -80,7 +80,7 @@ func (b *Bot) requestCats(ctx context.Context, page int, q *tgbotapi.CallbackQue
 	}
 
 	// TODO move formatting to usecase (no only here)
-	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[userName].UserId, "balance")
+	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[userName].UserId)
 	if err != nil {
 		return
 	}

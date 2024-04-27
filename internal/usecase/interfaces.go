@@ -8,7 +8,7 @@ import (
 
 type (
 	Repo interface {
-		GetCategories(ctx context.Context, user_id int, limit string) (cat []entity.TransCatLimit, err error)
+		GetCategories(ctx context.Context, user_id int) (cat []entity.TransCatLimit, err error)
 		EditCategory(ctx context.Context, tc *entity.TransCatLimit) (err error)
 		GetSubCategories(ctx context.Context, user_id int, trans_cat string) ([]string, error)
 		Export(client string) (rslt []byte, err error)

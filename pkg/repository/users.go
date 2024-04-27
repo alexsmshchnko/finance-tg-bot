@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 )
 
@@ -26,7 +25,7 @@ func (r *Repository) GetUserInfo(ctx context.Context, username string) (res *DBC
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"GET",
-		r.serviceDomain+"/users/"+username,
+		r.serviceURL.JoinPath("users", username).String(),
 		nil,
 	)
 	if err != nil {
@@ -48,14 +47,9 @@ func (r *Repository) GetUserInfo(ctx context.Context, username string) (res *DBC
 		return
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	err = json.NewDecoder(req.Body).Decode(&res)
 	if err != nil {
-		r.Logger.Error("Repository.GetUserInfo io.ReadAll", "err", err)
-		return
-	}
-	err = json.Unmarshal(body, &res)
-	if err != nil {
-		r.Logger.Error("Repository.GetUserInfo json.Unmarshal", "err", err)
+		r.Logger.Error("json.NewDecoder(req.Body).Decode(&res)", "err", err)
 	}
 
 	return

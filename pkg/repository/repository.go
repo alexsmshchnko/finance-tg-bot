@@ -7,7 +7,6 @@ import (
 	"errors"
 	"finance-tg-bot/internal/entity"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 )
@@ -15,7 +14,7 @@ import (
 type DocProcessor interface {
 	PostDocument(ctx context.Context, doc *entity.Document) (err error)
 	DeleteDocument(ctx context.Context, doc *entity.Document) (err error)
-	GetDocumentCategories(ctx context.Context, user_id int, limit string) (cats []entity.TransCatLimit, err error)
+	GetDocumentCategories(ctx context.Context, user_id int) (cats []entity.TransCatLimit, err error)
 	EditCategory(ctx context.Context, cat *entity.TransCatLimit) (err error)
 	GetDocumentSubCategories(ctx context.Context, user_id int, trans_cat string) (subcats []string, err error)
 }
@@ -30,7 +29,7 @@ func (r *Repository) PostDocument(ctx context.Context, doc *entity.Document) (er
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"POST",
-		r.serviceDomain+"/document",
+		r.serviceURL.JoinPath("document").String(),
 		bytes.NewBuffer(jsonStr),
 	)
 	if err != nil {
@@ -50,7 +49,6 @@ func (r *Repository) PostDocument(ctx context.Context, doc *entity.Document) (er
 	if resp.StatusCode != 200 {
 		err = errors.New(http.StatusText(resp.StatusCode))
 		r.Logger.Error("Repository.PostDocument response", "StatusCode", resp.StatusCode)
-		return
 	}
 
 	return
@@ -71,7 +69,7 @@ func (r *Repository) DeleteDocument(ctx context.Context, doc *entity.Document) (
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"DELETE",
-		r.serviceDomain+"/document",
+		r.serviceURL.JoinPath("document").String(),
 		bytes.NewBuffer(jsonStr),
 	)
 	if err != nil {
@@ -91,17 +89,16 @@ func (r *Repository) DeleteDocument(ctx context.Context, doc *entity.Document) (
 	if resp.StatusCode != 200 {
 		err = errors.New(http.StatusText(resp.StatusCode))
 		r.Logger.Error("Repository.DeleteDocument response", "StatusCode", resp.StatusCode)
-		return
 	}
 
 	return
 }
 
-func (r *Repository) GetDocumentCategories(ctx context.Context, user_id int, limit string) (cats []entity.TransCatLimit, err error) {
+func (r *Repository) GetDocumentCategories(ctx context.Context, user_id int) (cats []entity.TransCatLimit, err error) {
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"GET",
-		fmt.Sprintf("%s/category/%d", r.serviceDomain, user_id),
+		r.serviceURL.JoinPath("category", fmt.Sprint(user_id)).String(),
 		nil,
 	)
 	if err != nil {
@@ -123,14 +120,9 @@ func (r *Repository) GetDocumentCategories(ctx context.Context, user_id int, lim
 		return
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	err = json.NewDecoder(resp.Body).Decode(&cats)
 	if err != nil {
-		r.Logger.Error("Repository.GetDocumentCategories io.ReadAll", "err", err)
-		return
-	}
-	err = json.Unmarshal(body, &cats)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentCategories json.Unmarshal", "err", err)
+		r.Logger.Error("json.NewDecoder(resp.Body).Decode(&cats)", "err", err)
 	}
 
 	return
@@ -150,7 +142,7 @@ func (r *Repository) EditCategory(ctx context.Context, cat *entity.TransCatLimit
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"POST",
-		fmt.Sprintf("%s/category/%d", r.serviceDomain, cat.UserId),
+		r.serviceURL.JoinPath("category", fmt.Sprint(cat.UserId)).String(),
 		bytes.NewBuffer(jsonStr),
 	)
 	if err != nil {
@@ -170,7 +162,6 @@ func (r *Repository) EditCategory(ctx context.Context, cat *entity.TransCatLimit
 	if resp.StatusCode != 200 {
 		err = errors.New(http.StatusText(resp.StatusCode))
 		r.Logger.Error("Repository.EditCategory response", "StatusCode", resp.StatusCode)
-		return
 	}
 
 	return
@@ -180,7 +171,7 @@ func (r *Repository) GetDocumentSubCategories(ctx context.Context, user_id int, 
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"OPTIONS",
-		fmt.Sprintf("%s/category/%d/%s", r.serviceDomain, user_id, trans_cat),
+		r.serviceURL.JoinPath("category", fmt.Sprint(user_id), trans_cat).String(),
 		nil,
 	)
 	if err != nil {
@@ -202,14 +193,9 @@ func (r *Repository) GetDocumentSubCategories(ctx context.Context, user_id int, 
 		return
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	err = json.NewDecoder(resp.Body).Decode(&subcats)
 	if err != nil {
-		r.Logger.Error("Repository.GetDocumentSubCategories io.ReadAll", "err", err)
-		return
-	}
-	err = json.Unmarshal(body, &subcats)
-	if err != nil {
-		r.Logger.Error("Repository.GetDocumentSubCategories json.Unmarshal", "err", err)
+		r.Logger.Error("json.NewDecoder(resp.Body).Decode(&subcats)", "err", err)
 	}
 
 	return

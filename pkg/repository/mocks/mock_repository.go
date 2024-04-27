@@ -64,18 +64,18 @@ func (mr *MockDocProcessorMockRecorder) EditCategory(ctx, cat interface{}) *gomo
 }
 
 // GetDocumentCategories mocks base method.
-func (m *MockDocProcessor) GetDocumentCategories(ctx context.Context, user_id int, limit string) ([]entity.TransCatLimit, error) {
+func (m *MockDocProcessor) GetDocumentCategories(ctx context.Context, user_id int) ([]entity.TransCatLimit, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDocumentCategories", ctx, user_id, limit)
+	ret := m.ctrl.Call(m, "GetDocumentCategories", ctx, user_id)
 	ret0, _ := ret[0].([]entity.TransCatLimit)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetDocumentCategories indicates an expected call of GetDocumentCategories.
-func (mr *MockDocProcessorMockRecorder) GetDocumentCategories(ctx, user_id, limit interface{}) *gomock.Call {
+func (mr *MockDocProcessorMockRecorder) GetDocumentCategories(ctx, user_id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentCategories", reflect.TypeOf((*MockDocProcessor)(nil).GetDocumentCategories), ctx, user_id, limit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocumentCategories", reflect.TypeOf((*MockDocProcessor)(nil).GetDocumentCategories), ctx, user_id)
 }
 
 // GetDocumentSubCategories mocks base method.

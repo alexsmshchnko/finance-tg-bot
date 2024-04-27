@@ -25,8 +25,8 @@ type DocumentExport struct {
 type TransCatLimit struct {
 	Category  string `json:"trans_cat"`
 	Direction int8   `json:"direction"`
-	UserId    int    `json:"client_id"`
-	Active    bool   `json:"active"`
+	UserId    int    `json:"client_id,omitempty"`
+	Active    bool   `json:"active,omitempty"`
 	Limit     int    `json:"trans_limit"`
 	Balance   int    `json:"trans_balance"`
 }
@@ -37,8 +37,8 @@ type Document struct {
 	Category    string    `json:"trans_cat"`
 	Amount      int64     `json:"trans_amount"`
 	Description string    `json:"comment"`
-	MsgID       string    `json:"tg_msg_id"`
-	ChatID      string    `json:"tg_chat_id"`
+	MsgID       string    `json:"msg_id"`
+	ChatID      string    `json:"chat_id"`
 	UserId      int       `json:"client_id"`
 	Direction   int8      `json:"direction"`
 }

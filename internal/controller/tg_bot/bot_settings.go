@@ -100,7 +100,7 @@ func requestCategoryKeyboardEditor(b *Bot, ctx context.Context, q *tgbotapi.Call
 
 func requestCategoriesKeyboardEditor(b *Bot, ctx context.Context, page int, c *userChat) {
 	b.updateMsgText(c.chatID, c.messageID, "Настройки категорий и лимитов")
-	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[c.userName].UserId, "setting")
+	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[c.userName].UserId)
 	if err != nil {
 		return
 	}

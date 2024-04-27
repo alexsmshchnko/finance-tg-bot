@@ -129,7 +129,7 @@ func TestRepo_PostDocument(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rpMck.EXPECT().PostDocument(tt.args.ctx, tt.mockDoc).Return(nil).Times(1)
-			rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.doc.UserId, "").Times(1)
+			rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.doc.UserId).Times(1)
 			rpMck.EXPECT().GetDocumentSubCategories(tt.args.ctx, tt.args.doc.UserId, tt.args.doc.Category).Times(1)
 
 			r := &Repo{repo: rpMck, cacheCats: tt.fields.cacheCats, cacheSubCats: tt.fields.cacheSubCats}
@@ -243,15 +243,15 @@ func TestRepo_GetCategories(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.name {
 			case "2 cats with no cache":
-				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.user_id, tt.args.limit).Return(tt.wantCat, nil).Times(1)
+				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.user_id).Return(tt.wantCat, nil).Times(1)
 			case "2 cats cached":
 			case "some error":
-				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.user_id, tt.args.limit).Return(nil, errors.New("test")).Times(1)
+				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.user_id).Return(nil, errors.New("test")).Times(1)
 			}
 
 			r := &Repo{repo: tt.fields.repo, cacheCats: tt.fields.cacheCats}
 
-			gotCat, err := r.GetCategories(tt.args.ctx, tt.args.user_id, tt.args.limit)
+			gotCat, err := r.GetCategories(tt.args.ctx, tt.args.user_id)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Repo.GetCategories() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -378,13 +378,13 @@ func TestRepo_EditCategory(t *testing.T) {
 			switch tt.name {
 			case "set inactive":
 				rpMck.EXPECT().EditCategory(tt.args.ctx, tt.args.tc).Return(nil).Times(1)
-				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.tc.UserId, "").Return(nil, nil).Times(1)
+				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.tc.UserId).Return(nil, nil).Times(1)
 			case "set limit":
 				rpMck.EXPECT().EditCategory(tt.args.ctx, tt.args.tc).Return(nil).Times(1)
-				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.tc.UserId, "").Return(nil, nil).Times(1)
+				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.tc.UserId).Return(nil, nil).Times(1)
 			case "some error":
 				rpMck.EXPECT().EditCategory(tt.args.ctx, tt.args.tc).Return(errors.New("test")).Times(1)
-				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.tc.UserId, "").Return(nil, nil).Times(1)
+				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.tc.UserId).Return(nil, nil).Times(1)
 			}
 
 			r := &Repo{repo: tt.fields.repo, cacheCats: tt.fields.cacheCats}

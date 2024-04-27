@@ -41,14 +41,14 @@ func connectDB(ctx context.Context, dsn, saPath, prefix string) (*Ydb, error) {
 type TransCatLimit struct {
 	Category  *string `json:"trans_cat"`
 	Direction *int8   `json:"direction"`
-	UserId    int     `json:"client_id"`
-	Active    bool    `json:"active"`
+	UserId    int     `json:"client_id,omitempty"`
+	Active    bool    `json:"active,omitempty"`
 	Limit     *int64  `json:"trans_limit"`
 	Balance   *int64  `json:"trans_balance"`
 }
 
 type DBDocument struct {
-	RecDate     time.Time `json:"rec_time"`
+	RecTime     time.Time `json:"rec_time"`
 	TransDate   time.Time `json:"trans_date"`
 	Category    string    `json:"trans_cat"`
 	Amount      int64     `json:"trans_amount"`
@@ -86,7 +86,7 @@ func (r *Ydb) PostDocument(ctx context.Context, doc *DBDocument) (err error) {
 				ctx,
 				query,
 				table.NewQueryParameters(
-					table.ValueParam("$rec_time", types.TimestampValueFromTime(doc.RecDate)),
+					table.ValueParam("$rec_time", types.TimestampValueFromTime(doc.RecTime)),
 					table.ValueParam("$trans_date", types.DatetimeValueFromTime(doc.TransDate)),
 					table.ValueParam("$trans_cat", types.BytesValueFromString(doc.Category)),
 					table.ValueParam("$trans_amount", types.Int64Value(doc.Amount)),
@@ -152,7 +152,7 @@ DELETE FROM doc
 	return err
 }
 
-func (r *Ydb) GetDocumentCategories(ctx context.Context, user_id int, limit string) (cats []TransCatLimit, err error) {
+func (r *Ydb) GetDocumentCategories(ctx context.Context, user_id int) (cats []TransCatLimit, err error) {
 	query := `
 DECLARE $client_id      AS Uint64;
 DECLARE $month_interval AS Datetime;
@@ -207,7 +207,6 @@ SELECT dc.trans_cat        AS trans_cat
 				named.Optional("trans_limit", &tcl.Limit),
 				named.Optional("trans_balance", &tcl.Balance),
 			)
-			tcl.Active = true
 			if err != nil {
 				return err
 			}

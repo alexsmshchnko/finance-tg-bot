@@ -44,7 +44,7 @@ func (r *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err erro
 
 	err = r.repo.PostDocument(ctx, doc)
 	r.clearCache(doc.UserId, doc.Category)
-	go r.GetCategories(ctx, doc.UserId, "")
+	go r.GetCategories(ctx, doc.UserId)
 	go r.GetSubCategories(ctx, doc.UserId, doc.Category)
 	return
 }
@@ -53,9 +53,9 @@ func (r *Repo) DeleteDocument(ctx context.Context, doc *entity.Document) (err er
 	return r.repo.DeleteDocument(ctx, doc)
 }
 
-func (r *Repo) GetCategories(ctx context.Context, user_id int, limit string) (cat []entity.TransCatLimit, err error) {
+func (r *Repo) GetCategories(ctx context.Context, user_id int) (cat []entity.TransCatLimit, err error) {
 	if _, ok := r.cacheCats[user_id]; !ok {
-		res, err := r.repo.GetDocumentCategories(ctx, user_id, limit)
+		res, err := r.repo.GetDocumentCategories(ctx, user_id)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +83,7 @@ func (r *Repo) GetSubCategories(ctx context.Context, user_id int, trans_cat stri
 func (r *Repo) EditCategory(ctx context.Context, tc *entity.TransCatLimit) (err error) {
 	err = r.repo.EditCategory(ctx, tc)
 	r.clearCache(tc.UserId, "")
-	go r.GetCategories(ctx, tc.UserId, "")
+	go r.GetCategories(ctx, tc.UserId)
 	return
 }
 

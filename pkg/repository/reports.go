@@ -7,15 +7,15 @@ import (
 	"errors"
 	"finance-tg-bot/internal/entity"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 )
 
 type Repository struct {
-	serviceDomain string
-	authHeader    *http.Header
+	serviceURL *url.URL
+	authHeader *http.Header
 	*http.Client
 	*slog.Logger
 }
@@ -23,11 +23,12 @@ type Repository struct {
 func NewRepository(ServiceDomain, AuthToken string, log *slog.Logger) (rep *Repository) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
+	u, _ := url.Parse(ServiceDomain)
 	rep = &Repository{
-		serviceDomain: ServiceDomain,
-		authHeader:    &http.Header{},
-		Client:        &http.Client{Transport: transport, Timeout: 12 * time.Second},
-		Logger:        log,
+		serviceURL: u,
+		authHeader: &http.Header{},
+		Client:     &http.Client{Transport: transport, Timeout: 12 * time.Second},
+		Logger:     log,
 	}
 	rep.authHeader.Add("Authorization", "Basic "+AuthToken)
 	return
@@ -44,7 +45,11 @@ func (r *Repository) GetStatementCatTotals(ctx context.Context, p map[string]str
 		r.Logger.Error("Repository.GetStatementCatTotals json.Marshal(p)", "err", err)
 		return
 	}
-	req, err := http.NewRequestWithContext(ctx, "GET", r.serviceDomain+"/report", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"GET",
+		r.serviceURL.JoinPath("report").String(),
+		bytes.NewBuffer(jsonStr))
 	if err != nil {
 		r.Logger.Error("Repository.GetStatementCatTotals http.NewRequest", "err", err)
 		return
@@ -58,14 +63,10 @@ func (r *Repository) GetStatementCatTotals(ctx context.Context, p map[string]str
 		return
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+
+	err = json.NewDecoder(resp.Body).Decode(&rres)
 	if err != nil {
-		r.Logger.Error("Repository.GetStatementCatTotals io.ReadAll", "err", err)
-		return
-	}
-	err = json.Unmarshal(body, &rres)
-	if err != nil {
-		r.Logger.Error("Repository.GetStatementCatTotals json.Unmarshal", "err", err)
+		r.Logger.Error("json.NewDecoder(resp.Body).Decode(&rres)", "err", err)
 	}
 
 	return
@@ -75,7 +76,7 @@ func (r *Repository) GetUserStats(ctx context.Context, user_id int) (stats entit
 	req, err := http.NewRequestWithContext(
 		ctx,
 		"GET",
-		fmt.Sprintf("%s/userstats/%d", r.serviceDomain, user_id),
+		r.serviceURL.JoinPath("userstats", fmt.Sprint(user_id)).String(),
 		nil,
 	)
 	if err != nil {
@@ -97,14 +98,9 @@ func (r *Repository) GetUserStats(ctx context.Context, user_id int) (stats entit
 		return
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	err = json.NewDecoder(resp.Body).Decode(&stats)
 	if err != nil {
-		r.Logger.Error("Repository.GetUserStats io.ReadAll", "err", err)
-		return
-	}
-	err = json.Unmarshal(body, &stats)
-	if err != nil {
-		r.Logger.Error("Repository.GetUserStats json.Unmarshal", "err", err)
+		r.Logger.Error("json.NewDecoder(resp.Body).Decode(&stats)", "err", err)
 	}
 
 	return
