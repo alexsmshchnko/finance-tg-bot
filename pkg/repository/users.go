@@ -47,7 +47,7 @@ func (r *Repository) GetUserInfo(ctx context.Context, username string) (res *DBC
 		return
 	}
 
-	err = json.NewDecoder(req.Body).Decode(&res)
+	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
 		r.Logger.Error("json.NewDecoder(req.Body).Decode(&res)", "err", err)
 	}
