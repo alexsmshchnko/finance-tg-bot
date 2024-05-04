@@ -4,6 +4,7 @@ import (
 	"context"
 	"finance-tg-bot/internal/entity"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ type accountant interface {
 type Bot struct {
 	api *tgbotapi.BotAPI
 	accountant
+	log *slog.Logger
 }
 
 type userChat struct {
@@ -36,10 +38,11 @@ type userChat struct {
 	userName  string
 }
 
-func New(api *tgbotapi.BotAPI, acc accountant) *Bot {
+func New(api *tgbotapi.BotAPI, acc accountant, l *slog.Logger) *Bot {
 	return &Bot{
 		api:        api,
 		accountant: acc,
+		log:        l,
 	}
 }
 
@@ -200,6 +203,7 @@ func (b *Bot) requestReply(q *tgbotapi.CallbackQuery, respCode string) {
 
 func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.CallbackQuery) {
 	var cat string
+
 	if len(strings.Split(q.Message.Text, " ")) < 3 {
 		cat, _ = strings.CutPrefix(q.Data, PREFIX_CATEGORY+":")
 	} else {
@@ -207,24 +211,24 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.Callback
 	}
 
 	subCats, err := b.accountant.GetSubCats(ctx, BotUsers[q.From.UserName].UserId, cat)
-	fmt.Printf("%#v %d\n %v", subCats, len(subCats), err)
+	if err != nil {
+		b.log.Error("requestSubCats GetSubCats", "err", err)
+		return
+	}
 	if len(subCats) == 0 {
 		subCats = []string{" "}
 	}
-	if err != nil {
-		return
-	}
-	options := make([][]string, 0, len(subCats))
-	for _, v := range subCats {
-		options = append(options, []string{v, PREFIX_SUBCATEGORY + ":" + v})
+	options := make([][]string, len(subCats))
+	for i, v := range subCats {
+		options[i] = []string{v, fmt.Sprintf("%s:%s:%d", PREFIX_SUBCATEGORY, cat, i)}
 	}
 
 	mrkp := newKeyboardForm()
 	mrkp.setOptions(options)
-	mrkp.addNavigationControl(page, nil, []string{EMOJI_KEYBOARD, PREFIX_SUBCATEGORY + ":writeCustom"})
+	mrkp.addNavigationControl(page, nil, []string{EMOJI_KEYBOARD, fmt.Sprintf("%s:%s", PREFIX_SUBCATEGORY, "writeCustom")})
 	resMrkp, err := mrkp.getMarkup()
 	if err != nil {
-		fmt.Println(err)
+		b.log.Error("requestSubCats mrkp.getMarkup", "err", err)
 		return
 	}
 
@@ -253,7 +257,7 @@ func (b *Bot) handleUpdate(ctx context.Context, u *tgbotapi.Update) {
 
 	if u.Message != nil {
 		if responseIsAwaited(u.SentFrom().UserName) {
-			b.responseHandler(u)
+			b.responseHandler(ctx, u)
 			return
 		}
 
@@ -278,7 +282,7 @@ func (b *Bot) handleUpdate(ctx context.Context, u *tgbotapi.Update) {
 func (b *Bot) Run(ctx context.Context, port string) (err error) {
 	wh, err := b.api.GetWebhookInfo()
 	if err != nil {
-		fmt.Println(err)
+		b.log.Error("bot.Run GetWebhookInfo", "err", err)
 		return err
 	}
 	if wh.URL == "" {

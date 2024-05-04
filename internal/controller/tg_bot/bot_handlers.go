@@ -14,9 +14,9 @@ func (b *Bot) callbackQueryHandler(ctx context.Context, q *tgbotapi.CallbackQuer
 	split := strings.Split(q.Data, ":")
 	switch split[0] {
 	case PREFIX_CATEGORY:
-		b.handleCategoryCallbackQuery(q)
+		b.handleCategoryCallbackQuery(ctx, q)
 	case PREFIX_SUBCATEGORY:
-		b.handleSubCategoryCallbackQuery(q)
+		b.handleSubCategoryCallbackQuery(ctx, q)
 	case PREFIX_OPTION:
 		b.handleOptionCallbackQuery(q)
 	case PREFIX_PAGE:
@@ -30,7 +30,7 @@ func (b *Bot) callbackQueryHandler(ctx context.Context, q *tgbotapi.CallbackQuer
 	}
 }
 
-func (b *Bot) handleCategoryCallbackQuery(q *tgbotapi.CallbackQuery) {
+func (b *Bot) handleCategoryCallbackQuery(ctx context.Context, q *tgbotapi.CallbackQuery) {
 	cat, _ := strings.CutPrefix(q.Data, PREFIX_CATEGORY+":")
 
 	q.Message.Text, _ = strings.CutSuffix(q.Message.Text, "₽")
@@ -39,19 +39,40 @@ func (b *Bot) handleCategoryCallbackQuery(q *tgbotapi.CallbackQuery) {
 	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, q.Message.Text+"₽ на "+cat)
 
 	//query description
-	b.requestSubCats(context.Background(), 0, q)
+	b.requestSubCats(ctx, 0, q)
 }
 
-func (b *Bot) handleSubCategoryCallbackQuery(q *tgbotapi.CallbackQuery) {
-	//update text
-	subCat, _ := strings.CutPrefix(q.Data, PREFIX_SUBCATEGORY+":")
+func (b *Bot) handleSubCategoryCallbackQuery(ctx context.Context, q *tgbotapi.CallbackQuery) {
+	splt := strings.Split(q.Data, ":")
 
-	if subCat == "writeCustom" {
+	if len(splt) < 2 {
+		b.log.Error("handleSubCategoryCallbackQuery", "subCat Data short request (<2)", q.Data)
+		return
+	}
+
+	if splt[1] == "writeCustom" {
 		b.requestReply(q, "REC_DESC")
 		return
 	}
 
-	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, q.Message.Text+"\n"+EMOJI_COMMENT+subCat)
+	if len(splt) < 3 {
+		b.log.Error("handleSubCategoryCallbackQuery", "subCat Data short request (<3)", q.Data)
+		return
+	}
+	idx, err := strconv.Atoi(splt[2])
+	if err != nil {
+		b.log.Error("handleSubCategoryCallbackQuery idx strconv.Atoi", "err", err)
+		return
+	}
+	subCats, err := b.accountant.GetSubCats(ctx, BotUsers[q.From.UserName].UserId, splt[1])
+	if err != nil {
+		b.log.Error("handleSubCategoryCallbackQuery b.accountant.GetSubCats", "err", err)
+		return
+	} else if len(subCats) < idx+1 {
+		b.log.Error("handleSubCategoryCallbackQuery short array subCats")
+		return
+	}
+	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, q.Message.Text+"\n"+EMOJI_COMMENT+subCats[idx])
 
 	//update keyboard
 	mrkp := getMsgOptionsKeyboard()
@@ -72,10 +93,12 @@ func (b *Bot) handleOptionCallbackQuery(q *tgbotapi.CallbackQuery) {
 	case "money2Time":
 		amnt, err := strconv.Atoi(strings.Split(q.Message.Text, "₽")[0])
 		if err != nil {
+			b.log.Error("handleOptionCallbackQuery amnt strconv.Atoi", "err", err)
 			return
 		}
 		stat, err := b.accountant.Money2Time(amnt, BotUsers[q.From.UserName].UserId)
 		if err != nil {
+			b.log.Error("handleOptionCallbackQuery Money2Time", "err", err)
 			return
 		}
 		msg := tgbotapi.NewMessage(q.Message.Chat.ID, fmt.Sprintf("%s\n\n%s", q.Message.Text, stat))
@@ -83,7 +106,7 @@ func (b *Bot) handleOptionCallbackQuery(q *tgbotapi.CallbackQuery) {
 	}
 }
 
-func (b *Bot) responseHandler(u *tgbotapi.Update) {
+func (b *Bot) responseHandler(ctx context.Context, u *tgbotapi.Update) {
 	respCode := BotUsers[u.SentFrom().UserName].ResponseCode
 	respMsg := BotUsers[u.SentFrom().UserName].ResponseMsg
 	switch respCode {
@@ -98,10 +121,9 @@ func (b *Bot) responseHandler(u *tgbotapi.Update) {
 		msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
 		b.api.Send(msg)
 	case "REC_NEWLIMIT":
-		ctx := context.Background()
 		limit, err := strconv.Atoi(u.Message.Text)
 		if err != nil {
-			fmt.Println(err)
+			b.log.Error("responseHandler limit strconv.Atoi", "err", err)
 			return
 		}
 		cat := &entity.TransCatLimit{
@@ -112,7 +134,7 @@ func (b *Bot) responseHandler(u *tgbotapi.Update) {
 		}
 		err = b.accountant.EditCats(ctx, cat)
 		if err != nil {
-			fmt.Println(err)
+			b.log.Error("responseHandler EditCats", "err", err)
 			return
 		}
 		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{u.Message.Chat.ID, respMsg.MessageID, u.SentFrom().UserName})

@@ -45,7 +45,7 @@ func Run(config config.Config) (err error) {
 	acnt := accountant.New(
 		doc.New(r), user.New(r), report.New(r),
 		cloud.New(), log)
-	bot := tg_bot.New(gBot, acnt)
+	bot := tg_bot.New(gBot, acnt, log)
 
 	return bot.Run(ctx, config.ServerPort)
 }
