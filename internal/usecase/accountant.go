@@ -3,13 +3,14 @@ package usecase
 import (
 	"context"
 	"finance-tg-bot/internal/entity"
-	"fmt"
 	"log/slog"
 	"math"
 	"strings"
 	"time"
 
 	"github.com/hako/durafmt"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 type Accountant struct {
@@ -101,6 +102,11 @@ func (a *Accountant) GetStatement(p map[string]string) (res string, err error) {
 }
 
 func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err error) {
+	const (
+		INVEST_PERCENT   = 5
+		DIVIDEND_REPCENT = 4
+	)
+
 	a.log.Debug("GetUserStats", "user_id", user_id)
 	userStat, err := a.reporter.GetUserStats(context.Background(), user_id)
 	if err != nil {
@@ -114,6 +120,7 @@ func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err e
 		return
 	}
 
+	p := message.NewPrinter(language.Russian)
 	hourFloat := float64(60 * 60 * 1000 * 1000 * 1000)
 
 	str := strings.Builder{}
@@ -124,7 +131,7 @@ func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err e
 		wrkHours := time.Nanosecond * time.Duration(int(float64(userStat.MonthWrkHours)*hourFloat*float64(transAmount)/float64(userStat.AvgIncome)))
 		wrkDays := time.Nanosecond * time.Duration(int(30*24*hourFloat*float64(transAmount)/float64(userStat.AvgIncome)))
 
-		str.WriteString(fmt.Sprintf(" - рабочих часов: %s (%d часов в месяц)\n - зарабатывается за: %s (из среднего месячного расчета)\n",
+		str.WriteString(p.Sprintf(" • рабочих часов: %s (%d часов в месяц)\n • зарабатывается за: %s (из среднего месячного расчета)\n",
 			durafmt.Parse(wrkHours).LimitToUnit("hours").LimitFirstN(2).Format(units),
 			userStat.MonthWrkHours,
 			durafmt.Parse(wrkDays).LimitFirstN(2).Format(units)))
@@ -133,7 +140,7 @@ func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err e
 		freeDays := time.Nanosecond * time.Duration(int(30*24*hourFloat*float64(transAmount)/float64(userStat.AvgExpenses)))
 		economDays := time.Nanosecond * time.Duration(int(30*24*hourFloat*float64(transAmount)/float64(userStat.LowExpenses)))
 
-		str.WriteString(fmt.Sprintf(" - можно прожить без работы: %s, без крупных трат: %s\n",
+		str.WriteString(p.Sprintf(" • можно прожить без работы: %s, без крупных трат: %s\n",
 			durafmt.Parse(freeDays).LimitFirstN(2).Format(units),
 			durafmt.Parse(economDays).LimitFirstN(2).Format(units)))
 	}
@@ -144,24 +151,35 @@ func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err e
 	if userStat.AvgIncome > userStat.AvgExpenses && userStat.AvgExpenses > 0 {
 		saveUp := time.Nanosecond * time.Duration(int(30*24*hourFloat*float64(transAmount)/(float64(userStat.AvgIncome-userStat.AvgExpenses))))
 
-		str.WriteString(fmt.Sprintf(" - в обычном режиме за: %s\n",
+		str.WriteString(p.Sprintf(" • в обычном режиме за: %s\n",
 			durafmt.Parse(saveUp).LimitFirstN(2).Format(units)))
 	}
 	if userStat.AvgIncome > userStat.LowExpenses && userStat.LowExpenses > 0 {
 		saveUp := time.Nanosecond * time.Duration(int(30*24*hourFloat*float64(transAmount)/(float64(userStat.AvgIncome-userStat.LowExpenses))))
 
-		str.WriteString(fmt.Sprintf(" - без крупных трат: %s\n",
+		str.WriteString(p.Sprintf(" • без крупных трат: %s\n",
 			durafmt.Parse(saveUp).LimitFirstN(2).Format(units)))
 	}
 
-	str.WriteString(fmt.Sprintf(`
-При инвестировании под 5%% (за вычетом инфляции): 
- - %d через 10 лет
- - %d через 25 лет
- - %d через 50 лет`,
-		int(float64(transAmount)*math.Pow(float64(1.05), 10)),
-		int(float64(transAmount)*math.Pow(float64(1.05), 25)),
-		int(float64(transAmount)*math.Pow(float64(1.05), 50))))
+	str.WriteString(p.Sprintf(`
+При инвестировании под %d%% (за вычетом инфляции): 
+ • %d через 10 лет
+ • %d через 25 лет
+ • %d через 50 лет`,
+		INVEST_PERCENT,
+		int(float64(transAmount)*math.Pow(1+float64(INVEST_PERCENT)/100, 10)),
+		int(float64(transAmount)*math.Pow(1+float64(INVEST_PERCENT)/100, 25)),
+		int(float64(transAmount)*math.Pow(1+float64(INVEST_PERCENT)/100, 50))))
+
+	str.WriteString(p.Sprintf(`
+
+Дивидендная стратегия (%d%% за вычетом инфляции): 
+ • %d каждый год
+ • %d каждый месяц`,
+		DIVIDEND_REPCENT,
+		int(float64(transAmount)*float64(DIVIDEND_REPCENT)/100),
+		int(float64(transAmount)*float64(DIVIDEND_REPCENT)/100/12),
+	))
 
 	res = str.String()
 

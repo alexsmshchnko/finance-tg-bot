@@ -285,6 +285,8 @@ func (b *Bot) Run(ctx context.Context, port string) (err error) {
 		b.log.Error("bot.Run GetWebhookInfo", "err", err)
 		return err
 	}
+	b.log.Info("webhook info", "whInfo", fmt.Sprintf("%#v", wh))
+
 	if wh.URL == "" {
 		updateConfig := tgbotapi.NewUpdate(0)
 		updateConfig.Timeout = 60
@@ -306,10 +308,8 @@ func (b *Bot) Run(ctx context.Context, port string) (err error) {
 		}
 	} else {
 		if wh.LastErrorDate != 0 {
-			fmt.Printf("Telegram callback failed: %s\n", wh.LastErrorMessage)
+			b.log.Info("telegram last error message", "date", time.Unix(int64(wh.LastErrorDate), 0), "msg", wh.LastErrorMessage)
 		}
-
-		fmt.Printf("whInfo: %#v\n", wh)
 
 		b.api.Send(initCommands())
 
