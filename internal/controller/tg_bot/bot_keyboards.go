@@ -1,12 +1,8 @@
 package tg_bot
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"log"
-	"strconv"
-	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -123,36 +119,6 @@ type EditMessageForceReply struct {
 // 		),
 // 	)
 // )
-
-func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, q *tgbotapi.CallbackQuery) {
-	var (
-		page int
-		err  error
-	)
-
-	prefix := strings.Split(*q.Message.ReplyMarkup.InlineKeyboard[0][0].CallbackData, ":")[0]
-
-	split := strings.Split(q.Data, ":")
-	page, err = strconv.Atoi(split[2])
-	if err != nil {
-		log.Println(err)
-	}
-	switch split[1] {
-	case "next":
-		page++
-	case "prev":
-		page--
-	}
-
-	switch prefix {
-	case PREFIX_CATEGORY:
-		b.requestCats(ctx, page, q, nil)
-	case PREFIX_SUBCATEGORY:
-		b.requestSubCats(ctx, page, q)
-	case PREFIX_SETCATEGORY:
-		requestCategoriesKeyboardEditor(b, ctx, page, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
-	}
-}
 
 func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
 	mrkp := newKeyboardForm()

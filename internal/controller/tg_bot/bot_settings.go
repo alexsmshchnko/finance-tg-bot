@@ -13,7 +13,8 @@ func (b *Bot) handleSettingCallbackQuery(ctx context.Context, q *tgbotapi.Callba
 	split := strings.Split(q.Data, ":")
 	switch split[1] {
 	case "editCategory":
-		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
+		requestCategoriesKeyboardEditor(b, ctx, 0,
+			&userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName, ""})
 	case "cancelSettings":
 		b.deleteMsg(q.Message.Chat.ID, q.Message.MessageID)
 	}
@@ -27,7 +28,8 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 	case "backToSettings":
 		b.showSettingsMenu(ctx, nil, q)
 	case "backToCategories":
-		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
+		requestCategoriesKeyboardEditor(b, ctx, 0,
+			&userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName, ""})
 	case "new":
 		str, _ := strings.CutPrefix(q.Message.Text, "Тип траты для ")
 		cat := &entity.TransCatLimit{
@@ -44,7 +46,8 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 			cat.Direction = 1
 		}
 		b.accountant.EditCats(ctx, cat)
-		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
+		requestCategoriesKeyboardEditor(b, ctx, 0,
+			&userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName, ""})
 	case "limit":
 		b.requestReply(q, "REC_NEWLIMIT")
 	case "disable":
@@ -54,7 +57,8 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 			UserId:   BotUsers[q.From.UserName].UserId,
 		}
 		b.accountant.EditCats(ctx, cat)
-		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName})
+		requestCategoriesKeyboardEditor(b, ctx, 0,
+			&userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName, ""})
 	default:
 		requestCategoryKeyboardEditor(b, ctx, q)
 	}
@@ -106,27 +110,14 @@ func requestCategoriesKeyboardEditor(b *Bot, ctx context.Context, page int, c *u
 	}
 
 	options := make([][]string, len(cats), len(cats)+1)
-	var catDirection, catLimit string
 	for i, v := range cats {
-		switch v.Direction {
-		case -1:
-			catDirection = EMOJI_DEBIT
-		case 0:
-			catDirection = EMOJI_DEPOSIT
-		case 1:
-			catDirection = EMOJI_CREDIT
-		}
-		if v.Limit > 0 {
-			catLimit = fmt.Sprintf(" (%d₽)", v.Limit)
-		} else {
-			catLimit = ""
-		}
 		options[i] = []string{
-			v.Category + " " + catDirection + catLimit,
-			PREFIX_SETCATEGORY + ":" + v.Category,
+			v.LimitText,
+			fmt.Sprintf("%s:%s", PREFIX_SETCATEGORY, v.Category),
 		}
 	}
 	options = append(options, []string{EMOJI_PLUS, PREFIX_SETCATEGORY + ":addNewCat"})
+
 	mrkp := newKeyboardForm()
 	mrkp.setOptions(options)
 	mrkp.addNavigationControl(page, []string{EMOJI_HOOK_BACK, PREFIX_SETCATEGORY + ":backToSettings"}, nil)

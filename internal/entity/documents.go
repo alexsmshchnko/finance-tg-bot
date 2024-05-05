@@ -23,12 +23,14 @@ type DocumentExport struct {
 }
 
 type TransCatLimit struct {
-	Category  string `json:"trans_cat"`
-	Direction int8   `json:"direction"`
-	UserId    int    `json:"client_id,omitempty"`
-	Active    bool   `json:"active,omitempty"`
-	Limit     int    `json:"trans_limit"`
-	Balance   int    `json:"trans_balance"`
+	Category    string `json:"trans_cat"`
+	Direction   int8   `json:"direction"`
+	UserId      int    `json:"client_id,omitempty"`
+	Active      bool   `json:"active,omitempty"`
+	Limit       int    `json:"trans_limit"`
+	LimitText   string `json:",omitempty"`
+	Balance     int    `json:"trans_balance"`
+	BalanceText string `json:",omitempty"`
 }
 
 type Document struct {

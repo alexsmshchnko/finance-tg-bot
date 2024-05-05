@@ -3,8 +3,10 @@ package repo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	"finance-tg-bot/internal/controller/tg_bot"
 	"finance-tg-bot/internal/entity"
 	repPkg "finance-tg-bot/pkg/repository"
 )
@@ -58,6 +60,27 @@ func (r *Repo) GetCategories(ctx context.Context, user_id int) (cat []entity.Tra
 		res, err := r.repo.GetDocumentCategories(ctx, user_id)
 		if err != nil {
 			return nil, err
+		}
+		var txtLimit, txtBalance, direction string
+
+		for i, v := range res {
+			switch v.Direction {
+			case -1:
+				direction = tg_bot.EMOJI_DEBIT
+			case 0:
+				direction = tg_bot.EMOJI_DEPOSIT
+			case 1:
+				direction = tg_bot.EMOJI_CREDIT
+			}
+			if v.Limit > 0 {
+				txtBalance = fmt.Sprintf(" (%d)", v.Balance)
+				txtLimit = fmt.Sprintf(" (%d₽)", v.Limit)
+			} else {
+				txtBalance = ""
+				txtLimit = ""
+			}
+			res[i].BalanceText = fmt.Sprintf("%s %s%s", v.Category, direction, txtBalance)
+			res[i].LimitText = fmt.Sprintf("%s %s%s", v.Category, direction, txtLimit)
 		}
 		r.cacheCats[user_id] = res
 	}

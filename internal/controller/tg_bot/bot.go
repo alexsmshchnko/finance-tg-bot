@@ -36,6 +36,7 @@ type userChat struct {
 	chatID    int64
 	messageID int
 	userName  string
+	msgText   string
 }
 
 func New(api *tgbotapi.BotAPI, acc accountant, l *slog.Logger) *Bot {
@@ -63,72 +64,41 @@ func (b *Bot) updateMsgText(chatID int64, messageID int, text string) {
 	b.api.Send(tgbotapi.NewEditMessageText(chatID, messageID, text))
 }
 
-func (b *Bot) requestCats(ctx context.Context, page int, q *tgbotapi.CallbackQuery, u *tgbotapi.Update) {
-	var (
-		userName  string
-		chatID    int64
-		messageID int
-		limit     string
-		direction string
-	)
-
-	if u == nil {
-		userName = q.From.UserName
-		chatID = q.Message.Chat.ID
-		messageID = q.Message.MessageID
-	} else {
-		userName = u.SentFrom().UserName
-		chatID = u.Message.Chat.ID
-		messageID = u.Message.MessageID
-	}
-
-	// TODO move formatting to usecase (no only here)
-	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[userName].UserId)
+func (b *Bot) requestCats(ctx context.Context, page int, uc *userChat) {
+	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[uc.userName].UserId)
 	if err != nil {
 		return
 	}
 	options := make([][]string, len(cats))
 	for i, v := range cats {
-		switch v.Direction {
-		case -1:
-			direction = EMOJI_DEBIT
-		case 0:
-			direction = EMOJI_DEPOSIT
-		case 1:
-			direction = EMOJI_CREDIT
-		}
-		if v.Limit > 0 {
-			limit = fmt.Sprintf(" (%d)", v.Balance)
-		} else {
-			limit = ""
-		}
 		options[i] = []string{
-			v.Category + " " + direction + limit,
-			PREFIX_CATEGORY + ":" + v.Category,
+			v.BalanceText,
+			fmt.Sprintf("%s:%s", PREFIX_CATEGORY, v.Category),
 		}
 	}
 
 	mrkp := newKeyboardForm()
 	mrkp.setOptions(options)
-	mrkp.addNavigationControl(page, nil, nil)
+	mrkp.addNavigationControl(page, []string{EMOJI_CROSS, fmt.Sprintf("%s:%s", PREFIX_CATEGORY, "cancel")}, nil)
 	resMrkp, err := mrkp.getMarkup()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	if u == nil {
-		msg := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, *resMrkp)
+	if uc.msgText == "" {
+		msg := tgbotapi.NewEditMessageReplyMarkup(uc.chatID, uc.messageID, *resMrkp)
 		b.api.Send(msg)
 	} else {
-		msg := tgbotapi.NewMessage(chatID, u.Message.Text+"₽")
+		msg := tgbotapi.NewMessage(uc.chatID, uc.msgText)
 		msg.ReplyMarkup = resMrkp
 		b.api.Send(msg)
 	}
 }
 
 func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error) {
-	b.requestCats(ctx, 0, nil, u)
+	b.requestCats(ctx, 0,
+		&userChat{u.Message.Chat.ID, u.Message.MessageID, u.SentFrom().UserName, u.Message.Text + "₽"})
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 
 	return err
@@ -215,9 +185,7 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.Callback
 		b.log.Error("requestSubCats GetSubCats", "err", err)
 		return
 	}
-	if len(subCats) == 0 {
-		subCats = []string{" "}
-	}
+
 	options := make([][]string, len(subCats))
 	for i, v := range subCats {
 		options[i] = []string{v, fmt.Sprintf("%s:%s:%d", PREFIX_SUBCATEGORY, cat, i)}
@@ -225,7 +193,8 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.Callback
 
 	mrkp := newKeyboardForm()
 	mrkp.setOptions(options)
-	mrkp.addNavigationControl(page, nil, []string{EMOJI_KEYBOARD, fmt.Sprintf("%s:%s", PREFIX_SUBCATEGORY, "writeCustom")})
+	mrkp.addNavigationControl(page, nil,
+		[]string{EMOJI_KEYBOARD, fmt.Sprintf("%s:%s", PREFIX_SUBCATEGORY, "writeCustom")})
 	resMrkp, err := mrkp.getMarkup()
 	if err != nil {
 		b.log.Error("requestSubCats mrkp.getMarkup", "err", err)

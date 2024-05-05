@@ -31,12 +31,21 @@ func (b *Bot) callbackQueryHandler(ctx context.Context, q *tgbotapi.CallbackQuer
 }
 
 func (b *Bot) handleCategoryCallbackQuery(ctx context.Context, q *tgbotapi.CallbackQuery) {
-	cat, _ := strings.CutPrefix(q.Data, PREFIX_CATEGORY+":")
+	splt := strings.Split(q.Data, ":")
+	if len(splt) < 2 {
+		b.log.Error("handleCategoryCallbackQuery", "cat Data short request (<2)", q.Data)
+		return
+	}
 
-	q.Message.Text, _ = strings.CutSuffix(q.Message.Text, "₽")
+	if splt[1] == "cancel" {
+		b.deleteMsg(q.Message.Chat.ID, q.Message.MessageID)
+		return
+	}
 
 	//update text
-	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, q.Message.Text+"₽ на "+cat)
+	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID,
+		fmt.Sprintf("%s на %s", q.Message.Text, splt[1]),
+	)
 
 	//query description
 	b.requestSubCats(ctx, 0, q)
@@ -44,7 +53,6 @@ func (b *Bot) handleCategoryCallbackQuery(ctx context.Context, q *tgbotapi.Callb
 
 func (b *Bot) handleSubCategoryCallbackQuery(ctx context.Context, q *tgbotapi.CallbackQuery) {
 	splt := strings.Split(q.Data, ":")
-
 	if len(splt) < 2 {
 		b.log.Error("handleSubCategoryCallbackQuery", "subCat Data short request (<2)", q.Data)
 		return
@@ -106,6 +114,33 @@ func (b *Bot) handleOptionCallbackQuery(q *tgbotapi.CallbackQuery) {
 	}
 }
 
+func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, q *tgbotapi.CallbackQuery) {
+	split := strings.Split(q.Data, ":")
+	page, err := strconv.Atoi(split[2])
+	if err != nil {
+		b.log.Error("handleNavigationCallbackQuery page strconv.Atoi", "err", err)
+		return
+	}
+
+	switch split[1] {
+	case "next":
+		page++
+	case "prev":
+		page--
+	}
+
+	switch strings.Split(*q.Message.ReplyMarkup.InlineKeyboard[0][0].CallbackData, ":")[0] {
+	case PREFIX_CATEGORY:
+		b.requestCats(ctx, page,
+			&userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName, ""})
+	case PREFIX_SUBCATEGORY:
+		b.requestSubCats(ctx, page, q)
+	case PREFIX_SETCATEGORY:
+		requestCategoriesKeyboardEditor(b, ctx, page,
+			&userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName, ""})
+	}
+}
+
 func (b *Bot) responseHandler(ctx context.Context, u *tgbotapi.Update) {
 	respCode := BotUsers[u.SentFrom().UserName].ResponseCode
 	respMsg := BotUsers[u.SentFrom().UserName].ResponseMsg
@@ -137,7 +172,8 @@ func (b *Bot) responseHandler(ctx context.Context, u *tgbotapi.Update) {
 			b.log.Error("responseHandler EditCats", "err", err)
 			return
 		}
-		requestCategoriesKeyboardEditor(b, ctx, 0, &userChat{u.Message.Chat.ID, respMsg.MessageID, u.SentFrom().UserName})
+		requestCategoriesKeyboardEditor(b, ctx, 0,
+			&userChat{u.Message.Chat.ID, respMsg.MessageID, u.SentFrom().UserName, ""})
 	}
 
 	waitUserResponseComplete(u.SentFrom().UserName)
