@@ -42,10 +42,15 @@ func (b *Bot) handleCategoryCallbackQuery(ctx context.Context, q *tgbotapi.Callb
 		return
 	}
 
-	//update text
-	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID,
-		fmt.Sprintf("%s на %s", q.Message.Text, splt[1]),
-	)
+	//update finMsg
+	finMsg, err := NewFinMsg().parseFinMsg(q.Message.Text)
+	if err != nil {
+		b.log.Error("handleCategoryCallbackQuery parseFinMsg", "err", err)
+		return
+	}
+	finMsg.SetCategory(splt[1])
+
+	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, finMsg.String())
 
 	//query description
 	b.requestSubCats(ctx, 0, q)
@@ -80,7 +85,15 @@ func (b *Bot) handleSubCategoryCallbackQuery(ctx context.Context, q *tgbotapi.Ca
 		b.log.Error("handleSubCategoryCallbackQuery short array subCats")
 		return
 	}
-	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, q.Message.Text+"\n"+EMOJI_COMMENT+subCats[idx])
+
+	finMsg, err := NewFinMsg().parseFinMsg(q.Message.Text)
+	if err != nil {
+		b.log.Error("handleSubCategoryCallbackQuery parseFinMsg", "err", err)
+		return
+	}
+	finMsg.SetDescription(subCats[idx])
+
+	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, finMsg.String())
 
 	//update keyboard
 	mrkp := getMsgOptionsKeyboard()
@@ -99,12 +112,12 @@ func (b *Bot) handleOptionCallbackQuery(q *tgbotapi.CallbackQuery) {
 	case "deleteRecord":
 		b.deleteRecord(q)
 	case "money2Time":
-		amnt, err := strconv.Atoi(strings.Split(q.Message.Text, "₽")[0])
+		finMsg, err := NewFinMsg().parseFinMsg(q.Message.Text)
 		if err != nil {
-			b.log.Error("handleOptionCallbackQuery amnt strconv.Atoi", "err", err)
+			b.log.Error("handleOptionCallbackQuery parseFinMsg", "err", err)
 			return
 		}
-		stat, err := b.accountant.Money2Time(amnt, BotUsers[q.From.UserName].UserId)
+		stat, err := b.accountant.Money2Time(finMsg.amount, BotUsers[q.From.UserName].UserId)
 		if err != nil {
 			b.log.Error("handleOptionCallbackQuery Money2Time", "err", err)
 			return
@@ -142,11 +155,17 @@ func (b *Bot) handleNavigationCallbackQuery(ctx context.Context, q *tgbotapi.Cal
 }
 
 func (b *Bot) responseHandler(ctx context.Context, u *tgbotapi.Update) {
-	respCode := BotUsers[u.SentFrom().UserName].ResponseCode
 	respMsg := BotUsers[u.SentFrom().UserName].ResponseMsg
-	switch respCode {
+
+	switch BotUsers[u.SentFrom().UserName].ResponseCode {
 	case "REC_DESC":
-		b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, respMsg.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
+		finMsg, err := NewFinMsg().parseFinMsg(respMsg.Text)
+		if err != nil {
+			b.log.Error("handleOptionCallbackQuery parseFinMsg", "err", err)
+			return
+		}
+		finMsg.SetDescription(u.Message.Text)
+		b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, finMsg.String())
 		mrkp := getMsgOptionsKeyboard()
 		msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
 		b.api.Send(msg)
@@ -179,4 +198,25 @@ func (b *Bot) responseHandler(ctx context.Context, u *tgbotapi.Update) {
 	waitUserResponseComplete(u.SentFrom().UserName)
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID-1)
+}
+
+func (b *Bot) replyHandler(ctx context.Context, u *tgbotapi.Update) {
+	if amnt, err := strconv.Atoi(u.Message.Text); err == nil {
+		// message amount update
+		finMsg, err := NewFinMsg().parseFinMsg(u.Message.ReplyToMessage.Text)
+		if err != nil {
+			b.log.Error("replyHandler parseFinMsg", "err", err)
+			return
+		}
+		b.api.Send(tgbotapi.NewMessage(u.Message.Chat.ID, fmt.Sprintf("%d -> %d", finMsg.amount, amnt)))
+
+		finMsg.SetAmount(amnt)
+
+		b.api.Send(tgbotapi.NewEditMessageText(u.Message.Chat.ID, u.Message.ReplyToMessage.MessageID, finMsg.String()))
+	}
+	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
+
+	mrkp := getMsgOptionsKeyboard()
+	msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, u.Message.ReplyToMessage.MessageID, *mrkp)
+	b.api.Send(msg)
 }

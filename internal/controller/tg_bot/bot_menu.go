@@ -2,7 +2,6 @@ package tg_bot
 
 import (
 	"context"
-	"log"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -63,7 +62,7 @@ func (b *Bot) runSyncLoad(ctx context.Context, userName string) (msg string) {
 	msg = EMOJI_THUMB_UP
 	err := b.accountant.MigrateFromCloud(ctx, userName)
 	if err != nil {
-		log.Println(err)
+		b.log.Error("runSyncLoad", "err", err)
 		msg = EMOJI_THUMB_DOWN
 	}
 
@@ -74,7 +73,7 @@ func (b *Bot) runSyncUpload(ctx context.Context, userName string) (msg string) {
 	msg = EMOJI_THUMB_UP
 	err := b.accountant.PushToCloud(ctx, userName)
 	if err != nil {
-		log.Println(err)
+		b.log.Error("runSyncUpload", "err", err)
 		msg = EMOJI_THUMB_DOWN
 	}
 

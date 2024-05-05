@@ -82,7 +82,7 @@ func (b *Bot) requestCats(ctx context.Context, page int, uc *userChat) {
 	mrkp.addNavigationControl(page, []string{EMOJI_CROSS, fmt.Sprintf("%s:%s", PREFIX_CATEGORY, "cancel")}, nil)
 	resMrkp, err := mrkp.getMarkup()
 	if err != nil {
-		fmt.Println(err)
+		b.log.Error("requestCats getMarkup", "err", err)
 		return
 	}
 
@@ -106,27 +106,19 @@ func (b *Bot) processNumber(ctx context.Context, u *tgbotapi.Update) (err error)
 
 func (b *Bot) confirmRecord(q *tgbotapi.CallbackQuery) {
 	b.clearMsgReplyMarkup(q.Message.Chat.ID, q.Message.MessageID)
-	var (
-		err        error
-		amnt       int
-		cat, descr string
-	)
-	amnt, err = strconv.Atoi(strings.Split(q.Message.Text, "₽")[0])
+
+	finMsg, err := NewFinMsg().parseFinMsg(q.Message.Text)
 	if err != nil {
+		b.log.Error("confirmRecord parseFinMsg", "err", err)
 		b.api.Send(tgbotapi.NewMessage(q.Message.Chat.ID, "error: something went wrong with confirmRecord:strconv.Atoi "+err.Error()))
 		return
-	}
-	scntSplit := strings.Split(q.Message.Text, "\n")
-	cat = strings.Split(scntSplit[0], " на ")[1]
-	if len(scntSplit) > 1 {
-		descr, _ = strings.CutPrefix(scntSplit[1], EMOJI_COMMENT)
 	}
 
 	doc := &entity.Document{
 		RecTime:     time.Unix(int64(q.Message.Date), 0),
-		Category:    cat,
-		Amount:      int64(amnt),
-		Description: descr,
+		Category:    finMsg.category,
+		Amount:      int64(finMsg.amount),
+		Description: finMsg.description,
 		MsgID:       fmt.Sprint(q.Message.MessageID),
 		ChatID:      fmt.Sprint(q.Message.Chat.ID),
 		UserId:      BotUsers[q.From.UserName].UserId,
@@ -205,15 +197,6 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.Callback
 	b.api.Send(msg)
 }
 
-// func processReply(u *tgbotapi.Update) (err error) {
-// 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "")
-// 	msg.ReplyMarkup = getReply()
-
-// 	gBot.Send(msg)
-
-// 	return
-// }
-
 func (b *Bot) handleUpdate(ctx context.Context, u *tgbotapi.Update) {
 	if !b.checkUser(ctx, u.SentFrom().UserName) {
 		return
@@ -228,11 +211,10 @@ func (b *Bot) handleUpdate(ctx context.Context, u *tgbotapi.Update) {
 		if responseIsAwaited(u.SentFrom().UserName) {
 			b.responseHandler(ctx, u)
 			return
+		} else if u.Message.ReplyToMessage != nil {
+			b.replyHandler(ctx, u)
+			return
 		}
-
-		// if update.Message.ReplyToMessage != nil {
-		// 	processReply(&update)
-		// }
 
 		if u.Message.IsCommand() {
 			b.processCommand(ctx, u)
@@ -267,7 +249,7 @@ func (b *Bot) Run(ctx context.Context, port string) (err error) {
 		for {
 			select {
 			case update := <-updates:
-				ctxU, cancelU := context.WithTimeout(ctx, 3*time.Second)
+				ctxU, cancelU := context.WithTimeout(ctx, 7*time.Second)
 				b.handleUpdate(ctxU, &update)
 				cancelU()
 			case <-ctx.Done():
