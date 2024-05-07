@@ -22,7 +22,7 @@ func (b *Bot) callbackQueryHandler(ctx context.Context, q *tgbotapi.CallbackQuer
 	case PREFIX_PAGE:
 		b.handleNavigationCallbackQuery(ctx, q)
 	case PREFIX_REPORT:
-		b.handleReportCallbackQuery(ctx, q)
+		b.handleReportCallbackQuery(q)
 	case PREFIX_SETTING:
 		b.handleSettingCallbackQuery(ctx, q)
 	case PREFIX_SETCATEGORY:
@@ -96,9 +96,7 @@ func (b *Bot) handleSubCategoryCallbackQuery(ctx context.Context, q *tgbotapi.Ca
 	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, finMsg.String())
 
 	//update keyboard
-	mrkp := getMsgOptionsKeyboard()
-	msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *mrkp)
-	b.api.Send(msg)
+	b.api.Send(tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, getMsgOptionsKeyboard()))
 }
 
 func (b *Bot) handleOptionCallbackQuery(q *tgbotapi.CallbackQuery) {
@@ -107,8 +105,7 @@ func (b *Bot) handleOptionCallbackQuery(q *tgbotapi.CallbackQuery) {
 	case "saveRecord":
 		b.confirmRecord(q)
 	case "expandOptions":
-		msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *getMsgExpOptionsKeyboard())
-		b.api.Send(msg)
+		b.api.Send(tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, getMsgExpOptionsKeyboard()))
 	case "deleteRecord":
 		b.deleteRecord(q)
 	case "money2Time":
@@ -122,8 +119,7 @@ func (b *Bot) handleOptionCallbackQuery(q *tgbotapi.CallbackQuery) {
 			b.log.Error("handleOptionCallbackQuery Money2Time", "err", err)
 			return
 		}
-		msg := tgbotapi.NewMessage(q.Message.Chat.ID, fmt.Sprintf("%s\n\n%s", q.Message.Text, stat))
-		b.api.Send(msg)
+		b.api.Send(tgbotapi.NewMessage(q.Message.Chat.ID, fmt.Sprintf("%s\n\n%s", q.Message.Text, stat)))
 	}
 }
 
@@ -166,14 +162,10 @@ func (b *Bot) responseHandler(ctx context.Context, u *tgbotapi.Update) {
 		}
 		finMsg.SetDescription(u.Message.Text)
 		b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, finMsg.String())
-		mrkp := getMsgOptionsKeyboard()
-		msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
-		b.api.Send(msg)
+		b.api.Send(tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, getMsgOptionsKeyboard()))
 	case "REC_NEWCAT":
 		b.updateMsgText(u.Message.Chat.ID, respMsg.MessageID, "Тип траты для "+u.Message.Text)
-		mrkp := getDebitCreditKeyboard()
-		msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, *mrkp)
-		b.api.Send(msg)
+		b.api.Send(tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, respMsg.MessageID, getDebitCreditKeyboard()))
 	case "REC_NEWLIMIT":
 		limit, err := strconv.Atoi(u.Message.Text)
 		if err != nil {
@@ -195,12 +187,12 @@ func (b *Bot) responseHandler(ctx context.Context, u *tgbotapi.Update) {
 			&userChat{u.Message.Chat.ID, respMsg.MessageID, u.SentFrom().UserName, ""})
 	}
 
-	waitUserResponseComplete(u.SentFrom().UserName)
+	waitUserResponseComplete(b.log, u.SentFrom().UserName)
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID-1)
 }
 
-func (b *Bot) replyHandler(ctx context.Context, u *tgbotapi.Update) {
+func (b *Bot) replyHandler(u *tgbotapi.Update) {
 	if amnt, err := strconv.Atoi(u.Message.Text); err == nil {
 		// message amount update
 		finMsg, err := NewFinMsg().parseFinMsg(u.Message.ReplyToMessage.Text)
@@ -215,8 +207,5 @@ func (b *Bot) replyHandler(ctx context.Context, u *tgbotapi.Update) {
 		b.api.Send(tgbotapi.NewEditMessageText(u.Message.Chat.ID, u.Message.ReplyToMessage.MessageID, finMsg.String()))
 	}
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
-
-	mrkp := getMsgOptionsKeyboard()
-	msg := tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, u.Message.ReplyToMessage.MessageID, *mrkp)
-	b.api.Send(msg)
+	b.api.Send(tgbotapi.NewEditMessageReplyMarkup(u.Message.Chat.ID, u.Message.ReplyToMessage.MessageID, getMsgOptionsKeyboard()))
 }

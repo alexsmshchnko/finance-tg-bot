@@ -8,54 +8,32 @@ import (
 )
 
 func initCommands() (conf tgbotapi.SetMyCommandsConfig) {
-	commands := []tgbotapi.BotCommand{
-		{
-			Command:     "/report",
-			Description: "Заказать отчет",
-		},
-		{
-			Command:     "/settings",
-			Description: "Настройки",
-		},
-		{
-			Command:     "/push",
-			Description: "Экспорт в облако",
-		},
-		// {
-		// 	Command:     "/sync",
-		// 	Description: "Загрузить историю с облака",
-		// },
-	}
-
-	conf = tgbotapi.NewSetMyCommands(commands...)
+	conf = tgbotapi.NewSetMyCommands(
+		[]tgbotapi.BotCommand{
+			{Command: "/report", Description: "Заказать отчет"},
+			{Command: "/settings", Description: "Настройки"},
+			{Command: "/push", Description: "Экспорт в облако"},
+		}...,
+	)
 
 	return
 }
 
-func (b *Bot) processCommand(ctx context.Context, u *tgbotapi.Update) (err error) {
-	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "")
-
+func (b *Bot) processCommand(ctx context.Context, u *tgbotapi.Update) {
 	switch u.Message.Command() {
 	case "start":
-		msg.Text = "Hi :)"
+		b.api.Send(tgbotapi.NewMessage(u.Message.Chat.ID, "Hi :)"))
 	case "sync":
 		b.syncCmd(ctx, u)
 	case "push":
 		b.pushCmd(ctx, u)
 	case "report":
-		b.showReportMenu(ctx, u)
+		b.showReportMenu(u)
 	case "settings":
-		b.showSettingsMenu(ctx, u, nil)
+		b.showSettingsMenu(u, nil)
 	default:
-		msg.Text = "I don't know that command"
+		b.api.Send(tgbotapi.NewMessage(u.Message.Chat.ID, "I don't know that command"))
 	}
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return
-	// }
-	_, err = b.api.Send(msg)
-
-	return
 }
 
 func (b *Bot) runSyncLoad(ctx context.Context, userName string) (msg string) {
@@ -112,24 +90,21 @@ func (b *Bot) pushCmd(ctx context.Context, u *tgbotapi.Update) {
 	}(4)
 }
 
-func (b *Bot) showReportMenu(ctx context.Context, u *tgbotapi.Update) {
+func (b *Bot) showReportMenu(u *tgbotapi.Update) {
 	b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "Отчеты")
-	msg.ReplyMarkup = *getReportKeyboard()
+	msg.ReplyMarkup = getReportKeyboard()
 	b.api.Send(msg)
 }
 
-func (b *Bot) showSettingsMenu(ctx context.Context, u *tgbotapi.Update, q *tgbotapi.CallbackQuery) {
+func (b *Bot) showSettingsMenu(u *tgbotapi.Update, q *tgbotapi.CallbackQuery) {
 	if q == nil {
 		b.deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
 		msg := tgbotapi.NewMessage(u.Message.Chat.ID, "Настройки")
-		msg.ReplyMarkup = *getSettingsKeyboard()
+		msg.ReplyMarkup = getSettingsKeyboard()
 		b.api.Send(msg)
-
 	} else {
 		b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, "Настройки")
-
-		msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *getSettingsKeyboard())
-		b.api.Send(msg)
+		b.api.Send(tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, getSettingsKeyboard()))
 	}
 }

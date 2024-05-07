@@ -56,8 +56,7 @@ func (b *Bot) clearMsgReplyMarkup(chatID int64, messageID int) {
 		InlineKeyboard: make([][]tgbotapi.InlineKeyboardButton, 0),
 	}
 
-	msg := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, mrkp)
-	b.api.Send(msg)
+	b.api.Send(tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, mrkp))
 }
 
 func (b *Bot) updateMsgText(chatID int64, messageID int, text string) {
@@ -67,6 +66,7 @@ func (b *Bot) updateMsgText(chatID int64, messageID int, text string) {
 func (b *Bot) requestCats(ctx context.Context, page int, uc *userChat) {
 	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[uc.userName].UserId)
 	if err != nil {
+		b.log.Error("requestCats GetCatsLimit", "err", err)
 		return
 	}
 	options := make([][]string, len(cats))
@@ -77,18 +77,16 @@ func (b *Bot) requestCats(ctx context.Context, page int, uc *userChat) {
 		}
 	}
 
-	mrkp := newKeyboardForm()
-	mrkp.setOptions(options)
-	mrkp.addNavigationControl(page, []string{EMOJI_CROSS, fmt.Sprintf("%s:%s", PREFIX_CATEGORY, "cancel")}, nil)
-	resMrkp, err := mrkp.getMarkup()
+	resMrkp, err := newKeyboardForm().setOptions(options).
+		addNavigationControl(page, []string{EMOJI_CROSS, fmt.Sprintf("%s:%s", PREFIX_CATEGORY, "cancel")}, nil).
+		getMarkup()
 	if err != nil {
 		b.log.Error("requestCats getMarkup", "err", err)
 		return
 	}
 
 	if uc.msgText == "" {
-		msg := tgbotapi.NewEditMessageReplyMarkup(uc.chatID, uc.messageID, *resMrkp)
-		b.api.Send(msg)
+		b.api.Send(tgbotapi.NewEditMessageReplyMarkup(uc.chatID, uc.messageID, resMrkp))
 	} else {
 		msg := tgbotapi.NewMessage(uc.chatID, uc.msgText)
 		msg.ReplyMarkup = resMrkp
@@ -131,36 +129,21 @@ func (b *Bot) confirmRecord(q *tgbotapi.CallbackQuery) {
 }
 
 func (b *Bot) deleteRecord(q *tgbotapi.CallbackQuery) {
-	b.accountant.DeleteDoc(fmt.Sprint(q.Message.Chat.ID), fmt.Sprint(q.Message.MessageID), BotUsers[q.From.UserName].UserId)
+	err := b.accountant.DeleteDoc(fmt.Sprint(q.Message.Chat.ID), fmt.Sprint(q.Message.MessageID), BotUsers[q.From.UserName].UserId)
+	if err != nil {
+		b.log.Error("deleteRecord DeleteDoc", "err", err)
+		b.api.Send(tgbotapi.NewMessage(q.Message.Chat.ID, "error: something went wrong with deleteRecord:b.accountant.DeleteDoc "+err.Error()))
+		return
+	}
 	b.deleteMsg(q.Message.Chat.ID, q.Message.MessageID)
 }
-
-// func addDescription(u *tgbotapi.Update) (err error) {
-// 	rec := internal.ReceiptRec{Description: u.Message.Text}
-// 	err = internal.AddLastExpenseDescription(&rec)
-// 	if err != nil {
-//
-
-// 	updateMsgText(u.Message.Chat.ID, u.Message.ReplyToMessage.MessageID, u.Message.ReplyToMessage.Text+"\n"+EMOJI_COMMENT+u.Message.Text)
-
-// 	deleteMsg(u.Message.Chat.ID, u.Message.MessageID)
-
-//
-
-// func (b *Bot) requestDescription(query *tgbotapi.CallbackQuery) {
-// 	subCat := strings.Join(strings.Split(query.Message.Text, " ")[2:], " ")
-// 	cats, _ := b.accountant.GetSubCats(context.Background(), query.From.UserName, subCat)
-// 	mrkp := getPagedListInlineKeyboard(cats, 0, PREFIX_SUBCATEGORY, PREFIX_SUBCATEGORY+":"+EMOJI_KEYBOARD)
-// 	msg := tgbotapi.NewEditMessageReplyMarkup(query.Message.Chat.ID, query.Message.MessageID, *mrkp)
-// 	b.api.Send(msg)
-// }
 
 func (b *Bot) requestReply(q *tgbotapi.CallbackQuery, respCode string) {
 	b.clearMsgReplyMarkup(q.Message.Chat.ID, q.Message.MessageID)
 	msg := tgbotapi.NewMessage(q.Message.Chat.ID, EMOJI_COMMENT+"...")
 	msg.ReplyMarkup = getReply()
 	b.api.Send(msg)
-	waitUserResponeStart(q.From.UserName, respCode, *q.Message)
+	waitUserResponeStart(b.log, q.From.UserName, respCode, *q.Message)
 }
 
 func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.CallbackQuery) {
@@ -183,22 +166,20 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.Callback
 		options[i] = []string{v, fmt.Sprintf("%s:%s:%d", PREFIX_SUBCATEGORY, cat, i)}
 	}
 
-	mrkp := newKeyboardForm()
-	mrkp.setOptions(options)
-	mrkp.addNavigationControl(page, nil,
-		[]string{EMOJI_KEYBOARD, fmt.Sprintf("%s:%s", PREFIX_SUBCATEGORY, "writeCustom")})
-	resMrkp, err := mrkp.getMarkup()
+	resMrkp, err := newKeyboardForm().setOptions(options).
+		addNavigationControl(page, nil, []string{EMOJI_KEYBOARD, fmt.Sprintf("%s:%s", PREFIX_SUBCATEGORY, "writeCustom")}).
+		getMarkup()
 	if err != nil {
 		b.log.Error("requestSubCats mrkp.getMarkup", "err", err)
 		return
 	}
 
-	msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *resMrkp)
-	b.api.Send(msg)
+	b.api.Send(tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, resMrkp))
 }
 
 func (b *Bot) handleUpdate(ctx context.Context, u *tgbotapi.Update) {
-	if !b.checkUser(ctx, u.SentFrom().UserName) {
+	if !b.checkUser(b.log, ctx, u.SentFrom().UserName) {
+		b.log.Info("handleUpdate:checkUser is false - skip update")
 		return
 	}
 
@@ -212,7 +193,7 @@ func (b *Bot) handleUpdate(ctx context.Context, u *tgbotapi.Update) {
 			b.responseHandler(ctx, u)
 			return
 		} else if u.Message.ReplyToMessage != nil {
-			b.replyHandler(ctx, u)
+			b.replyHandler(u)
 			return
 		}
 
@@ -275,13 +256,13 @@ func (b *Bot) Run(ctx context.Context, port string) (err error) {
 func (b *Bot) requestHandler(c echo.Context) error {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("recovered panic", r)
+			b.log.Error("requestHandler recovered panic", "r", r)
 		}
 	}()
 
 	var update tgbotapi.Update
 	if err := c.Bind(&update); err != nil {
-		fmt.Println("Cannot bind update", err)
+		b.log.Warn("cannot bind update", "err", err)
 		return c.JSON(204, nil)
 	}
 

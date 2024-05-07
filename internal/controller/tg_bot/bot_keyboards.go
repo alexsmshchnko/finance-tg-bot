@@ -16,15 +16,16 @@ func newKeyboardForm() *keyboardMarkup {
 	return &keyboardMarkup{}
 }
 
-func (k *keyboardMarkup) setOptions(options [][]string) {
+func (k *keyboardMarkup) setOptions(options [][]string) *keyboardMarkup {
 	res := make([][]tgbotapi.InlineKeyboardButton, len(options))
 	for i, v := range options {
 		res[i] = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(v[0], v[1]))
 	}
 	k.options = res
+	return k
 }
 
-func (k *keyboardMarkup) setControl(control [][][]string) {
+func (k *keyboardMarkup) setControl(control [][][]string) *keyboardMarkup {
 	res := make([][]tgbotapi.InlineKeyboardButton, len(control))
 	for i, r := range control {
 		buttons := make([]tgbotapi.InlineKeyboardButton, len(r))
@@ -34,9 +35,10 @@ func (k *keyboardMarkup) setControl(control [][][]string) {
 		res[i] = buttons
 	}
 	k.control = res
+	return k
 }
 
-func (k *keyboardMarkup) addNavigationControl(page int, firstLeftButton, centerButton []string) {
+func (k *keyboardMarkup) addNavigationControl(page int, firstLeftButton, centerButton []string) *keyboardMarkup {
 	var sliceBegin, sliceEnd, pageCnt, slcFullLen int
 
 	//cut options to show
@@ -85,16 +87,17 @@ func (k *keyboardMarkup) addNavigationControl(page int, firstLeftButton, centerB
 	}
 
 	k.setControl([][][]string{navControl})
-
+	return k
 }
 
-func (k *keyboardMarkup) getMarkup() (*tgbotapi.InlineKeyboardMarkup, error) {
+func (k *keyboardMarkup) getMarkup() (mrkp tgbotapi.InlineKeyboardMarkup, err error) {
 	if len(k.options) == 0 && len(k.control) == 0 {
-		return nil, errors.New("markup is not set")
+		err = errors.New("markup is not set")
+		return
 	}
-	mrkp := tgbotapi.NewInlineKeyboardMarkup(append(k.options, k.control...)...)
+	mrkp = tgbotapi.NewInlineKeyboardMarkup(append(k.options, k.control...)...)
 
-	return &mrkp, nil
+	return
 }
 
 type EditMessageForceReply struct {
@@ -120,54 +123,48 @@ type EditMessageForceReply struct {
 // 	)
 // )
 
-func getMsgOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
-	mrkp := newKeyboardForm()
-	mrkp.setControl([][][]string{
-		{
-			{EMOJI_CROSS, PREFIX_OPTION + ":deleteRecord"},
-			{EMOJI_DOWN, PREFIX_OPTION + ":expandOptions"},
-			{EMOJI_SAVE, PREFIX_OPTION + ":saveRecord"},
-		},
-	})
-	res, err := mrkp.getMarkup()
-	if err != nil {
-		return nil
-	}
-	return res
+func getMsgOptionsKeyboard() (resMrkp tgbotapi.InlineKeyboardMarkup) {
+	resMrkp, _ = newKeyboardForm().
+		setControl([][][]string{
+			{
+				{EMOJI_CROSS, PREFIX_OPTION + ":deleteRecord"},
+				{EMOJI_DOWN, PREFIX_OPTION + ":expandOptions"},
+				{EMOJI_SAVE, PREFIX_OPTION + ":saveRecord"},
+			}}).
+		getMarkup()
+
+	return
 }
 
-func getMsgExpOptionsKeyboard() *tgbotapi.InlineKeyboardMarkup {
-	mrkp := newKeyboardForm()
-	mrkp.setOptions([][]string{
-		{"Деньги -> время", PREFIX_OPTION + ":money2Time"},
-	})
-	mrkp.setControl([][][]string{
-		{
-			{EMOJI_CROSS, PREFIX_OPTION + ":deleteRecord"},
-			{EMOJI_SAVE, PREFIX_OPTION + ":saveRecord"},
-		},
-	})
-	res, err := mrkp.getMarkup()
-	if err != nil {
-		return nil
-	}
-	return res
+func getMsgExpOptionsKeyboard() (resMrkp tgbotapi.InlineKeyboardMarkup) {
+	resMrkp, _ = newKeyboardForm().
+		setOptions([][]string{
+			{"Деньги -> время", PREFIX_OPTION + ":money2Time"},
+		}).
+		setControl([][][]string{
+			{
+				{EMOJI_CROSS, PREFIX_OPTION + ":deleteRecord"},
+				{EMOJI_SAVE, PREFIX_OPTION + ":saveRecord"},
+			},
+		}).
+		getMarkup()
+
+	return
 }
 
-func getSettingsKeyboard() *tgbotapi.InlineKeyboardMarkup {
-	mrkp := newKeyboardForm()
-	mrkp.setOptions([][]string{
-		{"Редактировать категории и лимиты", PREFIX_SETTING + ":editCategory"},
-	})
-	mrkp.setControl([][][]string{
-		{{EMOJI_CROSS, PREFIX_SETTING + ":cancelSettings"}},
-	})
-	res, err := mrkp.getMarkup()
-	if err != nil {
-		return nil
-	}
-	return res
+func getSettingsKeyboard() (resMrkp tgbotapi.InlineKeyboardMarkup) {
+	resMrkp, _ = newKeyboardForm().
+		setOptions([][]string{
+			{"Редактировать категории и лимиты", PREFIX_SETTING + ":editCategory"},
+		}).
+		setControl([][][]string{
+			{{EMOJI_CROSS, PREFIX_SETTING + ":cancelSettings"}},
+		}).
+		getMarkup()
+
+	return
 }
+
 func getReply() *tgbotapi.ForceReply {
 	return &tgbotapi.ForceReply{
 		ForceReply:            true,

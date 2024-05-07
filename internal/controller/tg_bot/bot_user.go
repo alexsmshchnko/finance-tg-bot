@@ -2,7 +2,7 @@ package tg_bot
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -16,19 +16,19 @@ type BotUser struct {
 
 var BotUsers map[string]BotUser
 
-func NewBotUser(userName string, id int) {
+func NewBotUser(log *slog.Logger, userName string, id int) {
 	if BotUsers == nil {
 		BotUsers = make(map[string]BotUser)
 	}
 	BotUsers[userName] = BotUser{UserId: id}
-	log.Printf("added BotUsers: %v\n", BotUsers)
+	log.Info("added to BotUsers", "userName", userName, "len(BotUsers)", len(BotUsers))
 }
 
 func responseIsAwaited(userName string) bool {
 	return BotUsers[userName].ResponseWait
 }
 
-func waitUserResponeStart(userName, respCode string, message tgbotapi.Message) {
+func waitUserResponeStart(log *slog.Logger, userName, respCode string, message tgbotapi.Message) {
 	if v, ok := BotUsers[userName]; ok {
 		v.ResponseWait = true
 		v.ResponseMsg = message
@@ -36,33 +36,32 @@ func waitUserResponeStart(userName, respCode string, message tgbotapi.Message) {
 
 		BotUsers[userName] = v
 	}
-	log.Printf("ResponseWaitStart: %v\n", BotUsers[userName])
+	log.Info("waitUserResponeStart", "userName", userName)
 }
 
-func waitUserResponseComplete(userName string) {
+func waitUserResponseComplete(log *slog.Logger, userName string) {
 	if v, ok := BotUsers[userName]; ok {
 		v.ResponseWait = false
 
 		BotUsers[userName] = v
 	}
-	log.Printf("ResponseWaitStop: %v\n", BotUsers[userName])
+	log.Info("waitUserResponseComplete", "userName", userName)
 }
 
-func (b *Bot) checkUser(ctx context.Context, userName string) bool {
-	_, f := BotUsers[userName]
-	log.Printf("Bot.checkUser cache found: %v\n", f)
+func (b *Bot) checkUser(log *slog.Logger, ctx context.Context, userName string) (f bool) {
+	_, f = BotUsers[userName]
 	if !f {
-		log.Printf("b.accountant.GetUserStatus request: %s\n", userName)
+		log.Info("checkUser GetUserStatus request", "userName", userName)
 		id, active, err := b.accountant.GetUserStatus(ctx, userName)
 		if err != nil {
-			log.Println(err)
+			b.log.Error("checkUser GetUserStatus", "err", err)
 		}
-		log.Printf("b.accountant.GetUserStatus response: %s : %v\n", userName, active)
+		log.Info("checkUser GetUserStatus response", "userName", userName, "active", active)
 
 		if active {
-			NewBotUser(userName, id)
+			NewBotUser(log, userName, id)
 		}
-		return active
+		f = active
 	}
-	return f
+	return
 }

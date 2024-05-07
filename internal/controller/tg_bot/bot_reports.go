@@ -1,7 +1,6 @@
 package tg_bot
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -9,7 +8,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func (b *Bot) handleReportCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQuery) {
+func (b *Bot) handleReportCallbackQuery(query *tgbotapi.CallbackQuery) {
 	split := strings.Split(query.Data, ":")
 	switch split[1] {
 	case "monthReport":
@@ -24,23 +23,21 @@ func (b *Bot) handleReportCallbackQuery(ctx context.Context, query *tgbotapi.Cal
 
 }
 
-func getReportKeyboard() *tgbotapi.InlineKeyboardMarkup {
-	mrkp := newKeyboardForm()
-	mrkp.setOptions([][]string{
-		{"День", PREFIX_REPORT + ":monthReport:day"},
-		// {"Неделя", PREFIX_REPORT + ":monthReport:week"},
-		{"Текущий месяц", PREFIX_REPORT + ":monthReport:current"},
-		{"Текущий месяц с детализацией", PREFIX_REPORT + ":monthReport:curDet"},
-		{"Предыдущий месяц", PREFIX_REPORT + ":monthReport:previous"},
-	})
-	mrkp.setControl([][][]string{
-		{{EMOJI_CROSS, PREFIX_REPORT + ":cancelReport"}},
-	})
-	res, err := mrkp.getMarkup()
-	if err != nil {
-		return nil
-	}
-	return res
+func getReportKeyboard() (resMrkp tgbotapi.InlineKeyboardMarkup) {
+	resMrkp, _ = newKeyboardForm().
+		setOptions([][]string{
+			{"День", PREFIX_REPORT + ":monthReport:day"},
+			// {"Неделя", PREFIX_REPORT + ":monthReport:week"},
+			{"Текущий месяц", PREFIX_REPORT + ":monthReport:current"},
+			{"Текущий месяц с детализацией", PREFIX_REPORT + ":monthReport:curDet"},
+			{"Предыдущий месяц", PREFIX_REPORT + ":monthReport:previous"},
+		}).
+		setControl([][][]string{
+			{{EMOJI_CROSS, PREFIX_REPORT + ":cancelReport"}},
+		}).
+		getMarkup()
+
+	return
 }
 
 func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
@@ -83,28 +80,28 @@ func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 	}
 
 	text, err = b.accountant.GetStatement(p)
-
 	if err != nil {
+		b.log.Error("statementReport GetStatement", "err", err)
 		return
 	}
+
 	text = header + "```\n" + text + "\n" + "```"
 
 	msg := tgbotapi.NewEditMessageText(q.Message.Chat.ID, q.Message.MessageID, text)
 	msg.ParseMode = "Markdown"
 	b.api.Send(msg)
 
-	mrkp := newKeyboardForm()
-	mrkp.setControl([][][]string{
-		{
-			{EMOJI_CROSS, PREFIX_REPORT + ":deleteReport"},
-			{EMOJI_SAVE, PREFIX_REPORT + ":saveReport"},
-		},
-	})
-	resMrkp, err := mrkp.getMarkup()
+	resMrkp, err := newKeyboardForm().
+		setControl([][][]string{
+			{
+				{EMOJI_CROSS, PREFIX_REPORT + ":deleteReport"},
+				{EMOJI_SAVE, PREFIX_REPORT + ":saveReport"},
+			},
+		}).
+		getMarkup()
 	if err != nil {
-		fmt.Println(err)
+		b.log.Error("statementReport getMarkup", "err", err)
 		return
 	}
-	ms := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *resMrkp)
-	b.api.Send(ms)
+	b.api.Send(tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, resMrkp))
 }

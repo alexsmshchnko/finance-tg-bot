@@ -26,7 +26,7 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 	case "addNewCat":
 		b.requestReply(q, "REC_NEWCAT")
 	case "backToSettings":
-		b.showSettingsMenu(ctx, nil, q)
+		b.showSettingsMenu(nil, q)
 	case "backToCategories":
 		requestCategoriesKeyboardEditor(b, ctx, 0,
 			&userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName, ""})
@@ -60,52 +60,52 @@ func (b *Bot) handleCategoryKeyboardEditor(ctx context.Context, q *tgbotapi.Call
 		requestCategoriesKeyboardEditor(b, ctx, 0,
 			&userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName, ""})
 	default:
-		requestCategoryKeyboardEditor(b, ctx, q)
+		requestCategoryKeyboardEditor(b, q)
 	}
 }
 
-func getDebitCreditKeyboard() *tgbotapi.InlineKeyboardMarkup {
-	mrkp := newKeyboardForm()
-	mrkp.setOptions([][]string{
-		{"Доходы " + EMOJI_CREDIT, PREFIX_SETCATEGORY + ":new:credit"},
-		{"Сбережения " + EMOJI_DEPOSIT, PREFIX_SETCATEGORY + ":new:deposit"},
-		{"Расходы " + EMOJI_DEBIT, PREFIX_SETCATEGORY + ":new:debit"},
-	})
-	res, err := mrkp.getMarkup()
-	if err != nil {
-		return nil
-	}
-	return res
+func getDebitCreditKeyboard() (resMrkp tgbotapi.InlineKeyboardMarkup) {
+	resMrkp, _ = newKeyboardForm().
+		setOptions([][]string{
+			{"Доходы " + EMOJI_CREDIT, PREFIX_SETCATEGORY + ":new:credit"},
+			{"Сбережения " + EMOJI_DEPOSIT, PREFIX_SETCATEGORY + ":new:deposit"},
+			{"Расходы " + EMOJI_DEBIT, PREFIX_SETCATEGORY + ":new:debit"},
+		}).
+		getMarkup()
+
+	return
 }
 
-func requestCategoryKeyboardEditor(b *Bot, ctx context.Context, q *tgbotapi.CallbackQuery) {
+func requestCategoryKeyboardEditor(b *Bot, q *tgbotapi.CallbackQuery) {
 	category := strings.Split(q.Data, ":")
 	if len(category) < 2 {
+		b.log.Error("requestCategoryKeyboardEditor", "category Data short request (<2)", q.Data)
 		return
 	}
 	b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, category[1])
 
-	mrkp := newKeyboardForm()
-	mrkp.setOptions([][]string{
-		{"Задать лимит", PREFIX_SETCATEGORY + ":limit:" + category[1]},
-		{"Сделать неактивной", PREFIX_SETCATEGORY + ":disable:" + category[1]},
-	})
-	mrkp.setControl([][][]string{
-		{{EMOJI_HOOK_BACK, PREFIX_SETCATEGORY + ":backToCategories"}},
-	})
-	resMrkp, err := mrkp.getMarkup()
+	resMrkp, err := newKeyboardForm().
+		setOptions([][]string{
+			{"Задать лимит", PREFIX_SETCATEGORY + ":limit:" + category[1]},
+			{"Сделать неактивной", PREFIX_SETCATEGORY + ":disable:" + category[1]},
+		}).
+		setControl([][][]string{
+			{{EMOJI_HOOK_BACK, PREFIX_SETCATEGORY + ":backToCategories"}},
+		}).
+		getMarkup()
 	if err != nil {
-		fmt.Println(err)
+		b.log.Error("requestCategoryKeyboardEditor mrkp.getMarkup", "err", err)
 		return
 	}
-	msg := tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, *resMrkp)
-	b.api.Send(msg)
+
+	b.api.Send(tgbotapi.NewEditMessageReplyMarkup(q.Message.Chat.ID, q.Message.MessageID, resMrkp))
 }
 
 func requestCategoriesKeyboardEditor(b *Bot, ctx context.Context, page int, c *userChat) {
 	b.updateMsgText(c.chatID, c.messageID, "Настройки категорий и лимитов")
 	cats, err := b.accountant.GetCatsLimit(ctx, BotUsers[c.userName].UserId)
 	if err != nil {
+		b.log.Error("requestCategoriesKeyboardEditor GetCatsLimit", "err", err)
 		return
 	}
 
@@ -118,15 +118,13 @@ func requestCategoriesKeyboardEditor(b *Bot, ctx context.Context, page int, c *u
 	}
 	options = append(options, []string{EMOJI_PLUS, PREFIX_SETCATEGORY + ":addNewCat"})
 
-	mrkp := newKeyboardForm()
-	mrkp.setOptions(options)
-	mrkp.addNavigationControl(page, []string{EMOJI_HOOK_BACK, PREFIX_SETCATEGORY + ":backToSettings"}, nil)
-	resMrkp, err := mrkp.getMarkup()
+	resMrkp, err := newKeyboardForm().setOptions(options).
+		addNavigationControl(page, []string{EMOJI_HOOK_BACK, PREFIX_SETCATEGORY + ":backToSettings"}, nil).
+		getMarkup()
 	if err != nil {
-		fmt.Println(err)
+		b.log.Error("requestCategoriesKeyboardEditor mrkp.getMarkup", "err", err)
 		return
 	}
 
-	msg := tgbotapi.NewEditMessageReplyMarkup(c.chatID, c.messageID, *resMrkp)
-	b.api.Send(msg)
+	b.api.Send(tgbotapi.NewEditMessageReplyMarkup(c.chatID, c.messageID, resMrkp))
 }
