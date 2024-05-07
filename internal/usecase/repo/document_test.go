@@ -101,7 +101,9 @@ func TestRepo_PostDocument(t *testing.T) {
 		{
 			name: "demo posting",
 			fields: fields{repo: rpMck,
-				cacheCats:    map[int][]entity.TransCatLimit{1: {{Category: "debit", Direction: -1, UserId: 1}, {Category: "credit", Direction: 1, UserId: 1}}},
+				cacheCats: map[int][]entity.TransCatLimit{
+					1: {{Category: "debit", Direction: -1, UserId: 1},
+						{Category: "credit", Direction: 1, UserId: 1}}},
 				cacheSubCats: make(map[int]map[string][]string)},
 			args: args{ctx: ctx,
 				doc: &entity.Document{
@@ -125,20 +127,53 @@ func TestRepo_PostDocument(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "posting with no init cache",
+			fields: fields{repo: rpMck,
+				cacheCats:    make(map[int][]entity.TransCatLimit),
+				cacheSubCats: make(map[int]map[string][]string)},
+			args: args{ctx: ctx,
+				doc: &entity.Document{
+					RecTime:     time.Unix(int64(1405544156), 0),
+					Category:    "deposit",
+					Amount:      int64(10000),
+					Description: "testim deposit",
+					MsgID:       "1610",
+					ChatID:      "1234",
+					UserId:      1}},
+			mockDoc: &entity.Document{
+				RecTime:     time.Unix(int64(1405544156), 0),
+				TransDate:   tm,
+				Category:    "deposit",
+				Amount:      10000,
+				Description: "testim deposit",
+				MsgID:       "1610",
+				ChatID:      "1234",
+				UserId:      1,
+				Direction:   0,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rpMck.EXPECT().PostDocument(tt.args.ctx, tt.mockDoc).Return(nil).Times(1)
-			rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.doc.UserId).Times(1)
-			rpMck.EXPECT().GetDocumentSubCategories(tt.args.ctx, tt.args.doc.UserId, tt.args.doc.Category).Times(1)
+			r := New(tt.fields.repo)
 
-			r := &Repo{repo: rpMck, cacheCats: tt.fields.cacheCats, cacheSubCats: tt.fields.cacheSubCats}
+			switch tt.name {
+			case "demo posting":
+				r.cacheCats = tt.fields.cacheCats
+				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.doc.UserId).Times(1)
+			case "posting with no init cache":
+				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.doc.UserId).Times(2)
+			}
+			rpMck.EXPECT().PostDocument(tt.args.ctx, tt.mockDoc).Return(nil).Times(1)
+			rpMck.EXPECT().GetDocumentSubCategories(tt.args.ctx, tt.args.doc.UserId, tt.args.doc.Category).Times(1)
 
 			tt.args.doc.TransDate = tm
 			if err := r.PostDocument(tt.args.ctx, tt.args.doc); (err != nil) != tt.wantErr {
 				t.Errorf("Repo.PostDocument() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			time.Sleep(2 * time.Second) //wait goroutine
+			time.Sleep(1 * time.Second) //wait goroutine
 		})
 	}
 }
@@ -207,12 +242,14 @@ func TestRepo_GetCategories(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "2 cats with no cache",
+			name:   "4 cats with no cache",
 			fields: fields{repo: rpMck, cacheCats: make(map[int][]entity.TransCatLimit)},
 			args:   args{ctx: ctx, user_id: 1, limit: "balance"},
 			wantCat: []entity.TransCatLimit{
 				{Category: "apple", Direction: -1, UserId: 1, Active: true, Limit: 100, Balance: 20},
+				{Category: "pinapple", Direction: -1, UserId: 1, Active: true, Limit: 150, Balance: 30},
 				{Category: "banana", Direction: 1, UserId: 1, Active: true, Limit: 0, Balance: 250},
+				{Category: "carrot", Direction: 0, UserId: 1, Active: true, Limit: 0, Balance: 80},
 			},
 			wantErr: false,
 		},
@@ -242,7 +279,7 @@ func TestRepo_GetCategories(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.name {
-			case "2 cats with no cache":
+			case "4 cats with no cache":
 				rpMck.EXPECT().GetDocumentCategories(tt.args.ctx, tt.args.user_id).Return(tt.wantCat, nil).Times(1)
 			case "2 cats cached":
 			case "some error":

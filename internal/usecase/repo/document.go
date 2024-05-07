@@ -34,6 +34,10 @@ func (r *Repo) clearCache(user_id int, tranc_cat string) {
 }
 
 func (r *Repo) PostDocument(ctx context.Context, doc *entity.Document) (err error) {
+	if len(r.cacheCats[doc.UserId]) == 0 {
+		r.GetCategories(ctx, doc.UserId)
+	}
+
 	for _, v := range r.cacheCats[doc.UserId] {
 		if v.Category == doc.Category {
 			doc.Direction = v.Direction
