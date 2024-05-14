@@ -103,9 +103,12 @@ func (a *Accountant) GetStatement(p map[string]string) (res string, err error) {
 
 func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err error) {
 	const (
-		INVEST_PERCENT   = 5
-		DIVIDEND_REPCENT = 4
+		INVEST_PERCENT                  = 5
+		INVEST_PERCENT_INCOME   float64 = 1 + float64(INVEST_PERCENT)/100
+		DIVIDEND_REPCENT                = 4
+		DIVIDEND_REPCENT_INCOME float64 = float64(DIVIDEND_REPCENT) / 100
 	)
+	transAmnt := float64(transAmount)
 
 	a.log.Debug("GetUserStats", "user_id", user_id)
 	userStat, err := a.reporter.GetUserStats(context.Background(), user_id)
@@ -125,7 +128,7 @@ func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err e
 
 	str := strings.Builder{}
 	if (userStat.MonthWrkHours != 0 && userStat.AvgIncome != 0) || (userStat.AvgExpenses != 0 && userStat.LowExpenses != 0) {
-		str.WriteString("Во времени:\n")
+		str.WriteString("🕰️ Во времени:\n")
 	}
 	if userStat.MonthWrkHours != 0 && userStat.AvgIncome != 0 {
 		wrkHours := time.Nanosecond * time.Duration(int(float64(userStat.MonthWrkHours)*hourFloat*float64(transAmount)/float64(userStat.AvgIncome)))
@@ -146,7 +149,7 @@ func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err e
 	}
 
 	if userStat.AvgIncome > 0 {
-		str.WriteString("\nНакопить:\n")
+		str.WriteString("\n👛 Накопить:\n")
 	}
 	if userStat.AvgIncome > userStat.AvgExpenses && userStat.AvgExpenses > 0 {
 		saveUp := time.Nanosecond * time.Duration(int(30*24*hourFloat*float64(transAmount)/(float64(userStat.AvgIncome-userStat.AvgExpenses))))
@@ -161,26 +164,64 @@ func (a *Accountant) Money2Time(transAmount int, user_id int) (res string, err e
 			durafmt.Parse(saveUp).LimitFirstN(2).Format(units)))
 	}
 
-	str.WriteString(p.Sprintf(`
-При инвестировании под %d%% (за вычетом инфляции): 
+	if userStat.AvgExpenses != 0 && userStat.LowExpenses != 0 {
+		str.WriteString(p.Sprintf(`
+📈 При инвестировании под %d%% (за вычетом инфляции): 
+ • %d (%s) через 10 лет
+ • %d (%s) через 25 лет
+ • %d (%s) через 50 лет`,
+			INVEST_PERCENT,
+			int(transAmnt*math.Pow(INVEST_PERCENT_INCOME, 10)),
+			durafmt.Parse(time.Nanosecond*
+				time.Duration(int(30*24*hourFloat*transAmnt/float64(userStat.AvgExpenses)*math.Pow(INVEST_PERCENT_INCOME, 10)))).
+				LimitFirstN(2).Format(units),
+			int(transAmnt*math.Pow(INVEST_PERCENT_INCOME, 25)),
+			durafmt.Parse(time.Nanosecond*
+				time.Duration(int(30*24*hourFloat*transAmnt/float64(userStat.AvgExpenses)*math.Pow(INVEST_PERCENT_INCOME, 25)))).
+				LimitFirstN(2).Format(units),
+			int(transAmnt*math.Pow(INVEST_PERCENT_INCOME, 50)),
+			durafmt.Parse(time.Nanosecond*
+				time.Duration(int(30*24*hourFloat*transAmnt/float64(userStat.AvgExpenses)*math.Pow(INVEST_PERCENT_INCOME, 50)))).
+				LimitFirstN(2).Format(units)))
+	} else {
+		str.WriteString(p.Sprintf(`
+📈 При инвестировании под %d%% (за вычетом инфляции): 
  • %d через 10 лет
  • %d через 25 лет
  • %d через 50 лет`,
-		INVEST_PERCENT,
-		int(float64(transAmount)*math.Pow(1+float64(INVEST_PERCENT)/100, 10)),
-		int(float64(transAmount)*math.Pow(1+float64(INVEST_PERCENT)/100, 25)),
-		int(float64(transAmount)*math.Pow(1+float64(INVEST_PERCENT)/100, 50))))
+			INVEST_PERCENT,
+			int(transAmnt*math.Pow(INVEST_PERCENT_INCOME, 10)),
+			int(transAmnt*math.Pow(INVEST_PERCENT_INCOME, 25)),
+			int(transAmnt*math.Pow(INVEST_PERCENT_INCOME, 50))))
+	}
 
-	str.WriteString(p.Sprintf(`
+	if userStat.AvgExpenses != 0 && userStat.LowExpenses != 0 {
+		str.WriteString(p.Sprintf(`
 
-Дивидендная стратегия (%d%% за вычетом инфляции): 
+💸 Дивидендная стратегия (%d%% за вычетом инфляции): 
+ • %d (%s) каждый год
+ • %d (%s) каждый месяц`,
+			DIVIDEND_REPCENT,
+			int(transAmnt*DIVIDEND_REPCENT_INCOME),
+			durafmt.Parse(time.Nanosecond*
+				time.Duration(int(30*24*hourFloat*transAmnt/float64(userStat.AvgExpenses)*DIVIDEND_REPCENT_INCOME))).
+				LimitFirstN(2).Format(units),
+			int(transAmnt*DIVIDEND_REPCENT_INCOME/12),
+			durafmt.Parse(time.Nanosecond*
+				time.Duration(int(30*24*hourFloat*transAmnt/float64(userStat.AvgExpenses)*DIVIDEND_REPCENT_INCOME/12))).
+				LimitFirstN(2).Format(units),
+		))
+	} else {
+		str.WriteString(p.Sprintf(`
+
+💸 Дивидендная стратегия (%d%% за вычетом инфляции): 
  • %d каждый год
  • %d каждый месяц`,
-		DIVIDEND_REPCENT,
-		int(float64(transAmount)*float64(DIVIDEND_REPCENT)/100),
-		int(float64(transAmount)*float64(DIVIDEND_REPCENT)/100/12),
-	))
-
+			DIVIDEND_REPCENT,
+			int(transAmnt*DIVIDEND_REPCENT_INCOME),
+			int(transAmnt*DIVIDEND_REPCENT_INCOME/12),
+		))
+	}
 	res = str.String()
 
 	return
