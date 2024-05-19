@@ -167,7 +167,9 @@ func (b *Bot) requestSubCats(ctx context.Context, page int, q *tgbotapi.Callback
 	}
 
 	resMrkp, err := newKeyboardForm().setOptions(options).
-		addNavigationControl(page, nil, []string{EMOJI_KEYBOARD, fmt.Sprintf("%s:%s", PREFIX_SUBCATEGORY, "writeCustom")}).
+		addNavigationControl(page,
+			[]string{EMOJI_HOOK_BACK, fmt.Sprintf("%s:%s", PREFIX_SUBCATEGORY, "backToCategories")},
+			[]string{EMOJI_KEYBOARD, fmt.Sprintf("%s:%s", PREFIX_SUBCATEGORY, "writeCustom")}).
 		getMarkup()
 	if err != nil {
 		b.log.Error("requestSubCats mrkp.getMarkup", "err", err)

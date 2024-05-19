@@ -63,8 +63,21 @@ func (b *Bot) handleSubCategoryCallbackQuery(ctx context.Context, q *tgbotapi.Ca
 		return
 	}
 
-	if splt[1] == "writeCustom" {
+	switch splt[1] {
+	case "writeCustom":
 		b.requestReply(q, "REC_DESC")
+		return
+	case "backToCategories":
+		finMsg, err := NewFinMsg().parseFinMsg(q.Message.Text)
+		if err != nil {
+			b.log.Error("handleSubCategoryCallbackQuery parseFinMsg", "err", err)
+			return
+		}
+		finMsg.SetCategory("")
+		b.updateMsgText(q.Message.Chat.ID, q.Message.MessageID, finMsg.String())
+
+		b.requestCats(ctx, 0,
+			&userChat{q.Message.Chat.ID, q.Message.MessageID, q.From.UserName, ""})
 		return
 	}
 
