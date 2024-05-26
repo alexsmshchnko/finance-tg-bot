@@ -13,6 +13,8 @@ func (b *Bot) handleReportCallbackQuery(query *tgbotapi.CallbackQuery) {
 	switch split[1] {
 	case "monthReport":
 		statementReport(b, query)
+	case "hist":
+		historyReport(b, query)
 	case "cancelReport":
 		b.deleteMsg(query.Message.Chat.ID, query.Message.MessageID)
 	case "deleteReport":
@@ -38,6 +40,48 @@ func getReportKeyboard() (resMrkp tgbotapi.InlineKeyboardMarkup) {
 		getMarkup()
 
 	return
+}
+func historyReport(b *Bot, q *tgbotapi.CallbackQuery) {
+	fm, err := NewFinMsg().parseFinMsg(q.Message.Text)
+	if err != nil {
+		b.log.Error("historyReport failed on message parse", "err", err)
+		return
+	}
+
+	t2 := time.Now()
+	t := time.Date(t2.Year(), t2.Month(), 1, 0, 0, 0, 0, t2.Location()).AddDate(0, -6, 0)
+
+	p := map[string]string{
+		"User_id":     fmt.Sprint(BotUsers[q.From.UserName].UserId),
+		"Report_type": strings.Split(q.Data, ":")[2],
+		"Date_from":   t.Format("2006-01-02T15:04:05Z"),
+		"Date_to":     t2.Format("2006-01-02T15:04:05Z"),
+		"Add_attr1":   fm.category,
+		"Add_attr2":   fm.description,
+	}
+
+	text, err := b.accountant.GetStatement(p)
+	if err != nil {
+		b.log.Error("historyReport GetStatement", "err", err)
+		return
+	}
+
+	resMrkp, err := newKeyboardForm().
+		setControl([][][]string{
+			{
+				{EMOJI_CROSS, PREFIX_REPORT + ":deleteReport"},
+				{EMOJI_SAVE, PREFIX_REPORT + ":saveReport"},
+			},
+		}).
+		getMarkup()
+	if err != nil {
+		b.log.Error("statementReport getMarkup", "err", err)
+		return
+	}
+	msg := tgbotapi.NewMessage(q.Message.Chat.ID, "```\n"+text+"\n"+"```")
+	msg.ReplyMarkup = &resMrkp
+	msg.ParseMode = "Markdown"
+	b.api.Send(msg)
 }
 
 func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
@@ -71,12 +115,12 @@ func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 	i0 = BotUsers[q.From.UserName].UserId
 
 	p := map[string]string{
-		"user_id":  fmt.Sprint(i0),
-		"datefrom": t.Format("02.01.2006"),
-		"dateto":   t2.Format("02.01.2006")}
+		"User_id":   fmt.Sprint(i0),
+		"Date_from": t.Format("2006-01-02T15:04:05Z"),
+		"Date_to":   t2.Format("2006-01-02T15:04:05Z")}
 
 	if strings.Split(q.Data, ":")[2] == "curDet" {
-		p["subcat"] = ""
+		p["Report_type"] = "subcat"
 	}
 
 	text, err = b.accountant.GetStatement(p)

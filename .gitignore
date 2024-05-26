@@ -2,6 +2,7 @@ env.sh
 *.env
 *.xlsx
 *.txt
+*.zip
 store
 budget-bot
 config/config.local.hcl

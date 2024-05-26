@@ -3,12 +3,23 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+
+	"go.uber.org/zap"
+)
+
+type logger struct {
+	*zap.Logger
+	sync.Once
+}
+
+var (
+	db  Ydb
+	log logger
 )
 
 func Handler(rw http.ResponseWriter, req *http.Request) {
@@ -16,65 +27,74 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 		resVal []byte
 		err    error
 	)
+	ctx := context.Background()
 
-	if db == nil {
-		fmt.Println("connectDB: new connection")
-		db, err = connectDB(context.Background(), os.Getenv("YDB_DSN"), "")
+	log.Once.Do(func() {
+		config := zap.NewProductionConfig()
+		// config.DisableCaller = true
+		config.Level.SetLevel(zap.DebugLevel)
+		log.Logger, err = config.Build()
 		if err != nil {
-			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(fmt.Sprintf("connectDB error, %v", err)))
+			log.Once = sync.Once{}
+			log.Error("config.Build err", zap.Error(err))
 			return
 		}
-	} else {
-		fmt.Println("connectDB: already connected")
-	}
+	})
+
+	log.Info("new request to handle",
+		zap.String("method", req.Method), zap.String("URL", req.URL.Path))
+
+	db.Once.Do(func() {
+		db.Driver, err = connectDB(ctx, os.Getenv("YDB_DSN"), "")
+		if err != nil {
+			db.Once = sync.Once{}
+			rw.WriteHeader(http.StatusInternalServerError)
+			log.Error("connectDB err", zap.Error(err))
+			return
+		}
+		log.Info("db connected", zap.Any("name", db.Driver.Name()))
+	})
 
 	switch strings.Split(req.URL.Path, "/")[1] {
 	case "report":
-		r, err := io.ReadAll(req.Body)
+		p := &ReportParams{}
+		err = json.NewDecoder(req.Body).Decode(p)
 		if err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
-			rw.Write([]byte(fmt.Sprintf("io.ReadAll(req.Body) error, %v", err)))
+			log.Error("json.NewDecoder err", zap.Error(err))
 			return
 		}
-		p := make(map[string]string)
-		if err = json.Unmarshal(r, &p); err != nil {
-			rw.WriteHeader(http.StatusBadRequest)
-			rw.Write([]byte(fmt.Sprintf("json.Unmarshal(r, &p) error, %v", err)))
-			return
-		}
-		res, err := db.GetStatementCatTotals(context.Background(), p)
+		res, err := db.GetStatementCatTotals(ctx, p)
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(fmt.Sprintf("GetStatementCatTotals error, %v", err)))
+			log.Error("GetStatementCatTotals err", zap.Error(err))
 			return
 		}
 		resVal, err = json.Marshal(res)
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(fmt.Sprintf("json.Marshal(res) error, %v", err)))
+			log.Error("json.Marshal err", zap.Error(err))
 			return
 		}
-		rw.Write(resVal)
 	case "userstats":
 		user_id, err := strconv.Atoi(strings.TrimPrefix(req.URL.Path, "/userstats/"))
 		if err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
-			rw.Write([]byte(fmt.Sprintf("strconv.Atoi error, %v", err)))
+			log.Error("strconv.Atoi err", zap.Error(err))
 			return
 		}
-		res, err := db.GetUserStats(context.Background(), user_id)
+		res, err := db.GetUserStats(ctx, user_id)
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(fmt.Sprintf("GetUserStats error, %v", err)))
+			log.Error("GetUserStats err", zap.Error(err))
 			return
 		}
 		resVal, err = json.Marshal(res)
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(fmt.Sprintf("json.Marshal(res) error, %v", err)))
+			log.Error("json.Marshal err", zap.Error(err))
 			return
 		}
-		rw.Write(resVal)
 	}
+	rw.Write(resVal)
 }

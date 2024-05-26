@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -40,7 +41,23 @@ type Reporter interface {
 }
 
 func (r *Repository) GetStatementCatTotals(ctx context.Context, p map[string]string) (rres []entity.ReportResult, err error) {
-	jsonStr, err := json.Marshal(p)
+	user_id, _ := strconv.Atoi(p["User_id"])
+	params := struct {
+		User_id     int
+		Report_type string
+		Date_from   string
+		Date_to     string
+		Add_attr1   string
+		Add_attr2   string
+	}{
+		User_id:     user_id,
+		Report_type: p["Report_type"],
+		Date_from:   p["Date_from"],
+		Date_to:     p["Date_to"],
+		Add_attr1:   p["Add_attr1"],
+		Add_attr2:   p["Add_attr2"],
+	}
+	jsonStr, err := json.Marshal(params)
 	if err != nil {
 		r.Logger.Error("Repository.GetStatementCatTotals json.Marshal(p)", "err", err)
 		return

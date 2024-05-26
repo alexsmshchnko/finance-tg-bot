@@ -5,6 +5,7 @@ go 1.21.0
 require (
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.65.3
 	github.com/ydb-platform/ydb-go-yc v0.12.1
+	go.uber.org/zap v1.27.0
 )
 
 require (
@@ -14,6 +15,7 @@ require (
 	github.com/yandex-cloud/go-genproto v0.0.0-20240415105904-a04abcf10f46 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20240316140903-4a47abca1cca // indirect
 	github.com/ydb-platform/ydb-go-yc-metadata v0.6.1 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.19.0 // indirect

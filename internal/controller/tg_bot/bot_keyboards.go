@@ -139,7 +139,9 @@ func getMsgOptionsKeyboard() (resMrkp tgbotapi.InlineKeyboardMarkup) {
 func getMsgExpOptionsKeyboard() (resMrkp tgbotapi.InlineKeyboardMarkup) {
 	resMrkp, _ = newKeyboardForm().
 		setOptions([][]string{
-			{"Деньги -> время", PREFIX_OPTION + ":money2Time"},
+			{"Деньги -> время", fmt.Sprintf("%s:%s", PREFIX_OPTION, "money2Time")},
+			{"Предыдущие по описанию", fmt.Sprintf("%s:%s:%s", PREFIX_REPORT, "hist", "historySubcat")},
+			{"Предыдущие по категории", fmt.Sprintf("%s:%s:%s", PREFIX_REPORT, "hist", "historyCat")},
 		}).
 		setControl([][][]string{
 			{
