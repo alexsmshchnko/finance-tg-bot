@@ -64,6 +64,9 @@ func Handler(rw http.ResponseWriter, req *http.Request) {
 			log.Error("json.NewDecoder err", zap.Error(err))
 			return
 		}
+
+		log.Info("body decoded", zap.Any("report params", p))
+
 		res, err := db.GetStatementCatTotals(ctx, p)
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)

@@ -91,7 +91,7 @@ func statementReport(b *Bot, q *tgbotapi.CallbackQuery) {
 		header, text string
 		err          error
 	)
-	t = time.Now()
+	t = time.Now().Truncate(time.Hour * 24)
 
 	switch strings.Split(q.Data, ":")[2] {
 	case "day":
